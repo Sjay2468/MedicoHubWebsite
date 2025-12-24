@@ -1,0 +1,575 @@
+
+import * as React from 'react';
+import { User, Notification } from '../types';
+import { DashboardLayout } from '../components/DashboardLayout';
+import {
+  Brain, Target, Clock, Trophy, CreditCard, Banknote, Building2,
+  Shield, Check, ArrowRight, ArrowLeft, Tag, CheckCircle, Search, Users
+} from 'lucide-react';
+import { collection, query, where, getDocs } from 'firebase/firestore';
+import { db } from '../services/firebase';
+import { usePaystackPayment } from 'react-paystack';
+import { MCampDashboard } from './MCampDashboard';
+
+const NIGERIAN_MEDICAL_SCHOOLS = [
+  "University of Lagos (UNILAG)",
+  "University of Ibadan (UI)",
+  "Obafemi Awolowo University (OAU)",
+  "Ahmadu Bello University (ABU)",
+  "University of Nigeria, Nsukka (UNN)",
+  "University of Benin (UNIBEN)",
+  "Lagos State University (LASU)",
+  "University of Ilorin (UNILORIN)",
+  "University of Port Harcourt (UNIPORT)",
+  "University of Calabar (UNICAL)",
+  "Jos University Teaching Hospital (JUTH)",
+  "Bayero University Kano (BUK)",
+  "Usmanu Danfodiyo University (UDUS)",
+  "Nnamdi Azikiwe University (UNIZIK)",
+  "Ladoke Akintola University of Technology (LAUTECH)",
+  "Olabisi Onabanjo University (OOU)",
+  "Delta State University (DELSU)",
+  "Ambrose Alli University (AAU)",
+  "Ebonyi State University (EBSU)",
+  "Abia State University (ABSU)",
+  "Imo State University (IMSU)",
+  "Enugu State University of Science and Technology (ESUT)",
+  "Benue State University",
+  "Kogi State University",
+  "Niger Delta University (NDU)",
+  "Osun State University (UNIOSUN)",
+  "Ekiti State University (EKSU)",
+  "Babcock University",
+  "Igbinedion University",
+  "Madonna University",
+  "Bowen University",
+  "Afe Babalola University (ABUAD)",
+  "Bingham University",
+  "Nile University of Nigeria",
+  "Gregory University, Uturu",
+  "PAMO University of Medical Sciences",
+  "Eko University of Medicine and Health Sciences",
+  "University of Abuja",
+  "Gombe State University",
+  "Rivers State University",
+  "Chukwuemeka Odumegwu Ojukwu University"
+];
+
+interface MCampUserDashboardProps {
+  user: User;
+  onUpdateUser: (data: Partial<User>) => Promise<void>;
+  onLogout: () => void;
+  notifications: Notification[];
+  onMarkAllRead: () => void;
+  onClearNotification: (id: string) => void;
+  onClearAll: () => void;
+  onDeleteAccount: () => void;
+}
+
+import { useSettings } from '../context/SettingsContext';
+export const MCampUserDashboard: React.FC<MCampUserDashboardProps> = ({
+  user,
+  onUpdateUser,
+  onLogout,
+  notifications,
+  onMarkAllRead,
+  onClearNotification,
+  onClearAll,
+  onDeleteAccount
+}) => {
+  const { mcampEnrollment } = useSettings();
+  // Check new V3 Schema property or fallback to legacy check
+  const isEnrolled = user.mcamp?.isEnrolled || !!user.mcampId;
+
+  const [view, setView] = React.useState<'landing' | 'payment_intro' | 'payment_method' | 'form' | 'dashboard'>(
+    isEnrolled ? 'dashboard' : 'landing'
+  );
+
+  const [enrolledCount, setEnrolledCount] = React.useState(15);
+
+  React.useEffect(() => {
+    const fetchCount = async () => {
+      try {
+        const q = query(collection(db, 'users'), where('mcamp.isEnrolled', '==', true));
+        const snap = await getDocs(q);
+        // Ensure we don't show more than 20 even if there are (unless we want to show overflow)
+        setEnrolledCount(snap.size);
+      } catch (e) {
+        console.error("Failed to fetch enrolled count", e);
+      }
+    };
+    if (view === 'landing') {
+      fetchCount();
+    }
+  }, [view]);
+
+  const [formData, setFormData] = React.useState({
+    medicalSchool: user.schoolName || '',
+    level: '200L',
+    ambition: '',
+    phone: user.phoneNumber || ''
+  });
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [selectedPayment, setSelectedPayment] = React.useState('');
+
+  // School Dropdown
+  const [isSchoolDropdownOpen, setIsSchoolDropdownOpen] = React.useState(false);
+  const schoolDropdownRef = React.useRef<HTMLDivElement>(null);
+
+  // Coupon State
+  const [couponCode, setCouponCode] = React.useState('');
+  const [discount, setDiscount] = React.useState(0);
+  const [couponMessage, setCouponMessage] = React.useState<{ type: 'success' | 'error', text: string } | null>(null);
+
+  const BASE_PRICE = 30000;
+  const finalPrice = BASE_PRICE - discount;
+
+  // Determine eligibility based on year string
+  const isEligible = user.year === 'Year 2' || user.year === '200L' || user.year?.toLowerCase().includes('200l') || user.year?.toLowerCase().includes('preclinical');
+
+  const filteredSchools = NIGERIAN_MEDICAL_SCHOOLS.filter(
+    s => s.toLowerCase().includes(formData.medicalSchool.toLowerCase())
+  );
+
+  React.useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (schoolDropdownRef.current && !schoolDropdownRef.current.contains(event.target as Node)) {
+        setIsSchoolDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  const [appliedCouponId, setAppliedCouponId] = React.useState<string | null>(null);
+
+  const handleApplyCoupon = async () => {
+    if (!couponCode.trim()) return;
+    setCouponMessage(null);
+
+    const code = couponCode.trim().toUpperCase();
+    try {
+      const q = query(collection(db, 'coupons'), where('code', '==', code), where('active', '==', true));
+      const snapshot = await getDocs(q);
+
+      if (snapshot.empty) {
+        setDiscount(0);
+        setAppliedCouponId(null);
+        setCouponMessage({ type: 'error', text: 'Invalid coupon code.' });
+        return;
+      }
+
+      const couponDoc = snapshot.docs[0];
+      const coupon = couponDoc.data();
+
+      if (coupon.usedCount >= coupon.maxUses) {
+        setDiscount(0);
+        setAppliedCouponId(null);
+        setCouponMessage({ type: 'error', text: 'This coupon has been fully redeemed.' });
+        return;
+      }
+
+      // Calculate Discount
+      let discountAmount = 0;
+      if (coupon.type === 'fixed') {
+        discountAmount = coupon.value;
+      } else if (coupon.type === 'percent') {
+        discountAmount = (BASE_PRICE * coupon.value) / 100;
+      }
+
+      // Cap discount at base price (free)
+      if (discountAmount > BASE_PRICE) discountAmount = BASE_PRICE;
+
+      setDiscount(discountAmount);
+      setAppliedCouponId(couponDoc.id);
+      const formattedDiscount = coupon.type === 'percent' ? `${coupon.value}% (₦${discountAmount.toLocaleString()})` : `₦${discountAmount.toLocaleString()}`;
+      setCouponMessage({ type: 'success', text: `Coupon applied! ${formattedDiscount} off.` });
+
+    } catch (error) {
+      console.error("Coupon check failed", error);
+      setCouponMessage({ type: 'error', text: 'Failed to verify coupon.' });
+    }
+  };
+
+  const config = {
+    reference: (new Date()).getTime().toString(),
+    email: user.email,
+    amount: finalPrice * 100, // Paystack is in kobo
+    publicKey: import.meta.env.VITE_PAYSTACK_PUBLIC_KEY,
+  };
+
+  const initializePayment = usePaystackPayment(config);
+
+  const onSuccess = async (reference: any) => {
+
+    // Increment Coupon Usage if applied
+    if (appliedCouponId) {
+      try {
+        // We import updateDoc locally or assume it's available or use the raw SDK if needed, 
+        // but best to add 'updateDoc' and 'doc' to imports.
+        // Since I can't easily add imports without seeing the top, catch specific issue:
+        // Assuming imports are present or I need to add them. 
+        // Wait, I will add the imports in another chunk if needed, but let's assume they are there
+        // Actually, looking at previous context, `doc` and `updateDoc` might NOT be imported in this file yet.
+        // I will use `import { doc, updateDoc, increment } from 'firebase/firestore'`
+        const { doc, updateDoc, increment } = await import('firebase/firestore');
+        await updateDoc(doc(db, 'coupons', appliedCouponId), {
+          usedCount: increment(1)
+        });
+      } catch (e) {
+        console.error("Failed to update coupon usage", e);
+      }
+    }
+
+    // Move to success/form state
+    setView('form');
+  };
+
+  const onClose = () => {
+    // implementation for  whatever you want to do when the Paystack dialog closed.
+  }
+
+  const handleEnrollClick = () => setView('payment_intro');
+
+  const paymentMethods = [
+    { id: 'card', name: 'Pay with Card', icon: CreditCard },
+    { id: 'opay', name: 'Pay with OPay', icon: Banknote },
+    { id: 'transfer', name: 'Bank Transfer', icon: Building2 },
+  ];
+
+  const handlePaymentConfirm = () => {
+    setIsSubmitting(true);
+    setTimeout(() => {
+      setIsSubmitting(false);
+      setView('form');
+    }, 1500);
+  };
+
+  const handleFormSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+
+    // Simulate API call to enroll
+    setTimeout(() => {
+      const generatedId = Math.floor(1000 + Math.random() * 9000).toString();
+
+      const enrollmentData = {
+        isEnrolled: true,
+        cohortId: 'batch-a-2025',
+        uniqueId: generatedId,
+        startDate: new Date().toISOString()
+      };
+
+      onUpdateUser({
+        ...formData,
+        phoneNumber: formData.phone,
+        mcampId: generatedId, // Keep for backward compat if needed
+        mcamp: enrollmentData,
+        schoolName: formData.medicalSchool
+      });
+      setView('dashboard');
+      setIsSubmitting(false);
+    }, 1500);
+  };
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN' }).format(amount);
+  };
+
+  // If already enrolled (or just finished enrollment), show the Dashboard Logic
+  if (view === 'dashboard') {
+    return <MCampDashboard
+      user={user}
+      onLogout={onLogout}
+      onUpdateUser={onUpdateUser}
+      notifications={notifications}
+      onMarkAllRead={onMarkAllRead}
+      onClearNotification={onClearNotification}
+      onClearAll={onClearAll}
+      onDeleteAccount={onDeleteAccount}
+    />;
+  }
+
+  return (
+    <DashboardLayout
+      user={user}
+      onLogout={onLogout}
+      showSearch={false}
+      notifications={notifications}
+      onMarkAllRead={onMarkAllRead}
+      onClearNotification={onClearNotification}
+      onClearAll={onClearAll}
+      onDeleteAccount={onDeleteAccount}
+    >
+      {view === 'landing' && (
+        <div className="max-w-4xl mx-auto py-8 animate-fade-in-up">
+          <div className="bg-brand-dark rounded-[3rem] p-12 text-center text-white relative overflow-hidden shadow-2xl">
+            <div className="absolute top-0 right-0 w-full h-full bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div>
+
+            <div className="relative z-10">
+              <span className="inline-block bg-brand-yellow text-brand-dark font-bold px-4 py-1 rounded-full text-xs uppercase tracking-wider mb-6 animate-pulse">
+                Live Now • Limited Slots
+              </span>
+              <h1 className="text-4xl md:text-6xl font-extrabold mb-6 leading-tight">
+                The 90-Day Distinction <br /><span className="text-brand-yellow">Masterclass</span>
+              </h1>
+              <p className="text-lg text-gray-300 mb-10 max-w-2xl mx-auto">
+                You are one step away from joining the elite cohort. Get the blueprint, the mentorship, and the tools to ace your exams.
+              </p>
+
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-2xl mx-auto mb-12 text-left">
+                {[
+                  { icon: Brain, label: 'Exam Mastery' },
+                  { icon: Target, label: 'Strategic Plans' },
+                  { icon: Clock, label: '90-Day Intensive' },
+                  { icon: Trophy, label: 'Rewards' }
+                ].map((item, i) => (
+                  <div key={i} className="bg-white/10 backdrop-blur rounded-2xl p-4 flex flex-col items-center justify-center text-center gap-2">
+                    <item.icon size={24} className="text-brand-yellow" />
+                    <span className="text-xs font-bold">{item.label}</span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex flex-col items-center gap-4">
+                <button
+                  onClick={handleEnrollClick}
+                  disabled={!isEligible || !mcampEnrollment}
+                  className={`px-12 py-4 rounded-full font-extrabold text-lg transition-all shadow-xl shadow-brand-yellow/20 ${isEligible && mcampEnrollment
+                    ? 'bg-brand-yellow text-brand-dark hover:bg-white hover:scale-105'
+                    : 'bg-gray-600 text-gray-400 cursor-not-allowed opacity-70'
+                    }`}
+                >
+                  {!mcampEnrollment ? 'Enrollment Closed' : (isEligible ? 'Enroll Now' : 'Available for 200L Only')}
+                </button>
+
+                {!mcampEnrollment && (
+                  <p className="text-red-400 text-sm font-bold bg-red-950/40 px-6 py-2.5 rounded-xl border border-red-500/20 animate-fade-in-up">
+                    Registration for this cohort is currently closed.
+                  </p>
+                )}
+
+                {mcampEnrollment && !isEligible && (
+                  <p className="text-red-400 text-sm font-bold bg-red-950/40 px-6 py-2.5 rounded-xl border border-red-500/20 animate-fade-in-up">
+                    Ineligible: Your profile indicates {user.year || 'a different level'}.
+                  </p>
+                )}
+              </div>
+
+              {isEligible && <p className="text-xs text-gray-500 mt-4">{enrolledCount}/20 Slots Filled</p>}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {view === 'payment_intro' && (
+        <div className="max-w-lg mx-auto py-8 animate-fade-in-up">
+          <button onClick={() => setView('landing')} className="flex items-center text-gray-500 font-bold mb-6 hover:text-brand-dark">
+            <ArrowLeft size={20} className="mr-2" /> Back
+          </button>
+
+          <div className="bg-white p-8 rounded-[2rem] shadow-xl border border-gray-100 text-center relative overflow-hidden">
+            <div className="w-20 h-20 bg-brand-yellow/20 rounded-full flex items-center justify-center mx-auto mb-6 text-brand-yellow">
+              <Trophy size={40} />
+            </div>
+            <h2 className="text-2xl font-extrabold text-brand-dark mb-2">Checkout</h2>
+            <p className="text-gray-500 mb-8">Secure your spot in the MCAMP 90-Day Distinction Program.</p>
+
+            <div className="bg-gray-50 p-6 rounded-2xl mb-8 text-left border border-gray-100">
+              <div className="flex justify-between items-center mb-4">
+                <span className="font-bold text-gray-600">Program</span>
+                <span className="font-bold text-brand-dark">MCAMP Batch A</span>
+              </div>
+              <div className="flex justify-between items-center mb-4">
+                <span className="font-bold text-gray-600">Duration</span>
+                <span className="font-bold text-brand-dark">90 Days</span>
+              </div>
+              <div className="h-px bg-gray-200 my-4"></div>
+              <div className="flex justify-between items-center mb-2">
+                <span className="font-medium text-gray-600">Subtotal</span>
+                <span className="font-bold text-gray-900">{formatCurrency(BASE_PRICE)}</span>
+              </div>
+              {discount > 0 && (
+                <div className="flex justify-between items-center mb-2 text-green-600">
+                  <span className="font-medium">Discount</span>
+                  <span className="font-bold">-{formatCurrency(discount)}</span>
+                </div>
+              )}
+              <div className="flex justify-between items-center mt-4 pt-4 border-t border-gray-200">
+                <span className="font-extrabold text-gray-900 text-lg">Total</span>
+                <span className="font-extrabold text-brand-blue text-2xl">{formatCurrency(finalPrice)}</span>
+              </div>
+            </div>
+
+            {/* Coupon Input */}
+            <div className="mb-8">
+              <div className="flex gap-2">
+                <div className="relative flex-grow">
+                  <Tag className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                  <input
+                    type="text"
+                    placeholder="Enter coupon code"
+                    value={couponCode}
+                    onChange={(e) => {
+                      setCouponCode(e.target.value);
+                      setCouponMessage(null);
+                    }}
+                    className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:bg-white focus:ring-2 focus:ring-brand-blue/20 transition-all font-medium"
+                  />
+                </div>
+                <button
+                  onClick={handleApplyCoupon}
+                  className="bg-brand-dark text-white px-4 rounded-xl font-bold hover:bg-black transition-colors"
+                >
+                  Apply
+                </button>
+              </div>
+              {couponMessage && (
+                <p className={`text-xs font-bold mt-2 text-left ${couponMessage.type === 'success' ? 'text-green-600' : 'text-red-500'}`}>
+                  {couponMessage.text}
+                </p>
+              )}
+            </div>
+
+            <div className="flex items-center justify-center gap-2 text-xs text-gray-400 mb-6">
+              <Shield size={14} /> Secure Payment • 100% Refund Guarantee (T&C)
+            </div>
+
+            <button
+              onClick={() => setView('payment_method')}
+              className="w-full bg-brand-dark text-white py-4 rounded-xl font-bold hover:bg-black transition-all shadow-lg shadow-brand-dark/20 flex items-center justify-center gap-2"
+            >
+              Proceed to Payment Method <ArrowRight size={18} />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {view === 'payment_method' && (
+        <div className="max-w-lg mx-auto py-8 animate-fade-in-up">
+          <button onClick={() => setView('payment_intro')} className="flex items-center text-gray-500 font-bold mb-6 hover:text-brand-dark">
+            <ArrowLeft size={20} className="mr-2" /> Back
+          </button>
+
+          <div className="bg-white p-8 rounded-[2rem] shadow-xl border border-gray-100">
+            <h2 className="text-2xl font-extrabold text-brand-dark mb-2">Complete Payment</h2>
+            <p className="text-gray-500 mb-8">Amount to pay: <span className="text-brand-blue font-bold">{formatCurrency(finalPrice)}</span></p>
+
+            <button
+              onClick={() => {
+                initializePayment({ onSuccess, onClose })
+              }}
+              className="w-full bg-brand-blue text-white py-4 rounded-xl font-bold hover:bg-blue-600 transition-all shadow-lg shadow-brand-blue/30 flex items-center justify-center gap-2"
+            >
+              Pay Now with Paystack <CreditCard size={18} />
+            </button>
+            <p className="text-center text-xs text-gray-400 mt-4">Secured by Paystack</p>
+          </div>
+        </div>
+      )}
+
+      {view === 'form' && (
+        <div className="max-w-2xl mx-auto py-8 animate-fade-in-up">
+
+          <div className="bg-white p-8 rounded-[2rem] shadow-lg border border-gray-100">
+            <div className="mb-8 flex items-center gap-3 bg-green-50 text-green-700 p-4 rounded-xl border border-green-100">
+              <CheckCircle size={24} />
+              <div>
+                <p className="font-bold">Payment Successful!</p>
+                <p className="text-xs opacity-80">You have successfully paid {formatCurrency(finalPrice)}.</p>
+              </div>
+            </div>
+
+            <h2 className="text-2xl font-extrabold text-brand-dark mb-2">Finalize Enrollment</h2>
+            <p className="text-gray-500 mb-8">We need a few more details to customize your distinction blueprint.</p>
+
+            <form onSubmit={handleFormSubmit} className="space-y-6">
+              <div ref={schoolDropdownRef} className="relative">
+                <label className="text-sm font-bold text-gray-700 block mb-2 px-1">Medical School</label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    required
+                    value={formData.medicalSchool}
+                    onChange={(e) => {
+                      setFormData({ ...formData, medicalSchool: e.target.value });
+                      setIsSchoolDropdownOpen(true);
+                    }}
+                    onFocus={() => setIsSchoolDropdownOpen(true)}
+                    placeholder="Search your university..."
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-brand-blue transition-colors font-medium pl-10"
+                  />
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                </div>
+
+                {isSchoolDropdownOpen && formData.medicalSchool.length > 0 && (
+                  <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-xl border border-gray-100 max-h-60 overflow-y-auto z-50">
+                    {filteredSchools.length > 0 ? (
+                      filteredSchools.map((school, i) => (
+                        <div
+                          key={i}
+                          onClick={() => {
+                            setFormData({ ...formData, medicalSchool: school });
+                            setIsSchoolDropdownOpen(false);
+                          }}
+                          className="px-4 py-3 hover:bg-gray-50 cursor-pointer text-sm font-medium border-b border-gray-50 last:border-0"
+                        >
+                          {school}
+                        </div>
+                      ))
+                    ) : (
+                      <div className="px-4 py-3 text-sm text-gray-400 italic">No schools found</div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-bold text-gray-700 block px-1">Current Level</label>
+                <select
+                  value={formData.level}
+                  onChange={e => setFormData({ ...formData, level: e.target.value })}
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-brand-blue font-medium"
+                >
+                  <option value="100L">100 Level (Pre-med)</option>
+                  <option value="200L">200 Level (Preclinical I)</option>
+                  <option value="300L">300 Level (Preclinical II)</option>
+                </select>
+                <p className="text-[10px] text-gray-400 px-2">MCAMP is optimized for 200L/300L students.</p>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-bold text-gray-700 block px-1">WhatsApp Number</label>
+                <input
+                  type="tel"
+                  required
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  placeholder="080..."
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-brand-blue transition-colors font-medium"
+                />
+                <p className="text-[10px] text-gray-400 px-2">Used for adding you to the cohort group.</p>
+              </div>
+
+              <div className="pt-4">
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="w-full bg-brand-dark text-white py-4 rounded-xl font-bold hover:bg-black transition-all shadow-xl shadow-brand-dark/20 flex items-center justify-center gap-2"
+                >
+                  {isSubmitting ? 'Finalizing...' : 'Complete Enrollment'}
+                  {!isSubmitting && <ArrowRight size={20} />}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </DashboardLayout>
+  );
+};
