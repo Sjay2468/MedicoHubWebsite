@@ -56,12 +56,11 @@ export class ResourceService {
         // DB Optimization: Do NOT extract text here.
         // We save the resource metadata only. Text is extracted on read (Lazy Loading).
 
-        // Create in MongoDB
         const newResource = await Resource.create(data);
 
         return {
-            ...newResource.toObject(),
-            id: newResource._id.toString()
+            ...(newResource as any).toObject(),
+            id: (newResource as any)._id.toString()
         };
     }
 

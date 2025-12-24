@@ -31,6 +31,7 @@ export interface ResourceDocument {
     description: string;
     type: 'Video' | 'PDF' | 'Article' | 'Quiz';
     subject: string;
+    year?: string; // Add optional year
     tags: string[]; // ["Year 2", "MCAMP_Wk1"]
 
     isPro: boolean;

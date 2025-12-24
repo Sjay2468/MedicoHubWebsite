@@ -17,6 +17,7 @@ export interface IResource extends Document {
     extractedText?: string;
 
     uploadedBy: string;
+    year?: string;
     createdAt: Date;
     updatedAt: Date;
 }
@@ -26,6 +27,7 @@ const ResourceSchema: Schema = new Schema({
     description: { type: String },
     type: { type: String, required: true, enum: ['Video', 'PDF', 'Article', 'Quiz'] },
     subject: { type: String, required: true },
+    year: { type: String },
     tags: [String],
 
     isPro: { type: Boolean, default: false },

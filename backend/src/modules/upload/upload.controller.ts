@@ -9,21 +9,22 @@ export class UploadController {
     static async uploadFile(req: Request, res: Response) {
         let filesToCleanup: string[] = [];
         try {
-            if (!req.file) {
+            const file = (req as any).file;
+            if (!file) {
                 return res.status(400).json({ error: 'No file uploaded' });
             }
 
-            filesToCleanup.push(req.file.path);
-            let finalFilePath = req.file.path;
-            const originalSize = req.file.size;
+            filesToCleanup.push(file.path);
+            let finalFilePath = file.path;
+            const originalSize = file.size;
             const LIMIT_MB = parseInt(process.env.MAX_UPLOAD_SIZE_MB || '25');
             const LIMIT_BYTES = LIMIT_MB * 1024 * 1024;
 
             // COMPRESSION LOGIC
             // 1. Images: Always optimize
-            if (req.file.mimetype.startsWith('image/')) {
-                const optimizedPath = path.join(path.dirname(req.file.path), 'opt-' + req.file.filename + '.jpg');
-                await sharp(req.file.path)
+            if (file.mimetype.startsWith('image/')) {
+                const optimizedPath = path.join(path.dirname(file.path), 'opt-' + file.filename + '.jpg');
+                await sharp(file.path)
                     .resize(1920, 1920, { fit: 'inside', withoutEnlargement: true }) // HD max
                     .jpeg({ quality: 80, mozjpeg: true })
                     .toFile(optimizedPath);
@@ -32,18 +33,18 @@ export class UploadController {
                 filesToCleanup.push(optimizedPath);
             }
             // 2. PDFs: Check limit
-            else if (req.file.mimetype === 'application/pdf' && req.file.size > LIMIT_BYTES) {
-                throw new Error(`PDF is too large (${(req.file.size / 1024 / 1024).toFixed(2)}MB). Maximum allowed is ${LIMIT_MB}MB.`);
+            else if (file.mimetype === 'application/pdf' && file.size > LIMIT_BYTES) {
+                throw new Error(`PDF is too large (${(file.size / 1024 / 1024).toFixed(2)}MB). Maximum allowed is ${LIMIT_MB}MB.`);
             }
             // 3. Videos: Check limit
-            else if (req.file.mimetype.startsWith('video/') && req.file.size > LIMIT_BYTES) {
-                throw new Error(`Video is too large (${(req.file.size / 1024 / 1024).toFixed(2)}MB). ImageKit limit is 25MB. Please compress it locally to under 25MB.`);
+            else if (file.mimetype.startsWith('video/') && file.size > LIMIT_BYTES) {
+                throw new Error(`Video is too large (${(file.size / 1024 / 1024).toFixed(2)}MB). ImageKit limit is 25MB. Please compress it locally to under 25MB.`);
             }
 
             // Upload using ImageKit
             const result = await imagekit.upload({
                 file: fs.createReadStream(finalFilePath),
-                fileName: req.file.originalname, // Keep original name
+                fileName: file.originalname, // Keep original name
                 folder: 'medico_resources'
             });
 
@@ -56,7 +57,7 @@ export class UploadController {
                 url: result.url,
                 thumbnailUrl: result.thumbnailUrl || result.url,
                 filename: result.name,
-                mimetype: req.file.mimetype,
+                mimetype: file.mimetype,
                 size: result.size
             });
 

@@ -22,7 +22,7 @@ const storage = multer.diskStorage({
 });
 
 // File filter (optional, but good practice)
-const fileFilter = (req: any, file: any, cb: any) => {
+const fileFilter = (req: Express.Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
     // Accept images and pdfs
     if (file.mimetype.startsWith('image/') || file.mimetype === 'application/pdf') {
         cb(null, true);
@@ -33,7 +33,7 @@ const fileFilter = (req: any, file: any, cb: any) => {
         if (file.mimetype.startsWith('video/')) {
             cb(null, true);
         } else {
-            cb(new Error('Unsupported file type'), false);
+            cb(new Error('Unsupported file type'));
         }
     }
 };
