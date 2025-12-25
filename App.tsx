@@ -78,6 +78,7 @@ const MainLayout: React.FC<{ user: User | null; children: React.ReactNode }> = (
 
 const AppContent: React.FC = () => {
   const { user: firebaseUser, loading, logout, deleteAccount } = useAuth();
+  const { maintenanceMode } = useSettings();
   const [user, setUser] = React.useState<User | null>(null);
   const [notifications, setNotifications] = React.useState<Notification[]>([]);
   const [appLoading, setAppLoading] = React.useState(true);
@@ -418,7 +419,7 @@ const AppContent: React.FC = () => {
     );
   }
 
-  const { maintenanceMode } = useSettings();
+
 
   if (maintenanceMode) {
     return (
