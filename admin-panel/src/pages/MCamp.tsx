@@ -1,9 +1,6 @@
 import { useState, useEffect } from 'react';
 import { api } from '../services/api';
-import { db } from '../firebase';
-import { doc, getDoc, setDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { Plus, Save, Calendar, CheckSquare, Users, Trophy, BookOpen, Lock, Unlock, Search, X, CheckCircle, ChevronDown, ChevronRight, Trash2, Edit, ArrowLeft, Clock, Upload, Loader, Star, Megaphone, Tag, Copy } from 'lucide-react';
-import { addDoc, collection, serverTimestamp, getDocs } from 'firebase/firestore';
 import { createPortal } from 'react-dom';
 
 const TabButton = ({ active, onClick, icon: Icon, label }: any) => (
@@ -910,9 +907,6 @@ const QuizManager = () => {
         const { quizId, isPurge } = deleteConfirm;
 
         try {
-            // Get current user token for backend calls
-            const { auth } = await import('../firebase');
-            const token = await auth.currentUser?.getIdToken();
 
             if (isPurge) {
                 const toDelete = quizzes.filter(q => !q.questions || q.questions.length === 0);
