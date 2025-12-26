@@ -283,9 +283,9 @@ export const StorePage = () => {
             });
             setImageFile(null);
             setEditingId(null);
-        } catch (error) {
+        } catch (error: any) {
             console.error("Failed to save product", error);
-            alert("Failed to save product.");
+            alert(`Failed to save product: ${error.message || 'Unknown error'}`);
         } finally {
             setIsLoading(false);
         }

@@ -11,7 +11,7 @@ import { SettingsPage } from './pages/Settings';
 import { AuthProvider, useAuth } from './context/AuthContext';
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { user, loading } = useAuth();
+  const { user, loading, isAdmin } = useAuth();
 
   if (loading) {
     return (
@@ -21,7 +21,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
     );
   }
 
-  if (!user) {
+  if (!user || !isAdmin) {
     return <Navigate to="/login" replace />;
   }
 

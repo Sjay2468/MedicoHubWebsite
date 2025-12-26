@@ -1,9 +1,27 @@
 import { auth, db } from '../firebase';
 import { collection, getDocs, addDoc, doc, deleteDoc, updateDoc, query, orderBy, limit, getDoc, setDoc } from 'firebase/firestore';
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || 'https://medico-hub-backend-0ufb.onrender.com/api/v1';
-const V3_URL = BASE_URL.replace('/v1', '/v3');
-console.log("[Admin API] Using Backend:", BASE_URL);
+// Robust URL Handling: Ensure we have the correct base for v1 and v3
+const getRootUrl = () => {
+    let url = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || 'https://medico-hub-backend-0ufb.onrender.com';
+    // Remove trailing slash if any
+    url = url.replace(/\/$/, "");
+    // Remove /api/v1 or /api/v3 if already present to avoid doubling
+    url = url.replace(/\/api\/v1$/, "").replace(/\/api\/v3$/, "");
+    return url;
+};
+
+const ROOT_URL = getRootUrl();
+const BASE_URL = `${ROOT_URL}/api/v1`;
+const V3_URL = `${ROOT_URL}/api/v3`;
+
+console.log("[Admin API] Root URL:", ROOT_URL);
+console.log("[Admin API] V1 URL:", BASE_URL);
+console.log("[Admin API] V3 URL:", V3_URL);
+
+if (window.location.protocol === 'https:' && ROOT_URL.startsWith('http:')) {
+    console.warn("[Admin API] Mixed Content Warning: Your site is running on HTTPS but your API URL is HTTP. This will cause 'Failed to fetch' errors in most browsers.");
+}
 
 const getAuthHeaders = async () => {
     const token = await auth.currentUser?.getIdToken();
@@ -64,7 +82,7 @@ export const api = {
     users: {
         getAll: async () => {
             try {
-                const response = await fetch(`${BASE_URL}/users?limit=100`, {
+                const response = await fetch(`${BASE_URL}/users?limit=200`, {
                     headers: await getAuthHeaders()
                 });
 
@@ -81,6 +99,23 @@ export const api = {
                 const q = query(ref, orderBy('createdAt', 'desc'), limit(100));
                 const snap = await getDocs(q);
                 return snap.docs.map(d => ({ id: d.id, uid: d.id, ...d.data() }));
+            }
+        },
+        getUpgradeRequests: async () => {
+            try {
+                const response = await fetch(`${BASE_URL}/users?filter=requests&limit=50`, {
+                    headers: await getAuthHeaders()
+                });
+                if (!response.ok) throw new Error("Backend failed");
+                const data = await response.json();
+                return Array.isArray(data) ? data : (data.users || []);
+            } catch (err) {
+                // Fallback: manually filter from a bigger set or just fetch direct
+                const ref = collection(db, 'users');
+                const q = query(ref, orderBy('createdAt', 'desc'), limit(200));
+                const snap = await getDocs(q);
+                return snap.docs.map(d => ({ id: d.id, uid: d.id, ...d.data() }))
+                    .filter((u: any) => !!u.requestedYear);
             }
         },
         getRecent: async (count = 5) => {

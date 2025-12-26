@@ -96,13 +96,17 @@ export const ResourcesPage = () => {
         }
     };
 
+    const [error, setError] = useState<string | null>(null);
+
     const fetchResources = async () => {
         try {
+            setError(null);
             const data = await api.resources.getAll();
             const list = Array.isArray(data) ? data : ((data as any).data || []);
             setResources(list);
-        } catch (error) {
+        } catch (error: any) {
             console.error("Failed to fetch resources", error);
+            setError(`Failed to load resources: ${error.message || 'Unknown error'}`);
         }
     };
 
@@ -398,6 +402,23 @@ export const ResourcesPage = () => {
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-50">
+                        {error && (
+                            <tr>
+                                <td colSpan={5} className="px-8 py-10 text-center">
+                                    <div className="bg-red-50 text-red-700 p-4 rounded-xl border border-red-100 flex items-center justify-center gap-2">
+                                        <AlertCircle size={20} />
+                                        <span className="font-bold">{error}</span>
+                                    </div>
+                                </td>
+                            </tr>
+                        )}
+                        {!error && filteredResources.length === 0 && (
+                            <tr>
+                                <td colSpan={5} className="px-8 py-10 text-center text-gray-400">
+                                    No resources found. Try a different search.
+                                </td>
+                            </tr>
+                        )}
                         {filteredResources.map((res) => (
                             <tr key={res._id || res.id} className="hover:bg-blue-50/50 transition-colors group">
                                 <td className="px-8 py-5">

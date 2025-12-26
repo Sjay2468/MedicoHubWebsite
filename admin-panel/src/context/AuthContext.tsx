@@ -40,7 +40,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }, []);
 
     const login = async (email: string, pass: string) => {
-        await signInWithEmailAndPassword(auth, email, pass);
+        const credential = await signInWithEmailAndPassword(auth, email, pass);
+        const token = await credential.user.getIdTokenResult();
+        if (!token.claims.admin) {
+            await signOut(auth);
+            throw new Error("Unauthorized: Access restricted to administrators only.");
+        }
     };
 
     const logout = async () => {

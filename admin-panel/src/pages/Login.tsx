@@ -2,8 +2,6 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { Lock, Mail, ShieldCheck, AlertCircle, CheckCircle } from 'lucide-react';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '../firebase';
 
 export const Login = () => {
     const { login, user, resetPassword } = useAuth();
@@ -31,15 +29,8 @@ export const Login = () => {
         try {
             await login(email, password);
         } catch (err: any) {
-            try {
-                await createUserWithEmailAndPassword(auth, email, password);
-            } catch (createErr: any) {
-                if (createErr.code === 'auth/email-already-in-use') {
-                    setError("Incorrect password. This email already exists.");
-                } else {
-                    setError("Authentication failed. Please check your connection.");
-                }
-            }
+            console.error("Login failed:", err);
+            setError("Authentication failed. Please check your credentials.");
         } finally {
             setIsSubmitting(false);
         }
@@ -137,9 +128,6 @@ export const Login = () => {
                         {isSubmitting ? 'Authenticating...' : 'Sign In'}
                     </button>
 
-                    <p className="text-center text-xs text-gray-400 mt-4">
-                        System will auto-create account if it doesn't exist.
-                    </p>
                 </form>
             </div>
         </div>

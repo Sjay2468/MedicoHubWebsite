@@ -7,7 +7,8 @@ import { api } from '../services/api'; // V3 Update
 import {
     FileText, PlayCircle, HelpCircle, BookOpen,
     Zap, GraduationCap, ArrowLeft, Bot, Lock, Star, Download,
-    Video, X, CheckCircle, AlertCircle, RefreshCw
+    Video, X, CheckCircle, AlertCircle, RefreshCw,
+    ZoomIn, ZoomOut
 } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { AppRoute } from '../types';
@@ -89,6 +90,14 @@ export const Learning: React.FC<LearningProps> = ({
     const [pageNumber, setPageNumber] = React.useState(1);
     const [isLoadingPdf, setIsLoadingPdf] = React.useState(false);
     const [pdfError, setPdfError] = React.useState<string | null>(null);
+    const [pdfZoom, setPdfZoom] = React.useState(1.0);
+    const [windowWidth, setWindowWidth] = React.useState(window.innerWidth);
+
+    React.useEffect(() => {
+        const handleResize = () => setWindowWidth(window.innerWidth);
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
 
     const [viewedPages, setViewedPages] = React.useState<Set<number>>(new Set());
     const [watchedSeconds, setWatchedSeconds] = React.useState<Set<number>>(new Set());
@@ -104,6 +113,7 @@ export const Learning: React.FC<LearningProps> = ({
         setQuizState({ started: false, currentQuestion: 0, score: 0, finished: false, answers: {}, reviewMode: false });
         setNumPages(null);
         setPageNumber(1);
+        setPdfZoom(1.0);
 
         // Initialize from existing progress if available
         const existing = activeResource ? userProgress[activeResource.id] : null;
@@ -320,16 +330,28 @@ export const Learning: React.FC<LearningProps> = ({
                     throw new Error("Canvas context could not be acquired");
                 }
 
-                // Calculate Scale (Fit Width with max limit)
+                // Calculate Scale (High-DPI optimized)
+                const dpr = window.devicePixelRatio || 1;
                 const containerWidth = canvas.parentElement?.clientWidth || 800;
-                // Base viewport at scale 1 to get native dimensions
                 const unscaledViewport = page.getViewport({ scale: 1 });
-                const scale = Math.min((containerWidth - 40) / unscaledViewport.width, 1.5); // Max scale 1.5x
 
-                const viewport = page.getViewport({ scale });
+                // baseScale is what we need to fit the container width
+                const baseScale = (containerWidth - 40) / unscaledViewport.width;
 
-                canvas.height = viewport.height;
-                canvas.width = viewport.width;
+                // renderScale accounts for screen density (Retina/Mobile) and manual zoom
+                // We use a minimum of 2.0 multiplier relative to baseScale to ensure sharpness
+                const renderScale = baseScale * pdfZoom * Math.max(dpr, 2);
+
+                const viewport = page.getViewport({ scale: renderScale });
+
+                // Backing store size (High resolution)
+                canvas.width = Math.floor(viewport.width);
+                canvas.height = Math.floor(viewport.height);
+
+                // Display size (CSS pixels)
+                const displayScale = baseScale * pdfZoom;
+                canvas.style.width = Math.floor(unscaledViewport.width * displayScale) + 'px';
+                canvas.style.height = Math.floor(unscaledViewport.height * displayScale) + 'px';
 
                 // Render
                 const renderContext = {
@@ -353,7 +375,7 @@ export const Learning: React.FC<LearningProps> = ({
         return () => {
             isCancelled = true;
         };
-    }, [activeResource, pageNumber]);
+    }, [activeResource, pageNumber, pdfZoom, windowWidth]);
 
     function onDocumentLoadSuccess({ numPages }: { numPages: number }) {
         setNumPages(numPages);
@@ -751,7 +773,8 @@ export const Learning: React.FC<LearningProps> = ({
                                                         >
                                                             <canvas
                                                                 id="pdf-render"
-                                                                className="shadow-xl max-w-full h-auto rounded-lg bg-white border border-gray-100"
+                                                                className="shadow-2xl rounded-lg bg-white border border-gray-100"
+                                                                style={{ imageRendering: 'auto' }}
                                                             ></canvas>
 
                                                             {/* Loading Indicator */}
@@ -779,7 +802,25 @@ export const Learning: React.FC<LearningProps> = ({
                                                         </div>
 
                                                         {/* Navigation Controls (Floating) */}
-                                                        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-4 bg-white/90 backdrop-blur-md px-6 py-3 rounded-full border border-gray-200 shadow-xl z-30 transition-transform duration-300 hover:scale-105">
+                                                        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-1 bg-white/90 backdrop-blur-md px-3 py-1.5 rounded-full border border-gray-200 shadow-xl z-30 transition-transform duration-300 hover:scale-105">
+                                                            <div className="flex items-center gap-0.5 border-r border-gray-100 pr-2 mr-1">
+                                                                <button
+                                                                    onClick={() => setPdfZoom(prev => Math.max(prev - 0.25, 0.5))}
+                                                                    className="p-1.5 hover:bg-gray-100 rounded-full text-gray-600 transition-all active:scale-95"
+                                                                    title="Zoom Out"
+                                                                >
+                                                                    <ZoomOut size={16} />
+                                                                </button>
+                                                                <span className="text-[10px] font-bold text-gray-500 w-10 text-center">{Math.round(pdfZoom * 100)}%</span>
+                                                                <button
+                                                                    onClick={() => setPdfZoom(prev => Math.min(prev + 0.25, 3.0))}
+                                                                    className="p-1.5 hover:bg-gray-100 rounded-full text-gray-600 transition-all active:scale-95"
+                                                                    title="Zoom In"
+                                                                >
+                                                                    <ZoomIn size={16} />
+                                                                </button>
+                                                            </div>
+
                                                             <button
                                                                 id="prev-page"
                                                                 onClick={() => {
@@ -787,13 +828,13 @@ export const Learning: React.FC<LearningProps> = ({
                                                                     setPageNumber(prev => prev - 1);
                                                                 }}
                                                                 disabled={pageNumber <= 1 || isLoadingPdf}
-                                                                className="p-2 hover:bg-gray-100 rounded-full text-gray-600 disabled:opacity-30 transition-all active:scale-95"
+                                                                className="p-1.5 hover:bg-gray-100 rounded-full text-gray-600 disabled:opacity-30 transition-all active:scale-95"
                                                             >
-                                                                <ArrowLeft size={20} />
+                                                                <ArrowLeft size={16} />
                                                             </button>
 
-                                                            <span className="text-gray-800 font-mono font-bold text-sm min-w-[80px] text-center">
-                                                                Page {pageNumber} <span className="text-gray-300">/</span> <span id="page-count">{numPages || '--'}</span>
+                                                            <span className="text-gray-800 font-mono font-bold text-[10px] min-w-[50px] text-center">
+                                                                {pageNumber} <span className="text-gray-300">/</span> {numPages || '--'}
                                                             </span>
 
                                                             <button
@@ -803,9 +844,9 @@ export const Learning: React.FC<LearningProps> = ({
                                                                     setPageNumber(prev => prev + 1);
                                                                 }}
                                                                 disabled={pageNumber >= numPages || isLoadingPdf}
-                                                                className="p-2 hover:bg-gray-100 rounded-full text-gray-600 disabled:opacity-30 transition-all active:scale-95"
+                                                                className="p-1.5 hover:bg-gray-100 rounded-full text-gray-600 disabled:opacity-30 transition-all active:scale-95"
                                                             >
-                                                                <ArrowLeft size={20} className="rotate-180" />
+                                                                <ArrowLeft size={16} className="rotate-180" />
                                                             </button>
                                                         </div>
                                                     </div>

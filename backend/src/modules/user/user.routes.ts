@@ -29,9 +29,16 @@ const router = Router();
 router.get('/', verifyAuth, verifyAdmin, async (req: Request, res: Response) => {
     try {
         const limitVal = parseInt(req.query.limit as string) || 100;
+        const filter = req.query.filter as string; // 'requests'
 
-        // Fetch users from FIRESTORE (Source of Truth for Medico Hub)
-        const snapshot = await auth.admin.firestore().collection('users')
+        let queryBase: any = auth.admin.firestore().collection('users');
+
+        if (filter === 'requests') {
+            // Firestore: find users where requestedYear field exists
+            queryBase = queryBase.where('requestedYear', '!=', null);
+        }
+
+        const snapshot = await queryBase
             .orderBy('createdAt', 'desc')
             .limit(limitVal)
             .get();

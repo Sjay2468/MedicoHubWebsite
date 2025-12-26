@@ -93,9 +93,9 @@ const CouponManager = () => {
             setNewCoupon({ code: '', type: 'fixed', value: 0, maxUses: 10, expiryDate: '' });
             loadCoupons();
             alert("Coupon created successfully!");
-        } catch (e) {
+        } catch (e: any) {
             console.error(e);
-            alert("Failed to create coupon.");
+            alert(`Failed to create coupon: ${e.message || 'Unknown error'}`);
         }
     };
 
@@ -104,9 +104,9 @@ const CouponManager = () => {
         try {
             await api.coupons.delete(id);
             setCoupons(prev => prev.filter(c => (c.id || c._id) !== id));
-        } catch (e) {
+        } catch (e: any) {
             console.error(e);
-            alert("Failed to delete coupon.");
+            alert(`Failed to delete coupon: ${e.message || 'Unknown error'}`);
         }
     };
 
@@ -887,9 +887,9 @@ const QuizManager = () => {
             setIsEditing(false);
             setCurrentQuiz(null);
             loadQuizzes();
-        } catch (e) {
+        } catch (e: any) {
             console.error("Failed to save quiz", e);
-            alert("Failed to save quiz");
+            alert(`Failed to save quiz: ${e.message || 'Unknown error'}`);
         }
     };
 
