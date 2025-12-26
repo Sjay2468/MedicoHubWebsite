@@ -1,13 +1,14 @@
 import express from 'express';
 import { CouponController } from './coupon.controller';
+import { verifyAuth, verifyAdmin } from '../../middleware/auth.middleware';
 
 const router = express.Router();
 
-// Admin Routes (Should be protected in real app, but open for now based on current auth setup)
-router.post('/', CouponController.createCoupon);
-router.get('/', CouponController.getAllCoupons);
-router.delete('/:id', CouponController.deleteCoupon);
-router.patch('/:id/toggle', CouponController.toggleCouponStatus);
+// Admin Routes
+router.post('/', verifyAdmin, CouponController.createCoupon);
+router.get('/', verifyAdmin, CouponController.getAllCoupons);
+router.delete('/:id', verifyAdmin, CouponController.deleteCoupon);
+router.patch('/:id/toggle', verifyAdmin, CouponController.toggleCouponStatus);
 
 // Public Routes
 router.post('/verify', CouponController.verifyCoupon);

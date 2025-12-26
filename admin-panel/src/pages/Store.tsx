@@ -39,7 +39,8 @@ export const StorePage = () => {
         type: 'percentage',
         value: '',
         minOrderAmount: '',
-        expiresAt: ''
+        expiresAt: '',
+        maxUses: ''
     });
 
     const [deliveryForm, setDeliveryForm] = useState({
@@ -314,7 +315,7 @@ export const StorePage = () => {
         try {
             await api.coupons.create(couponForm);
             setIsCouponModalOpen(false);
-            setCouponForm({ code: '', type: 'percentage', value: '', minOrderAmount: '', expiresAt: '' });
+            setCouponForm({ code: '', type: 'percentage', value: '', minOrderAmount: '', expiresAt: '', maxUses: '' });
             fetchCoupons();
         } catch (error) {
             console.error(error);
@@ -627,6 +628,7 @@ export const StorePage = () => {
                                     onChange={e => setCouponForm({ ...couponForm, minOrderAmount: e.target.value })}
                                 />
                             </div>
+                            <div><label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">Max Uses (Optional)</label><input type="number" className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl" placeholder="e.g. 100" value={couponForm.maxUses} onChange={e => setCouponForm({ ...couponForm, maxUses: e.target.value })} /></div>
                             <div><label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">Expires At (Optional)</label><input type="date" className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl" value={couponForm.expiresAt} onChange={e => setCouponForm({ ...couponForm, expiresAt: e.target.value })} /></div>
                             <button type="submit" className="w-full bg-brand-dark text-white py-4 rounded-xl font-bold hover:bg-black transition-all mt-2">Create Coupon</button>
                         </form>

@@ -70,9 +70,8 @@ const CouponManager = () => {
 
     const loadCoupons = async () => {
         try {
-            const snap = await getDocs(collection(db, 'coupons'));
-            const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-            setCoupons(list);
+            const list = await api.coupons.getAll();
+            setCoupons(Array.isArray(list) ? list : []);
         } catch (e) {
             console.error("Failed to load coupons", e);
         } finally {
@@ -86,12 +85,10 @@ const CouponManager = () => {
             return;
         }
         try {
-            await addDoc(collection(db, 'coupons'), {
+            await api.coupons.create({
                 ...newCoupon,
                 code: newCoupon.code.toUpperCase(),
-                usedCount: 0,
-                createdAt: serverTimestamp(),
-                active: true
+                isActive: true
             });
             setIsCreating(false);
             setNewCoupon({ code: '', type: 'fixed', value: 0, maxUses: 10, expiryDate: '' });
@@ -106,8 +103,8 @@ const CouponManager = () => {
     const handleDelete = async (id: string) => {
         if (!confirm("Are you sure you want to delete this coupon?")) return;
         try {
-            await deleteDoc(doc(db, 'coupons', id));
-            setCoupons(prev => prev.filter(c => c.id !== id));
+            await api.coupons.delete(id);
+            setCoupons(prev => prev.filter(c => (c.id || c._id) !== id));
         } catch (e) {
             console.error(e);
             alert("Failed to delete coupon.");
@@ -203,53 +200,61 @@ const CouponManager = () => {
             )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {coupons.map(coupon => (
-                    <div key={coupon.id} className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm hover:shadow-md transition-all relative group">
-                        <div className="flex justify-between items-start mb-4">
-                            <div className="bg-blue-50 text-brand-blue px-3 py-1 rounded-lg font-mono font-bold text-lg border border-blue-100 flex items-center gap-2">
-                                <Tag size={16} />
-                                {coupon.code}
-                            </div>
-                            <div className={`px-2 py-1 rounded text-xs font-bold uppercase ${coupon.usedCount >= coupon.maxUses ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'
-                                }`}>
-                                {coupon.usedCount >= coupon.maxUses ? 'Exhausted' : 'Active'}
-                            </div>
-                        </div>
+                {coupons.map(coupon => {
+                    const cId = coupon.id || coupon._id;
+                    const usage = coupon.usageCount || 0;
+                    const max = coupon.maxUses || 999999;
+                    const isExhausted = usage >= max;
+                    const isActive = coupon.isActive !== false && !isExhausted;
 
-                        <div className="flex justify-between items-end mb-4">
-                            <div>
-                                <p className="text-gray-500 text-xs uppercase font-bold">Discount</p>
-                                <p className="text-2xl font-extrabold text-gray-800">
-                                    {coupon.type === 'fixed' ? `₦${coupon.value.toLocaleString()}` : `${coupon.value}% OFF`}
-                                </p>
+                    return (
+                        <div key={cId} className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm hover:shadow-md transition-all relative group">
+                            <div className="flex justify-between items-start mb-4">
+                                <div className="bg-blue-50 text-brand-blue px-3 py-1 rounded-lg font-mono font-bold text-lg border border-blue-100 flex items-center gap-2">
+                                    <Tag size={16} />
+                                    {coupon.code}
+                                </div>
+                                <div className={`px-2 py-1 rounded text-xs font-bold uppercase ${isExhausted ? 'bg-red-100 text-red-600' : isActive ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-500'
+                                    }`}>
+                                    {isExhausted ? 'Exhausted' : isActive ? 'Active' : 'Inactive'}
+                                </div>
                             </div>
-                            <div className="text-right">
-                                <p className="text-gray-500 text-xs uppercase font-bold">Usage</p>
-                                <p className="text-lg font-bold text-gray-800">
-                                    {coupon.usedCount} <span className="text-gray-400 text-sm">/ {coupon.maxUses}</span>
-                                </p>
-                            </div>
-                        </div>
 
-                        <div className="pt-4 border-t border-gray-50 flex justify-between items-center">
-                            <button
-                                onClick={() => {
-                                    navigator.clipboard.writeText(coupon.code);
-                                    alert("Code copied!");
-                                }}
-                                className="text-xs font-bold text-gray-400 hover:text-brand-blue flex items-center gap-1"
-                            >
-                                <Copy size={14} /> Copy Code
-                            </button>
-                            <button
-                                onClick={() => handleDelete(coupon.id)}
-                                className="p-2 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                            >
-                                <Trash2 size={18} />
-                            </button>
+                            <div className="flex justify-between items-end mb-4">
+                                <div>
+                                    <p className="text-gray-500 text-xs uppercase font-bold">Discount</p>
+                                    <p className="text-2xl font-extrabold text-gray-800">
+                                        {coupon.type === 'fixed' ? `₦${coupon.value.toLocaleString()}` : `${coupon.value}% OFF`}
+                                    </p>
+                                </div>
+                                <div className="text-right">
+                                    <p className="text-gray-500 text-xs uppercase font-bold">Usage</p>
+                                    <p className="text-lg font-bold text-gray-800">
+                                        {usage} <span className="text-gray-400 text-sm">/ {max === 999999 ? '∞' : max}</span>
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="pt-4 border-t border-gray-50 flex justify-between items-center">
+                                <button
+                                    onClick={() => {
+                                        navigator.clipboard.writeText(coupon.code);
+                                        alert("Code copied!");
+                                    }}
+                                    className="text-xs font-bold text-gray-400 hover:text-brand-blue flex items-center gap-1"
+                                >
+                                    <Copy size={14} /> Copy Code
+                                </button>
+                                <button
+                                    onClick={() => handleDelete(cId)}
+                                    className="p-2 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                >
+                                    <Trash2 size={18} />
+                                </button>
+                            </div>
                         </div>
-                    </div>
-                ))}
+                    );
+                })}
             </div>
 
             {coupons.length === 0 && !loading && (
@@ -917,11 +922,7 @@ const QuizManager = () => {
                     try {
                         const id = q.id || q._id;
                         if (id) {
-                            await fetch(`http://localhost:5000/api/v3/resources/${id}`, {
-                                method: 'DELETE',
-                                headers: { 'Authorization': `Bearer ${token}` }
-                            });
-                            try { await deleteDoc(doc(db, 'resources', id)); } catch (err) { }
+                            await api.resources.delete(id);
                             count++;
                         }
                     } catch (e) {
@@ -933,19 +934,8 @@ const QuizManager = () => {
                 // Optimistic UI update
                 setQuizzes(prev => prev.filter(q => q.id !== quizId && q._id !== quizId));
 
-                // Backend Delete
-                const res = await fetch(`http://localhost:5000/api/v3/resources/${quizId}`, {
-                    method: 'DELETE',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json'
-                    }
-                });
-
-                if (!res.ok) {
-                    // Fallback
-                    await deleteDoc(doc(db, 'resources', quizId));
-                }
+                // Backend Delete via API Service
+                await api.resources.delete(quizId);
             }
 
             // Success cleanup

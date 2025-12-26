@@ -5,7 +5,7 @@ export const CouponController = {
     // Admin: Create Coupon
     createCoupon: async (req: Request, res: Response) => {
         try {
-            const { code, type, value, expiresAt, minOrderAmount } = req.body;
+            const { code, type, value, expiresAt, minOrderAmount, maxUses } = req.body;
 
             // Basic validation
             if (!code || !type || !value) {
@@ -18,10 +18,11 @@ export const CouponController = {
             }
 
             const coupon = new Coupon({
-                code,
+                code: code.toUpperCase(),
                 type,
                 value,
                 minOrderAmount: Number(minOrderAmount) || 0,
+                maxUses: Number(maxUses) || 999999,
                 expiresAt: expiresAt ? new Date(expiresAt) : undefined
             });
 
@@ -96,10 +97,17 @@ export const CouponController = {
                 });
             }
 
+            // Check Max Uses
+            if (coupon.usageCount >= coupon.maxUses) {
+                return res.status(400).json({ error: 'This coupon has reached its maximum usage limit' });
+            }
+
             res.json({
                 code: coupon.code,
                 type: coupon.type,
-                value: coupon.value
+                value: coupon.value,
+                usageCount: coupon.usageCount,
+                maxUses: coupon.maxUses
             });
         } catch (error) {
             console.error('Verify coupon error:', error);

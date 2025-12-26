@@ -1,7 +1,7 @@
-
 import { Router } from 'express';
 import { UploadController } from './upload.controller';
 import { upload } from './upload.middleware';
+import { verifyAuth, verifyAdmin } from '../../middleware/auth.middleware';
 
 const router = Router();
 
@@ -34,6 +34,6 @@ const router = Router();
  *                 url:
  *                   type: string
  */
-router.post('/', upload.single('file'), UploadController.uploadFile);
+router.post('/', verifyAdmin, upload.single('file'), UploadController.uploadFile);
 
 export default router;

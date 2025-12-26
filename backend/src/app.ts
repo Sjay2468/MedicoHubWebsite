@@ -41,12 +41,14 @@ const port = process.env.PORT || 5000;
 // Middleware
 const allowedOrigins = [
     'https://medicohub.com.ng',
+    'https://www.medicohub.com.ng',
     'https://admin.medicohub.com.ng',
     'https://medicohubwebsite.pages.dev',
     'https://medicohubadminsite.pages.dev',
     'http://localhost:5173',
     'http://localhost:5174',
-    'http://localhost:3000'
+    'http://localhost:3000',
+    'http://localhost:4173'
 ];
 
 app.use(cors({
