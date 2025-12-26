@@ -555,7 +555,6 @@ const AppContent: React.FC = () => {
 };
 
 const App: React.FC = () => {
-  console.log("🧩 Medico Hub: App Component Init");
   return (
     <AuthProvider>
       <SettingsProvider>

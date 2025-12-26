@@ -20,6 +20,38 @@
   <meta property="twitter:card" content="summary_large_image" />
   <meta property="twitter:title" content="Medico Hub | Elevating Medical Education" />
   <meta property="twitter:description" content="Premium tools and resources for the modern medical student." />
+  <link rel="icon" type="image/png" href="/favicon.png" />
+  <link rel="canonical" href="https://medicohub.com.ng/" />
+
+  <!-- Structured Data (JSON-LD) -->
+  <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "Medico Hub",
+      "url": "https://medicohub.com.ng/",
+      "description": "High-quality academic tools, medical kits, and resources for medical students.",
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": "https://medicohub.com.ng/#/learning?q={search_term_string}",
+        "query-input": "required name=search_term_string"
+      }
+    }
+  </script>
+  <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "name": "Medico Hub",
+      "url": "https://medicohub.com.ng/",
+      "logo": "https://medicohub.com.ng/favicon.png",
+      "sameAs": [
+        "https://twitter.com/medicohub",
+        "https://facebook.com/medicohub",
+        "https://instagram.com/medicohub"
+      ]
+    }
+  </script>
 
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
@@ -97,20 +129,7 @@
 
 <body class="bg-white text-brand-dark">
   <div id="root"></div>
-  <script>
-    window.onload = () => {
-      console.log("🌐 Window Load event fired");
-      if (!document.getElementById('root')) {
-        console.error("❌ ROOT ELEMENT MISSING!");
-      } else {
-        console.log("✅ Root element found");
-      }
-    };
-    window.onerror = (msg, url, line, col, error) => {
-      console.error("🔥 GLOBAL ERROR CAUGHT:", msg, "at", url, line, ":", col);
-      alert("Application Error: " + msg); // Temporary alert for mobile debugging
-    };
-  </script>
+
   <script type="module" src="/index.tsx"></script>
 </body>
 
