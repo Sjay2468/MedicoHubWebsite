@@ -1,7 +1,7 @@
 import { db } from '../firebase';
 import { collection, getDocs, addDoc, doc, deleteDoc, updateDoc, query, orderBy, limit, getDoc, setDoc } from 'firebase/firestore';
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api/v1';
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || 'https://medico-hub-backend-0ufb.onrender.com/api/v1';
 
 export const api = {
     resources: {
