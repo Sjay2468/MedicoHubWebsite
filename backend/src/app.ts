@@ -39,10 +39,19 @@ app.use('/api/', limiter);
 const port = process.env.PORT || 5000;
 
 // Middleware
-const allowedOrigins = process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : ['http://localhost:5173', 'http://localhost:5174'];
+const allowedOrigins = [
+    'https://medicohub.com.ng',
+    'https://admin.medicohub.com.ng',
+    'https://medicohubwebsite.pages.dev',
+    'https://medicohubadminsite.pages.dev',
+    'http://localhost:5173',
+    'http://localhost:5174',
+    'http://localhost:3000'
+];
+
 app.use(cors({
     origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
-        if (!origin || allowedOrigins.indexOf(origin) !== -1 || process.env.NODE_ENV !== 'production') {
+        if (!origin || allowedOrigins.includes(origin) || process.env.NODE_ENV !== 'production') {
             callback(null, true);
         } else {
             callback(new Error('Not allowed by CORS'));
@@ -50,7 +59,6 @@ app.use(cors({
     },
     credentials: true
 }));
-
 app.use(express.json());
 
 // Custom route for uploads to strict enforce headers
