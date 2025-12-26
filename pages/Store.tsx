@@ -47,12 +47,11 @@ export const Store: React.FC<{ user: User | null }> = ({ user }) => {
 
   React.useEffect(() => {
     const fetchData = async () => {
-      try {
-        const [prodData, zoneData] = await Promise.all([
-          api.products.getAll(),
-          api.delivery.getZones()
-        ]);
+      setIsLoading(true);
 
+      // Fetch Products (Firestore)
+      try {
+        const prodData = await api.products.getAll();
         if (prodData && Array.isArray(prodData)) {
           const mapped: Product[] = prodData.map((d: any) => ({
             id: d.id,
@@ -65,15 +64,21 @@ export const Store: React.FC<{ user: User | null }> = ({ user }) => {
           }));
           setProducts(mapped);
         }
+      } catch (error) {
+        console.error("Failed to fetch products:", error);
+      }
 
+      // Fetch Delivery Zones (Backend API)
+      try {
+        const zoneData = await api.delivery.getZones();
         if (zoneData && Array.isArray(zoneData)) {
           setDeliveryZones(zoneData);
         }
       } catch (error) {
-        console.error("Failed to fetch data:", error);
-      } finally {
-        setIsLoading(false);
+        console.error("Failed to fetch delivery zones (Backend CORS?):", error);
       }
+
+      setIsLoading(false);
     };
     fetchData();
   }, []);

@@ -55,38 +55,45 @@ export const Dashboard = () => {
 
     useEffect(() => {
         const loadData = async () => {
+            // Fetch Counts (mixture of Firestore/Backend)
             try {
-                const [counts, recent, allUsers] = await Promise.all([
-                    api.stats.getCounts(),
-                    api.users.getRecent(5),
-                    api.users.getAll()
-                ]);
-
+                const counts = await api.stats.getCounts();
                 setStats(counts);
-                setRecentUsers(recent);
-
-                // Process Chart Data (Last 7 Days)
-                const last7Days = Array.from({ length: 7 }, (_, i) => {
-                    const d = new Date();
-                    d.setDate(d.getDate() - (6 - i));
-                    return d;
-                });
-
-                const data = last7Days.map(date => {
-                    const dayStr = date.toDateString();
-                    // Count users created on this day
-                    const userCount = allUsers.filter((u: any) => u.createdAt && new Date(u.createdAt).toDateString() === dayStr).length;
-                    return {
-                        name: date.toLocaleDateString('en-US', { weekday: 'short' }),
-                        users: userCount,
-                        // Simulate engagement relative to user count for demo curve, + random jitter
-                        engagement: userCount > 0 ? userCount * 1.5 + Math.floor(Math.random() * 2) : 0
-                    };
-                });
-                setChartData(data);
-
             } catch (e) {
-                console.error("Failed to load dashboard data", e);
+                console.error("Failed to load counts", e);
+            }
+
+            // Fetch Recent Users (Firestore/Backend)
+            try {
+                const recent = await api.users.getRecent(5);
+                setRecentUsers(recent);
+            } catch (e) {
+                console.error("Failed to load recent users", e);
+            }
+
+            // Fetch All Users for Chart (Backend)
+            try {
+                const allUsers = await api.users.getAll();
+                if (allUsers && Array.isArray(allUsers)) {
+                    const last7Days = Array.from({ length: 7 }, (_, i) => {
+                        const d = new Date();
+                        d.setDate(d.getDate() - (6 - i));
+                        return d;
+                    });
+
+                    const data = last7Days.map(date => {
+                        const dayStr = date.toDateString();
+                        const userCount = allUsers.filter((u: any) => u.createdAt && new Date(u.createdAt).toDateString() === dayStr).length;
+                        return {
+                            name: date.toLocaleDateString('en-US', { weekday: 'short' }),
+                            users: userCount,
+                            engagement: userCount > 0 ? userCount * 1.5 + Math.floor(Math.random() * 2) : 0
+                        };
+                    });
+                    setChartData(data);
+                }
+            } catch (e) {
+                console.error("Failed to load chart data", e);
             }
         };
         loadData();
