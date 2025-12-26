@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { api } from '../services/api';
+import { db } from '../firebase';
+import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 import { Plus, Save, Calendar, CheckSquare, Users, Trophy, BookOpen, Lock, Unlock, Search, X, CheckCircle, ChevronDown, ChevronRight, Trash2, Edit, ArrowLeft, Clock, Upload, Loader, Star, Megaphone, Tag, Copy } from 'lucide-react';
 import { createPortal } from 'react-dom';
 
