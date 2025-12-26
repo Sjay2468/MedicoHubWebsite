@@ -97,6 +97,20 @@
 
 <body class="bg-white text-brand-dark">
   <div id="root"></div>
+  <script>
+    window.onload = () => {
+      console.log("🌐 Window Load event fired");
+      if (!document.getElementById('root')) {
+        console.error("❌ ROOT ELEMENT MISSING!");
+      } else {
+        console.log("✅ Root element found");
+      }
+    };
+    window.onerror = (msg, url, line, col, error) => {
+      console.error("🔥 GLOBAL ERROR CAUGHT:", msg, "at", url, line, ":", col);
+      alert("Application Error: " + msg); // Temporary alert for mobile debugging
+    };
+  </script>
   <script type="module" src="/index.tsx"></script>
 </body>
 
