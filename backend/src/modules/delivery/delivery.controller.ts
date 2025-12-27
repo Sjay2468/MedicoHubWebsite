@@ -5,7 +5,14 @@ export const DeliveryZoneController = {
     // Public: Get all active zones
     getAllZones: async (req: Request, res: Response) => {
         try {
-            const zones = await DeliveryZone.find({ isActive: true }).sort({ name: 1 });
+            let zones = await DeliveryZone.find({ isActive: true }).sort({ name: 1 });
+
+            // Auto-seed if empty
+            if (zones.length === 0) {
+                await DeliveryZoneController.initDefaults();
+                zones = await DeliveryZone.find({ isActive: true }).sort({ name: 1 });
+            }
+
             res.json(zones);
         } catch (error) {
             res.status(500).json({ error: 'Failed to fetch zones' });

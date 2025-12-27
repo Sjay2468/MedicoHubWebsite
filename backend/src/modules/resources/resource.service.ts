@@ -22,11 +22,16 @@ export class ResourceService {
             id: r._id.toString()
         })) as unknown as ResourceDocument[];
 
-        const userYear = userProfile.academicYear || 'General';
+        const userYear = userProfile.year || userProfile.academicYear || 'General';
         const isMcamp = userProfile.mcamp?.isEnrolled || false;
 
         return allResources.filter((res: ResourceDocument) => {
-            const isYearMatch = !res.year || res.year === '' || (res.tags && res.tags.includes(userYear)) || res.year === userYear || (res.tags && res.tags.includes('General'));
+            const isYearMatch = !res.year ||
+                res.year === '' ||
+                res.year === 'General' ||
+                (res.tags && res.tags.includes(userYear)) ||
+                res.year === userYear ||
+                (res.tags && res.tags.includes('General'));
 
             if (res.isMcampExclusive) {
                 return isMcamp;
@@ -53,6 +58,16 @@ export class ResourceService {
         return {
             ...result.toObject(),
             id: result._id.toString()
+        };
+    }
+
+    static async updateResource(id: string, data: any) {
+        const result = await Resource.findByIdAndUpdate(id, data, { new: true }).lean();
+        if (!result) return null;
+        if (contextCache.has(id)) contextCache.delete(id);
+        return {
+            ...result,
+            id: (result as any)._id.toString()
         };
     }
 

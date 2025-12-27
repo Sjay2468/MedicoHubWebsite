@@ -283,12 +283,15 @@ export const ResourcesPage = () => {
             alert("Resource saved successfully!");
         } catch (error: any) {
             console.error("Failed to save resource", error);
-            const msg = error.message || "Unknown error";
+
+            // Extract detailed error messages from the backend response
+            const msg = error.details ? error.details.join('\n') : (error.message || "Unknown error");
+
             if (msg.includes("too large") || msg.includes("25MB")) {
                 setLimitError(msg);
                 setShowLimitModal(true);
             } else {
-                alert(`Failed to save: ${msg}. See console.`);
+                alert(`Failed to save:\n${msg}`);
             }
         } finally {
             setIsLoading(false);

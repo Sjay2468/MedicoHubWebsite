@@ -82,6 +82,24 @@ router.post('/', verifyAdmin, async (req, res) => {
     }
 });
 
+// PATCH /api/v3/resources/:id (Admin only)
+router.patch('/:id', verifyAdmin, async (req, res) => {
+    try {
+        const validatedData = ResourceSchema.partial().parse(req.body);
+        const result = await ResourceService.updateResource(req.params.id, validatedData);
+        if (!result) return res.status(404).json({ error: "Resource not found" });
+        res.json(result);
+    } catch (error: any) {
+        if (error instanceof z.ZodError) {
+            return res.status(400).json({
+                error: "Validation failed",
+                details: error.errors.map(e => `${e.path.join('.')}: ${e.message}`)
+            });
+        }
+        res.status(500).json({ error: error.message || "Failed to update resource" });
+    }
+});
+
 // DELETE /api/v3/resources/:id (Admin only)
 router.delete('/:id', verifyAdmin, async (req, res) => {
     try {

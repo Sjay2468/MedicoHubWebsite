@@ -33,20 +33,35 @@ router.get('/', verifyAuth, verifyAdmin, async (req: Request, res: Response) => 
 
         let queryBase: any = admin.firestore().collection('users');
 
+        let snapshot;
         if (filter === 'requests') {
-            // Firestore: find users where requestedYear field exists
-            queryBase = queryBase.where('requestedYear', '!=', null);
+            // Firestore inequality filter on 'requestedYear'
+            // To avoid complex index requirements, we fetch and limit without orderBy(createdAt) 
+            // if an inequality is present, or we order by the inequality field first.
+            snapshot = await queryBase
+                .where('requestedYear', '!=', null)
+                .limit(limitVal)
+                .get();
+        } else {
+            snapshot = await queryBase
+                .orderBy('createdAt', 'desc')
+                .limit(limitVal)
+                .get();
         }
 
-        const snapshot = await queryBase
-            .orderBy('createdAt', 'desc')
-            .limit(limitVal)
-            .get();
-
-        const users = snapshot.docs.map((doc: any) => ({
+        let users = snapshot.docs.map((doc: any) => ({
             id: doc.id,
             ...doc.data()
         }));
+
+        // In-memory sort for requests since we can't reliably orderBy(createdAt) without an index
+        if (filter === 'requests') {
+            users.sort((a: any, b: any) => {
+                const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+                const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+                return dateB - dateA;
+            });
+        }
 
         res.json(users);
     } catch (error) {

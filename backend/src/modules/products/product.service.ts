@@ -1,26 +1,34 @@
-
-import { db } from '../../config/firebase';
+import { Product } from '../../models/Product';
 
 export class ProductService {
     static async getAllProducts() {
-        const snapshot = await db.collection('products').get();
-        if (snapshot.empty) return [];
-        return snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
+        const results = await Product.find().sort({ createdAt: -1 }).lean();
+        return results.map(p => ({
+            ...p,
+            id: (p as any)._id.toString()
+        }));
     }
 
     static async createProduct(data: any) {
-        const docRef = db.collection('products').doc();
-        const newProduct = {
-            ...data,
-            id: docRef.id,
-            createdAt: new Date().toISOString()
+        const product = new Product(data);
+        const result = await product.save();
+        return {
+            ...result.toObject(),
+            id: result._id.toString()
         };
-        await docRef.set(newProduct);
-        return newProduct;
     }
 
     static async deleteProduct(id: string) {
-        await db.collection('products').doc(id).delete();
+        await Product.findByIdAndDelete(id);
         return { success: true };
+    }
+
+    static async updateProduct(id: string, data: any) {
+        const result = await Product.findByIdAndUpdate(id, data, { new: true }).lean();
+        if (!result) return null;
+        return {
+            ...result,
+            id: (result as any)._id.toString()
+        };
     }
 }

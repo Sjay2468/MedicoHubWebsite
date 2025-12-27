@@ -49,55 +49,50 @@ const timeAgo = (dateStr: string) => {
 };
 
 export const Dashboard = () => {
-    const [stats, setStats] = useState({ users: 0, resources: 0, products: 0 });
+    const [stats, setStats] = useState({ users: 0, resources: 0, products: 0, revenue: 0 });
     const [recentUsers, setRecentUsers] = useState<any[]>([]);
     const [chartData, setChartData] = useState<any[]>([]);
 
     useEffect(() => {
         const loadData = async () => {
-            // Fetch Counts (mixture of Firestore/Backend)
+            // Fetch Counts & Revenue
             try {
+                const globalStats = await api.stats.getGlobal(30);
                 const counts = await api.stats.getCounts();
-                setStats(counts);
+
+                // Calculate total revenue from all days
+                const totalRev = (Array.isArray(globalStats) ? globalStats : []).reduce((acc: number, curr: any) => acc + (curr.revenue || 0), 0);
+
+                setStats({ ...counts, revenue: totalRev });
+
+                // Map GlobalStats to Chart
+                if (Array.isArray(globalStats)) {
+                    const mapped = globalStats.map(s => ({
+                        name: new Date(s.date).toLocaleDateString('en-US', { weekday: 'short' }),
+                        users: s.activeUsers || 0,
+                        engagement: s.totalActivity || 0,
+                        revenue: s.revenue || 0
+                    })).slice(-7); // Last 7 days
+                    setChartData(mapped);
+                }
             } catch (e) {
-                console.error("Failed to load counts", e);
+                console.error("Failed to load global stats", e);
             }
 
-            // Fetch Recent Users (Firestore/Backend)
+            // Fetch Recent Users
             try {
                 const recent = await api.users.getRecent(5);
                 setRecentUsers(recent);
             } catch (e) {
                 console.error("Failed to load recent users", e);
             }
-
-            // Fetch All Users for Chart (Backend)
-            try {
-                const allUsers = await api.users.getAll();
-                if (allUsers && Array.isArray(allUsers)) {
-                    const last7Days = Array.from({ length: 7 }, (_, i) => {
-                        const d = new Date();
-                        d.setDate(d.getDate() - (6 - i));
-                        return d;
-                    });
-
-                    const data = last7Days.map(date => {
-                        const dayStr = date.toDateString();
-                        const userCount = allUsers.filter((u: any) => u.createdAt && new Date(u.createdAt).toDateString() === dayStr).length;
-                        return {
-                            name: date.toLocaleDateString('en-US', { weekday: 'short' }),
-                            users: userCount,
-                            engagement: userCount > 0 ? userCount * 1.5 + Math.floor(Math.random() * 2) : 0
-                        };
-                    });
-                    setChartData(data);
-                }
-            } catch (e) {
-                console.error("Failed to load chart data", e);
-            }
         };
         loadData();
     }, []);
+
+    const formatCurrency = (val: number) => {
+        return new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN', maximumFractionDigits: 0 }).format(val);
+    };
 
     return (
         <div className="space-y-8 pb-10">
@@ -107,16 +102,13 @@ export const Dashboard = () => {
                     <div>
                         <h1 className="text-3xl md:text-4xl font-extrabold mb-3">Welcome back, Admin 👋</h1>
                         <p className="text-blue-100 max-w-xl text-lg font-medium opacity-90">
-                            Here's what's happening in Medico Hub today. You have {stats.users} student signups and {stats.resources} resources active.
+                            Here's what's happening today. You have {stats.users} students and {stats.resources} resources active. Platform revenue: {formatCurrency(stats.revenue)}
                         </p>
                     </div>
                     <div className="flex flex-wrap gap-3">
                         <Link to="/learning" className="bg-white text-brand-dark px-6 py-3 rounded-xl font-bold hover:bg-gray-50 transition-colors flex items-center gap-2 shadow-lg shadow-black/10 hover:shadow-xl hover:-translate-y-0.5 transform">
                             <Plus size={18} strokeWidth={3} /> Add Resource
                         </Link>
-                        <button className="bg-white/10 text-white px-6 py-3 rounded-xl font-bold hover:bg-white/20 transition-colors backdrop-blur-md border border-white/20">
-                            View Analytics
-                        </button>
                     </div>
                 </div>
 
@@ -128,8 +120,8 @@ export const Dashboard = () => {
             {/* Stats Overview */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 animate-fade-in-up" style={{ animationDelay: '0.1s' }}>
                 <ModernStatCard title="Total Students" value={stats.users.toLocaleString()} trend="+12% vs last month" icon={Users} color="blue" trendUp={true} />
-                <ModernStatCard title="Total Resources" value={stats.resources.toLocaleString()} trend="+5 this week" icon={BookOpen} color="purple" trendUp={true} />
-                <ModernStatCard title="Store Products" value={stats.products.toLocaleString()} trend="+8.2% vs last month" icon={DollarSign} color="green" trendUp={true} />
+                <ModernStatCard title="Total Revenue" value={formatCurrency(stats.revenue)} trend="Live" icon={DollarSign} color="green" trendUp={true} />
+                <ModernStatCard title="Learning Content" value={stats.resources.toLocaleString()} trend="+5 this week" icon={BookOpen} color="purple" trendUp={true} />
                 <ModernStatCard title="Active Now" value="--" trend="-2.1% peak hours" icon={Activity} color="yellow" trendUp={false} />
             </div>
 
@@ -140,8 +132,8 @@ export const Dashboard = () => {
                 <div className="lg:col-span-2 bg-white p-8 rounded-[2rem] shadow-sm border border-gray-100">
                     <div className="flex justify-between items-center mb-8">
                         <div>
-                            <h3 className="text-xl font-extrabold text-brand-dark">Signups & Engagement</h3>
-                            <p className="text-sm text-gray-400 font-medium mt-1">Daily user growth over the last 7 days</p>
+                            <h3 className="text-xl font-extrabold text-brand-dark">Engagement & Activity</h3>
+                            <p className="text-sm text-gray-400 font-medium mt-1">Daily platform interactions over the last 7 days</p>
                         </div>
                         <div className="bg-gray-50 p-1 rounded-xl flex gap-1">
                             {['Week'].map((t) => (
