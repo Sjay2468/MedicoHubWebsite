@@ -291,44 +291,65 @@ const ScheduleManager = () => {
     const fetchData = async () => {
         setLoading(true);
         try {
-            const currDoc = await getDoc(doc(db, 'mcamp', 'curriculum'));
-            if (currDoc.exists()) {
-                const data = currDoc.data();
-                const loadedWeeks = data.weeks || [];
+            const [currDoc, allRes] = await Promise.all([
+                getDoc(doc(db, 'mcamp', 'curriculum')),
+                api.resources.getAll()
+            ]);
 
-                // Ensure 13 weeks (90 days)
-                if (loadedWeeks.length < 13) {
-                    const missingCount = 13 - loadedWeeks.length;
-                    const newWeeks = [
-                        ...loadedWeeks,
-                        ...Array.from({ length: missingCount }, (_, i) => ({
-                            id: loadedWeeks.length + i + 1,
-                            title: `Week ${loadedWeeks.length + i + 1}`,
-                            isUnlocked: false,
-                            days: {}
-                        }))
-                    ];
-                    setWeeks(newWeeks);
-                    // Auto-patch DB
-                    await updateDoc(doc(db, 'mcamp', 'curriculum'), { weeks: newWeeks });
-                } else {
-                    setWeeks(loadedWeeks);
-                }
+            const validResIds = new Set(Array.isArray(allRes) ? allRes.map((r: any) => r.id || r._id) : []);
+            setResources(Array.isArray(allRes) ? allRes.filter((r: any) => r.isMcampExclusive) : []);
+
+            let loadedWeeks = [];
+            if (currDoc.exists()) {
+                loadedWeeks = currDoc.data().weeks || [];
             } else {
-                const defaults = Array.from({ length: 13 }, (_, i) => ({
+                loadedWeeks = Array.from({ length: 13 }, (_, i) => ({
                     id: i + 1,
                     title: `Week ${i + 1}`,
-                    isUnlocked: i === 0,
+                    isUnlocked: false,
                     days: {}
                 }));
-                setWeeks(defaults);
-                // First-time init
-                await setDoc(doc(db, 'mcamp', 'curriculum'), { weeks: defaults });
             }
-            const allRes = await api.resources.getAll();
-            setResources(Array.isArray(allRes) ? allRes.filter((r: any) => r.isMcampExclusive) : []);
+
+            // Ensure 13 weeks (90 days)
+            if (loadedWeeks.length < 13) {
+                const missingCount = 13 - loadedWeeks.length;
+                loadedWeeks = [
+                    ...loadedWeeks,
+                    ...Array.from({ length: missingCount }, (_, i) => ({
+                        id: loadedWeeks.length + i + 1,
+                        title: `Week ${loadedWeeks.length + i + 1}`,
+                        isUnlocked: false,
+                        days: {}
+                    }))
+                ];
+            }
+
+            // Cleanup: Remove any resource IDs that no longer exist in the database
+            let scheduleChanged = false;
+            const cleanedWeeks = loadedWeeks.map((week: any) => {
+                const cleanedDays = { ...week.days };
+                let weekChanged = false;
+
+                Object.keys(cleanedDays).forEach((dayId: any) => {
+                    const ids = cleanedDays[dayId] || [];
+                    const filtered = ids.filter((id: string) => validResIds.has(id));
+                    if (filtered.length !== ids.length) {
+                        cleanedDays[dayId] = filtered;
+                        weekChanged = true;
+                        scheduleChanged = true;
+                    }
+                });
+
+                return weekChanged ? { ...week, days: cleanedDays } : week;
+            });
+
+            setWeeks(cleanedWeeks);
+            if (scheduleChanged) {
+                setHasUnsavedChanges(true);
+            }
         } catch (error) {
-            console.error(error);
+            console.error("MCAMP Schedule Fetch Error:", error);
         } finally {
             setLoading(false);
         }
