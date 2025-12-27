@@ -15,33 +15,10 @@ connectDB();
 
 const app: Express = express();
 
-// Required for Render/Cloudflare proxy support (fixing express-rate-limit errors)
+// 1. Required for Render/Cloudflare proxy support
 app.set('trust proxy', 1);
 
-// SECURITY: Hide that we are using Express to make it harder for hackers to target the site.
-app.disable('x-powered-by');
-
-// SECURITY: Add extra safety headers (Helmet)
-app.use(helmet({
-    contentSecurityPolicy: false,
-    crossOriginResourcePolicy: { policy: "cross-origin" }
-}));
-
-// SECURITY: Rate Limiting
-// This stops people from spamming the server. 
-// It only allows 100 requests every 15 minutes from the same person.
-const limiter = rateLimit({
-    windowMs: 15 * 60 * 1000,
-    max: 100,
-    standardHeaders: true,
-    legacyHeaders: false,
-    message: { error: 'Too many requests, please try again later.' }
-});
-app.use('/api/', limiter);
-
-const port = process.env.PORT || 5000;
-
-// Middleware
+// 2. CORS: Must be the VERY FIRST middleware to ensure headers are present even on errors
 const allowedOrigins = [
     'https://medicohub.com.ng',
     'https://www.medicohub.com.ng',
@@ -58,16 +35,42 @@ const allowedOrigins = [
 ];
 
 app.use(cors({
-    origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+    origin: (origin, callback) => {
+        // Allow mobile apps, curl, etc (no origin) OR explicitly listed origins OR development
         if (!origin || allowedOrigins.includes(origin) || process.env.NODE_ENV !== 'production') {
             callback(null, true);
         } else {
+            console.warn(`[CORS] Rejected blocking request from: ${origin}`);
             callback(new Error('Not allowed by CORS'));
         }
     },
-    credentials: true
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-admin-secret']
 }));
+
+// SECURITY: Hide that we are using Express
+app.disable('x-powered-by');
+
+// 3. Fundamental Middlewares
 app.use(express.json());
+const port = process.env.PORT || 5000;
+
+// SECURITY: Add extra safety headers (Helmet)
+app.use(helmet({
+    contentSecurityPolicy: false,
+    crossOriginResourcePolicy: { policy: "cross-origin" }
+}));
+
+// SECURITY: Rate Limiting
+const limiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 100,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Too many requests, please try again later.' }
+});
+app.use('/api/', limiter);
 
 // Global Request Logger
 app.use((req, res, next) => {
