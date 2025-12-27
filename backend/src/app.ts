@@ -36,13 +36,24 @@ const allowedOrigins = [
 
 app.use(cors({
     origin: (origin, callback) => {
-        // Allow mobile apps, curl, etc (no origin) OR explicitly listed origins OR development
-        if (!origin || allowedOrigins.includes(origin) || process.env.NODE_ENV !== 'production') {
-            callback(null, true);
-        } else {
-            console.warn(`[CORS] Rejected blocking request from: ${origin}`);
-            callback(new Error('Not allowed by CORS'));
-        }
+        // 1. Allow if no origin (like mobile apps/curl)
+        if (!origin) return callback(null, true);
+
+        // 2. Allow explicitly listed domains
+        if (allowedOrigins.includes(origin)) return callback(null, true);
+
+        // 3. Allow ANY onrender.com subdomain (to handle Render URL changes)
+        if (origin.endsWith('.onrender.com')) return callback(null, true);
+
+        // 4. Allow all localhost/127.0.0.1 variations
+        if (origin.includes('localhost') || origin.includes('127.0.0.1')) return callback(null, true);
+
+        // 5. Development Mode: Allow everything
+        if (process.env.NODE_ENV !== 'production') return callback(null, true);
+
+        // Otherwise reject
+        console.warn(`[CORS] Rejected blocking request from: ${origin}`);
+        callback(new Error('Not allowed by CORS'));
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
