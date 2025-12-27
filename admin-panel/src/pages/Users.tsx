@@ -204,70 +204,72 @@ export const UsersPage = () => {
             </div>
 
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                <table className="w-full text-left">
-                    <thead className="bg-gray-50 border-b border-gray-200">
-                        <tr>
-                            <th className="px-6 py-4 font-semibold text-gray-600 text-sm">User</th>
-                            <th className="px-6 py-4 font-semibold text-gray-600 text-sm">Year</th>
-                            <th className="px-6 py-4 font-semibold text-gray-600 text-sm">Status</th>
-                            <th className="px-6 py-4 font-semibold text-gray-600 text-sm">Joined</th>
-                            <th className="px-6 py-4 font-semibold text-gray-600 text-sm text-right">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100">
-                        {loading ? (
-                            <tr><td colSpan={5} className="px-6 py-10 text-center text-gray-500">Loading users...</td></tr>
-                        ) : error ? (
-                            <tr><td colSpan={5} className="px-6 py-10 text-center text-red-500 font-bold">{error}</td></tr>
-                        ) : filteredUsers.length === 0 ? (
-                            <tr><td colSpan={5} className="px-6 py-10 text-center text-gray-500">No users found.</td></tr>
-                        ) : (
-                            filteredUsers.map((user) => (
-                                <tr key={user.id || user.uid} className="hover:bg-gray-50 transition-colors cursor-pointer group" onClick={() => handleEditClick(user)}>
-                                    <td className="px-6 py-4">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-10 h-10 rounded-full bg-blue-50 text-brand-blue flex items-center justify-center font-bold text-sm uppercase shrink-0">
-                                                {(user.name || user.email || 'U').charAt(0)}
-                                            </div>
-                                            <div>
-                                                <div className="flex items-center gap-2">
-                                                    <p className="font-bold text-gray-900">{user.name || 'Anonymous'}</p>
-                                                    {user.isSubscribed && <Crown size={14} className="text-yellow-500 fill-yellow-500" />}
+                <div className="overflow-x-auto custom-scrollbar">
+                    <table className="w-full text-left">
+                        <thead className="bg-gray-50 border-b border-gray-200">
+                            <tr>
+                                <th className="px-6 py-4 font-semibold text-gray-600 text-sm">User</th>
+                                <th className="px-6 py-4 font-semibold text-gray-600 text-sm">Year</th>
+                                <th className="px-6 py-4 font-semibold text-gray-600 text-sm">Status</th>
+                                <th className="px-6 py-4 font-semibold text-gray-600 text-sm">Joined</th>
+                                <th className="px-6 py-4 font-semibold text-gray-600 text-sm text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                            {loading ? (
+                                <tr><td colSpan={5} className="px-6 py-10 text-center text-gray-500">Loading users...</td></tr>
+                            ) : error ? (
+                                <tr><td colSpan={5} className="px-6 py-10 text-center text-red-500 font-bold">{error}</td></tr>
+                            ) : filteredUsers.length === 0 ? (
+                                <tr><td colSpan={5} className="px-6 py-10 text-center text-gray-500">No users found.</td></tr>
+                            ) : (
+                                filteredUsers.map((user) => (
+                                    <tr key={user.id || user.uid} className="hover:bg-gray-50 transition-colors cursor-pointer group" onClick={() => handleEditClick(user)}>
+                                        <td className="px-6 py-4">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 rounded-full bg-blue-50 text-brand-blue flex items-center justify-center font-bold text-sm uppercase shrink-0">
+                                                    {(user.name || user.email || 'U').charAt(0)}
                                                 </div>
-                                                <p className="text-gray-500 text-xs">{user.email}</p>
+                                                <div>
+                                                    <div className="flex items-center gap-2">
+                                                        <p className="font-bold text-gray-900">{user.name || 'Anonymous'}</p>
+                                                        {user.isSubscribed && <Crown size={14} className="text-yellow-500 fill-yellow-500" />}
+                                                    </div>
+                                                    <p className="text-gray-500 text-xs">{user.email}</p>
+                                                </div>
                                             </div>
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        <span className="inline-block px-2 py-1 bg-gray-100 rounded-lg text-xs font-bold text-gray-600">
-                                            {user.year || 'Not Set'}
-                                        </span>
-                                        {user.requestedYear && (
-                                            <div className="mt-1 flex items-center gap-1 text-[10px] text-amber-600 font-bold bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
-                                                <AlertTriangle size={10} />
-                                                Req: {user.requestedYear}
-                                            </div>
-                                        )}
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold ${user.isSubscribed ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-gray-600'
-                                            }`}>
-                                            {user.isSubscribed ? 'PRO MEMBER' : 'FREE TIER'}
-                                        </span>
-                                    </td>
-                                    <td className="px-6 py-4 text-sm text-gray-500 font-medium">
-                                        {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A'}
-                                    </td>
-                                    <td className="px-6 py-4 text-right">
-                                        <button className="text-gray-300 group-hover:text-brand-blue transition-colors p-2 hover:bg-blue-50 rounded-lg">
-                                            <FilePenLine size={18} />
-                                        </button>
-                                    </td>
-                                </tr>
-                            ))
-                        )}
-                    </tbody>
-                </table>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <span className="inline-block px-2 py-1 bg-gray-100 rounded-lg text-xs font-bold text-gray-600">
+                                                {user.year || 'Not Set'}
+                                            </span>
+                                            {user.requestedYear && (
+                                                <div className="mt-1 flex items-center gap-1 text-[10px] text-amber-600 font-bold bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
+                                                    <AlertTriangle size={10} />
+                                                    Req: {user.requestedYear}
+                                                </div>
+                                            )}
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold ${user.isSubscribed ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-gray-600'
+                                                }`}>
+                                                {user.isSubscribed ? 'PRO MEMBER' : 'FREE TIER'}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4 text-sm text-gray-500 font-medium">
+                                            {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A'}
+                                        </td>
+                                        <td className="px-6 py-4 text-right">
+                                            <button className="text-gray-300 group-hover:text-brand-blue transition-colors p-2 hover:bg-blue-50 rounded-lg">
+                                                <FilePenLine size={18} />
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
+                </div>
             </div>
 
             {/* EDIT USER MODAL */}

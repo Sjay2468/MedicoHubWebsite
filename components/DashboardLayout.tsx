@@ -253,7 +253,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                             </button>
 
                             {showNotifications && (
-                                <div className="absolute right-0 mt-4 w-80 sm:w-96 bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden z-50 animate-pop-in origin-top-right">
+                                <div className="absolute right-0 sm:right-0 mt-4 w-[calc(100vw-2rem)] sm:w-96 -mr-4 sm:mr-0 bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden z-50 animate-pop-in origin-top-right">
                                     <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 backdrop-blur-sm sticky top-0 z-10">
                                         <h3 className="font-bold text-lg text-brand-dark">Notifications</h3>
                                         <div className="flex gap-2">

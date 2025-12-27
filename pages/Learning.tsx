@@ -1116,7 +1116,7 @@ export const Learning: React.FC<LearningProps> = ({
                                         {canUseAi && (
                                             <button
                                                 onClick={toggleAiChat}
-                                                className="md:hidden absolute bottom-8 right-8 w-16 h-16 bg-brand-dark hover:bg-black text-white rounded-full flex items-center justify-center shadow-2xl shadow-brand-dark/30 transition-all hover:scale-110 z-40"
+                                                className="md:hidden absolute bottom-24 right-6 w-14 h-14 bg-brand-dark hover:bg-black text-white rounded-full flex items-center justify-center shadow-2xl shadow-brand-dark/30 transition-all hover:scale-110 z-40 border-4 border-white/20"
                                             >
                                                 <Bot size={28} />
                                             </button>

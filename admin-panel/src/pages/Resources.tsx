@@ -394,70 +394,72 @@ export const ResourcesPage = () => {
             </div>
 
             <div className="bg-white rounded-[1.5rem] shadow-sm border border-gray-100 overflow-hidden">
-                <table className="w-full text-left">
-                    <thead className="bg-gray-50 border-b border-gray-100">
-                        <tr>
-                            <th className="px-8 py-5 font-bold text-gray-500 text-xs uppercase tracking-wider">Resource</th>
-                            <th className="px-6 py-5 font-bold text-gray-500 text-xs uppercase tracking-wider">Type</th>
-                            <th className="px-6 py-5 font-bold text-gray-500 text-xs uppercase tracking-wider">Target Audience</th>
-                            <th className="px-6 py-5 font-bold text-gray-500 text-xs uppercase tracking-wider">Access</th>
-                            <th className="px-6 py-5 font-bold text-gray-500 text-xs uppercase tracking-wider text-right">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-50">
-                        {error && (
+                <div className="overflow-x-auto custom-scrollbar">
+                    <table className="w-full text-left">
+                        <thead className="bg-gray-50 border-b border-gray-100">
                             <tr>
-                                <td colSpan={5} className="px-8 py-10 text-center">
-                                    <div className="bg-red-50 text-red-700 p-4 rounded-xl border border-red-100 flex items-center justify-center gap-2">
-                                        <AlertCircle size={20} />
-                                        <span className="font-bold">{error}</span>
-                                    </div>
-                                </td>
+                                <th className="px-8 py-5 font-bold text-gray-500 text-xs uppercase tracking-wider">Resource</th>
+                                <th className="px-6 py-5 font-bold text-gray-500 text-xs uppercase tracking-wider">Type</th>
+                                <th className="px-6 py-5 font-bold text-gray-500 text-xs uppercase tracking-wider">Target Audience</th>
+                                <th className="px-6 py-5 font-bold text-gray-500 text-xs uppercase tracking-wider">Access</th>
+                                <th className="px-6 py-5 font-bold text-gray-500 text-xs uppercase tracking-wider text-right">Actions</th>
                             </tr>
-                        )}
-                        {!error && filteredResources.length === 0 && (
-                            <tr>
-                                <td colSpan={5} className="px-8 py-10 text-center text-gray-400">
-                                    No resources found. Try a different search.
-                                </td>
-                            </tr>
-                        )}
-                        {filteredResources.map((res) => (
-                            <tr key={res._id || res.id} className="hover:bg-blue-50/50 transition-colors group">
-                                <td className="px-8 py-5">
-                                    <div className="flex items-center gap-4">
-                                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${res.type === 'Video' ? 'bg-red-100 text-red-600' : res.type === 'Quiz' ? 'bg-purple-100 text-purple-600' : 'bg-brand-blue/10 text-brand-blue'}`}>
-                                            {res.type === 'Video' ? <Video size={20} /> : res.type === 'Quiz' ? <HelpCircle size={20} /> : <FileText size={20} />}
+                        </thead>
+                        <tbody className="divide-y divide-gray-50">
+                            {error && (
+                                <tr>
+                                    <td colSpan={5} className="px-8 py-10 text-center">
+                                        <div className="bg-red-50 text-red-700 p-4 rounded-xl border border-red-100 flex items-center justify-center gap-2">
+                                            <AlertCircle size={20} />
+                                            <span className="font-bold">{error}</span>
                                         </div>
-                                        <div>
-                                            <span className="font-bold text-brand-dark group-hover:text-brand-blue transition-colors block">{res.title}</span>
-                                            <p className="text-gray-500 text-xs font-medium uppercase tracking-wide mt-0.5">{res.subject}</p>
+                                    </td>
+                                </tr>
+                            )}
+                            {!error && filteredResources.length === 0 && (
+                                <tr>
+                                    <td colSpan={5} className="px-8 py-10 text-center text-gray-400">
+                                        No resources found. Try a different search.
+                                    </td>
+                                </tr>
+                            )}
+                            {filteredResources.map((res) => (
+                                <tr key={res._id || res.id} className="hover:bg-blue-50/50 transition-colors group">
+                                    <td className="px-8 py-5">
+                                        <div className="flex items-center gap-4">
+                                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${res.type === 'Video' ? 'bg-red-100 text-red-600' : res.type === 'Quiz' ? 'bg-purple-100 text-purple-600' : 'bg-brand-blue/10 text-brand-blue'}`}>
+                                                {res.type === 'Video' ? <Video size={20} /> : res.type === 'Quiz' ? <HelpCircle size={20} /> : <FileText size={20} />}
+                                            </div>
+                                            <div>
+                                                <span className="font-bold text-brand-dark group-hover:text-brand-blue transition-colors block">{res.title}</span>
+                                                <p className="text-gray-500 text-xs font-medium uppercase tracking-wide mt-0.5">{res.subject}</p>
+                                            </div>
                                         </div>
-                                    </div>
-                                </td>
-                                <td className="px-6 py-5"><span className={`px-3 py-1 rounded-lg text-xs font-bold ${res.type === 'Quiz' ? 'bg-purple-50 text-purple-700' : 'bg-gray-100 text-gray-600'}`}>{res.type}</span></td>
-                                <td className="px-6 py-5">
-                                    <div className="flex gap-2 flex-wrap max-w-[200px]">
-                                        {res.tags?.map((tag: string) => <span key={tag} className="px-2 py-1 border border-gray-200 text-gray-500 rounded-md text-[10px] font-bold uppercase">{tag}</span>)}
-                                    </div>
-                                </td>
-                                <td className="px-6 py-5">
-                                    <div className="flex gap-2">
-                                        {res.isPro && <span className="px-2 py-1 bg-brand-dark text-brand-yellow rounded-md text-[10px] font-bold uppercase tracking-wide">Pro Only</span>}
-                                        {res.isMcampExclusive && <span className="px-2 py-1 bg-purple-600 text-white rounded-md text-[10px] font-bold uppercase tracking-wide">MCAMP</span>}
-                                        {!res.isPro && !res.isMcampExclusive && <span className="px-2 py-1 bg-green-100 text-green-700 rounded-md text-[10px] font-bold uppercase">Free</span>}
-                                    </div>
-                                </td>
-                                <td className="px-6 py-5 text-right">
-                                    <div className="flex justify-end gap-3">
-                                        <button onClick={() => handleEdit(res)} className="text-gray-400 hover:text-brand-blue transition-colors font-medium text-sm">Edit</button>
-                                        <button onClick={() => handleDelete(res._id || res.id)} className="text-gray-400 hover:text-red-500 transition-colors"><Trash2 size={16} /></button>
-                                    </div>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
+                                    </td>
+                                    <td className="px-6 py-5"><span className={`px-3 py-1 rounded-lg text-xs font-bold ${res.type === 'Quiz' ? 'bg-purple-50 text-purple-700' : 'bg-gray-100 text-gray-600'}`}>{res.type}</span></td>
+                                    <td className="px-6 py-5">
+                                        <div className="flex gap-2 flex-wrap max-w-[200px]">
+                                            {res.tags?.map((tag: string) => <span key={tag} className="px-2 py-1 border border-gray-200 text-gray-500 rounded-md text-[10px] font-bold uppercase">{tag}</span>)}
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-5">
+                                        <div className="flex gap-2">
+                                            {res.isPro && <span className="px-2 py-1 bg-brand-dark text-brand-yellow rounded-md text-[10px] font-bold uppercase tracking-wide">Pro Only</span>}
+                                            {res.isMcampExclusive && <span className="px-2 py-1 bg-purple-600 text-white rounded-md text-[10px] font-bold uppercase tracking-wide">MCAMP</span>}
+                                            {!res.isPro && !res.isMcampExclusive && <span className="px-2 py-1 bg-green-100 text-green-700 rounded-md text-[10px] font-bold uppercase">Free</span>}
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-5 text-right">
+                                        <div className="flex justify-end gap-3">
+                                            <button onClick={() => handleEdit(res)} className="text-gray-400 hover:text-brand-blue transition-colors font-medium text-sm">Edit</button>
+                                            <button onClick={() => handleDelete(res._id || res.id)} className="text-gray-400 hover:text-red-500 transition-colors"><Trash2 size={16} /></button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
             </div>
 
             {/* MODAL */}

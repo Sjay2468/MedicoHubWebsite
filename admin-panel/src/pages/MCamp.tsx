@@ -671,83 +671,85 @@ const LeaderboardView = () => {
             </div>
 
             <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden shadow-sm">
-                <table className="w-full text-left">
-                    <thead className="bg-gray-50 border-b border-gray-100">
-                        <tr>
-                            <th className="px-6 py-4 font-bold text-gray-500 text-xs uppercase text-center w-16">Rank</th>
-                            <th className="px-6 py-4 font-bold text-gray-500 text-xs uppercase">Student ID</th>
-                            <th className="px-6 py-4 font-bold text-gray-500 text-xs uppercase text-center">
-                                {selectedWeek === 'all' ? 'Total Score' : `Week ${selectedWeek} Score`}
-                            </th>
-                            <th className="px-6 py-4 font-bold text-gray-500 text-xs uppercase text-center">
-                                Quizzes
-                            </th>
-                            <th className="px-6 py-4 font-bold text-gray-500 text-xs uppercase text-right">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-50">
-                        {enrolledUsers.length > 0 ? enrolledUsers.map((user, index) => {
-                            const hasId = !!user.mcamp?.uniqueId;
-                            // Rank based on current sort
-                            const isTop3 = index < 3 && user.totalScore > 0;
+                <div className="overflow-x-auto custom-scrollbar">
+                    <table className="w-full text-left">
+                        <thead className="bg-gray-50 border-b border-gray-100">
+                            <tr>
+                                <th className="px-6 py-4 font-bold text-gray-500 text-xs uppercase text-center w-16">Rank</th>
+                                <th className="px-6 py-4 font-bold text-gray-500 text-xs uppercase">Student ID</th>
+                                <th className="px-6 py-4 font-bold text-gray-500 text-xs uppercase text-center">
+                                    {selectedWeek === 'all' ? 'Total Score' : `Week ${selectedWeek} Score`}
+                                </th>
+                                <th className="px-6 py-4 font-bold text-gray-500 text-xs uppercase text-center">
+                                    Quizzes
+                                </th>
+                                <th className="px-6 py-4 font-bold text-gray-500 text-xs uppercase text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-50">
+                            {enrolledUsers.length > 0 ? enrolledUsers.map((user, index) => {
+                                const hasId = !!user.mcamp?.uniqueId;
+                                // Rank based on current sort
+                                const isTop3 = index < 3 && user.totalScore > 0;
 
-                            let rankIcon = null;
-                            if (index === 0 && isTop3) rankIcon = <Star size={16} className="text-yellow-400 fill-yellow-400" />;
-                            else if (index === 1 && isTop3) rankIcon = <Star size={16} className="text-gray-400 fill-gray-400" />;
-                            else if (index === 2 && isTop3) rankIcon = <Star size={16} className="text-orange-400 fill-orange-400" />;
+                                let rankIcon = null;
+                                if (index === 0 && isTop3) rankIcon = <Star size={16} className="text-yellow-400 fill-yellow-400" />;
+                                else if (index === 1 && isTop3) rankIcon = <Star size={16} className="text-gray-400 fill-gray-400" />;
+                                else if (index === 2 && isTop3) rankIcon = <Star size={16} className="text-orange-400 fill-orange-400" />;
 
-                            return (
-                                <tr key={user.uid || user.id} className={`hover:bg-blue-50/10 transition-colors ${isTop3 ? 'bg-yellow-50/20' : ''}`}>
-                                    <td className="px-6 py-4 text-center">
-                                        <div className="flex flex-col items-center justify-center gap-1">
-                                            <span className={`text-lg font-bold ${isTop3 ? 'text-brand-dark' : 'text-gray-400'}`}>{index + 1}</span>
-                                            {rankIcon}
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        <div>
-                                            <div className="flex items-center gap-2 mb-1">
-                                                {hasId ? (
-                                                    <span className="text-sm font-mono bg-blue-50 text-brand-blue px-2 py-1 rounded border border-blue-100 font-bold">{user.mcamp.uniqueId}</span>
-                                                ) : <span className="text-gray-400 italic text-[10px]">Pending ID</span>}
+                                return (
+                                    <tr key={user.uid || user.id} className={`hover:bg-blue-50/10 transition-colors ${isTop3 ? 'bg-yellow-50/20' : ''}`}>
+                                        <td className="px-6 py-4 text-center">
+                                            <div className="flex flex-col items-center justify-center gap-1">
+                                                <span className={`text-lg font-bold ${isTop3 ? 'text-brand-dark' : 'text-gray-400'}`}>{index + 1}</span>
+                                                {rankIcon}
                                             </div>
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-4 text-center">
-                                        <div className="font-bold text-gray-900 text-lg">{user.totalScore}</div>
-                                        <div className="text-[10px] text-gray-400 uppercase font-bold">Points</div>
-                                    </td>
-                                    <td className="px-6 py-4 text-center">
-                                        <div className="font-bold text-gray-700">{user.quizzesTaken}</div>
-                                        <div className="text-[10px] text-gray-400 uppercase font-bold">Submitted</div>
-                                    </td>
-                                    <td className="px-6 py-4 text-right">
-                                        <div className="flex items-center justify-end gap-2">
-                                            <button
-                                                onClick={() => setAnnouncementModal({ isOpen: true, userId: user.uid || user.id })}
-                                                className="text-xs bg-purple-100 text-purple-600 px-3 py-1.5 rounded-lg font-bold hover:bg-purple-200 transition-colors flex items-center gap-1"
-                                                title="Send Announcement"
-                                            >
-                                                <Megaphone size={14} /> Send
-                                            </button>
-                                            {!hasId && (
-                                                <button onClick={() => generateId(user.uid || user.id)} className="text-xs bg-brand-dark text-white px-3 py-1.5 rounded-lg font-bold hover:bg-black transition-colors">
-                                                    Generate ID
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <div>
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    {hasId ? (
+                                                        <span className="text-sm font-mono bg-blue-50 text-brand-blue px-2 py-1 rounded border border-blue-100 font-bold">{user.mcamp.uniqueId}</span>
+                                                    ) : <span className="text-gray-400 italic text-[10px]">Pending ID</span>}
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4 text-center">
+                                            <div className="font-bold text-gray-900 text-lg">{user.totalScore}</div>
+                                            <div className="text-[10px] text-gray-400 uppercase font-bold">Points</div>
+                                        </td>
+                                        <td className="px-6 py-4 text-center">
+                                            <div className="font-bold text-gray-700">{user.quizzesTaken}</div>
+                                            <div className="text-[10px] text-gray-400 uppercase font-bold">Submitted</div>
+                                        </td>
+                                        <td className="px-6 py-4 text-right">
+                                            <div className="flex items-center justify-end gap-2">
+                                                <button
+                                                    onClick={() => setAnnouncementModal({ isOpen: true, userId: user.uid || user.id })}
+                                                    className="text-xs bg-purple-100 text-purple-600 px-3 py-1.5 rounded-lg font-bold hover:bg-purple-200 transition-colors flex items-center gap-1"
+                                                    title="Send Announcement"
+                                                >
+                                                    <Megaphone size={14} /> Send
                                                 </button>
-                                            )}
-                                        </div>
+                                                {!hasId && (
+                                                    <button onClick={() => generateId(user.uid || user.id)} className="text-xs bg-brand-dark text-white px-3 py-1.5 rounded-lg font-bold hover:bg-black transition-colors">
+                                                        Generate ID
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                );
+                            }) : (
+                                <tr>
+                                    <td colSpan={5} className="px-6 py-12 text-center text-gray-400 italic">
+                                        No students found matching filters.
                                     </td>
                                 </tr>
-                            );
-                        }) : (
-                            <tr>
-                                <td colSpan={5} className="px-6 py-12 text-center text-gray-400 italic">
-                                    No students found matching filters.
-                                </td>
-                            </tr>
-                        )}
-                    </tbody>
-                </table>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
             </div>
 
             {/* Announcement Modal */}
@@ -1548,52 +1550,54 @@ const GradingView = () => {
                 </div>
             ) : (
                 <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden shadow-sm">
-                    <table className="w-full text-left">
-                        <thead className="bg-gray-50 border-b border-gray-100">
-                            <tr>
-                                <th className="px-6 py-4 font-bold text-gray-500 text-xs uppercase">Student</th>
-                                <th className="px-6 py-4 font-bold text-gray-500 text-xs uppercase">Quiz</th>
-                                <th className="px-6 py-4 font-bold text-gray-500 text-xs uppercase">Submitted</th>
-                                <th className="px-6 py-4 font-bold text-gray-500 text-xs uppercase">Status</th>
-                                <th className="px-6 py-4 font-bold text-gray-500 text-xs uppercase">Score</th>
-                                <th className="px-6 py-4 font-bold text-gray-500 text-xs uppercase text-right">Action</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-50">
-                            {submissions.map((sub, idx) => (
-                                <tr key={idx} className="hover:bg-gray-50 transition-colors">
-                                    <td className="px-6 py-4">
-                                        <p className="font-bold text-gray-900 text-sm">{sub.userEmail?.split('@')[0]}</p>
-                                        <p className="text-xs text-brand-blue font-mono">{sub.mcampId}</p>
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        <p className="font-bold text-gray-900 text-sm truncate max-w-[200px]">{sub.quizTitle}</p>
-                                        <p className="text-xs text-gray-400">{sub.quizId}</p>
-                                    </td>
-                                    <td className="px-6 py-4 text-xs text-gray-500">
-                                        {new Date(sub.submittedAt).toLocaleString()}
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        <span className={`text-[10px] px-2 py-1 rounded-full font-bold uppercase ${sub.status === 'completed' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
-                                            }`}>
-                                            {sub.status === 'completed' ? 'Graded' : 'Pending'}
-                                        </span>
-                                    </td>
-                                    <td className="px-6 py-4 font-bold text-gray-900">
-                                        {sub.score !== undefined ? sub.score : '-'}
-                                    </td>
-                                    <td className="px-6 py-4 text-right">
-                                        <button
-                                            onClick={() => setSelectedSubmission(sub)}
-                                            className="px-4 py-2 bg-white border border-gray-200 shadow-sm text-sm font-bold rounded-lg hover:border-brand-blue hover:text-brand-blue transition-colors"
-                                        >
-                                            {sub.status === 'completed' ? 'Review / Edit' : 'Grade Now'}
-                                        </button>
-                                    </td>
+                    <div className="overflow-x-auto custom-scrollbar">
+                        <table className="w-full text-left">
+                            <thead className="bg-gray-50 border-b border-gray-100">
+                                <tr>
+                                    <th className="px-6 py-4 font-bold text-gray-500 text-xs uppercase">Student</th>
+                                    <th className="px-6 py-4 font-bold text-gray-500 text-xs uppercase">Quiz</th>
+                                    <th className="px-6 py-4 font-bold text-gray-500 text-xs uppercase">Submitted</th>
+                                    <th className="px-6 py-4 font-bold text-gray-500 text-xs uppercase">Status</th>
+                                    <th className="px-6 py-4 font-bold text-gray-500 text-xs uppercase">Score</th>
+                                    <th className="px-6 py-4 font-bold text-gray-500 text-xs uppercase text-right">Action</th>
                                 </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody className="divide-y divide-gray-50">
+                                {submissions.map((sub, idx) => (
+                                    <tr key={idx} className="hover:bg-gray-50 transition-colors">
+                                        <td className="px-6 py-4">
+                                            <p className="font-bold text-gray-900 text-sm">{sub.userEmail?.split('@')[0]}</p>
+                                            <p className="text-xs text-brand-blue font-mono">{sub.mcampId}</p>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <p className="font-bold text-gray-900 text-sm truncate max-w-[200px]">{sub.quizTitle}</p>
+                                            <p className="text-xs text-gray-400">{sub.quizId}</p>
+                                        </td>
+                                        <td className="px-6 py-4 text-xs text-gray-500">
+                                            {new Date(sub.submittedAt).toLocaleString()}
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <span className={`text-[10px] px-2 py-1 rounded-full font-bold uppercase ${sub.status === 'completed' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
+                                                }`}>
+                                                {sub.status === 'completed' ? 'Graded' : 'Pending'}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4 font-bold text-gray-900">
+                                            {sub.score !== undefined ? sub.score : '-'}
+                                        </td>
+                                        <td className="px-6 py-4 text-right">
+                                            <button
+                                                onClick={() => setSelectedSubmission(sub)}
+                                                className="px-4 py-2 bg-white border border-gray-200 shadow-sm text-sm font-bold rounded-lg hover:border-brand-blue hover:text-brand-blue transition-colors"
+                                            >
+                                                {sub.status === 'completed' ? 'Review / Edit' : 'Grade Now'}
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             )}
         </div>

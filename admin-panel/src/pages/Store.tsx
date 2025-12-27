@@ -413,43 +413,45 @@ export const StorePage = () => {
             {/* TAB CONTENT: PRODUCTS */}
             {activeTab === 'products' && (
                 <div className="bg-white rounded-[1.5rem] shadow-sm border border-gray-100 overflow-hidden animate-fade-in">
-                    <table className="w-full text-left">
-                        <thead className="bg-gray-50 border-b border-gray-100">
-                            <tr>
-                                <th className="px-8 py-5 font-bold text-gray-500 text-xs uppercase tracking-wider">Product</th>
-                                <th className="px-6 py-5 font-bold text-gray-500 text-xs uppercase tracking-wider">Price</th>
-                                <th className="px-6 py-5 font-bold text-gray-500 text-xs uppercase tracking-wider">Category</th>
-                                <th className="px-6 py-5 font-bold text-gray-500 text-xs uppercase tracking-wider text-right">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-50">
-                            {products.length === 0 ? (
-                                <tr><td colSpan={4} className="px-8 py-10 text-center text-gray-400">No products found.</td></tr>
-                            ) : (
-                                products.map((prod) => (
-                                    <tr key={prod.id || prod._id} className="hover:bg-blue-50/50 transition-colors group">
-                                        <td className="px-8 py-5">
-                                            <div className="flex items-center gap-4">
-                                                <div className="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center overflow-hidden shrink-0 border border-gray-200">
-                                                    {prod.imageUrl ? (<img src={prod.imageUrl} alt={prod.title} className="w-full h-full object-cover" />) : (<ShoppingBag size={20} className="text-gray-400" />)}
+                    <div className="overflow-x-auto custom-scrollbar">
+                        <table className="w-full text-left">
+                            <thead className="bg-gray-50 border-b border-gray-100">
+                                <tr>
+                                    <th className="px-8 py-5 font-bold text-gray-500 text-xs uppercase tracking-wider">Product</th>
+                                    <th className="px-6 py-5 font-bold text-gray-500 text-xs uppercase tracking-wider">Price</th>
+                                    <th className="px-6 py-5 font-bold text-gray-500 text-xs uppercase tracking-wider">Category</th>
+                                    <th className="px-6 py-5 font-bold text-gray-500 text-xs uppercase tracking-wider text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-50">
+                                {products.length === 0 ? (
+                                    <tr><td colSpan={4} className="px-8 py-10 text-center text-gray-400">No products found.</td></tr>
+                                ) : (
+                                    products.map((prod) => (
+                                        <tr key={prod.id || prod._id} className="hover:bg-blue-50/50 transition-colors group">
+                                            <td className="px-8 py-5">
+                                                <div className="flex items-center gap-4">
+                                                    <div className="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center overflow-hidden shrink-0 border border-gray-200">
+                                                        {prod.imageUrl ? (<img src={prod.imageUrl} alt={prod.title} className="w-full h-full object-cover" />) : (<ShoppingBag size={20} className="text-gray-400" />)}
+                                                    </div>
+                                                    <div>
+                                                        <p className="font-bold text-brand-dark group-hover:text-brand-blue transition-colors">{prod.title}</p>
+                                                        <p className="text-gray-500 text-xs truncate max-w-[200px]">{prod.description}</p>
+                                                    </div>
                                                 </div>
-                                                <div>
-                                                    <p className="font-bold text-brand-dark group-hover:text-brand-blue transition-colors">{prod.title}</p>
-                                                    <p className="text-gray-500 text-xs truncate max-w-[200px]">{prod.description}</p>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-5"><span className="font-bold text-brand-dark">₦{prod.price}</span></td>
-                                        <td className="px-6 py-5"><span className="px-3 py-1 bg-gray-100 text-gray-600 rounded-lg text-xs font-bold uppercase">{prod.category}</span></td>
-                                        <td className="px-6 py-5 text-right flex justify-end gap-2">
-                                            <button onClick={() => handleEdit(prod)} className="text-gray-400 hover:text-brand-blue transition-colors p-2 hover:bg-blue-50 rounded-lg"><Edit size={18} /></button>
-                                            <button onClick={() => handleDelete(prod.id || prod._id)} className="text-gray-400 hover:text-red-500 transition-colors p-2 hover:bg-red-50 rounded-lg"><Trash2 size={18} /></button>
-                                        </td>
-                                    </tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
+                                            </td>
+                                            <td className="px-6 py-5"><span className="font-bold text-brand-dark">₦{prod.price}</span></td>
+                                            <td className="px-6 py-5"><span className="px-3 py-1 bg-gray-100 text-gray-600 rounded-lg text-xs font-bold uppercase">{prod.category}</span></td>
+                                            <td className="px-6 py-5 text-right flex justify-end gap-2">
+                                                <button onClick={() => handleEdit(prod)} className="text-gray-400 hover:text-brand-blue transition-colors p-2 hover:bg-blue-50 rounded-lg"><Edit size={18} /></button>
+                                                <button onClick={() => handleDelete(prod.id || prod._id)} className="text-gray-400 hover:text-red-500 transition-colors p-2 hover:bg-red-50 rounded-lg"><Trash2 size={18} /></button>
+                                            </td>
+                                        </tr>
+                                    ))
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             )}
 
@@ -466,42 +468,44 @@ export const StorePage = () => {
                         </button>
                     </div>
                     <div className="bg-white rounded-[1.5rem] shadow-sm border border-gray-100 overflow-hidden">
-                        <table className="w-full text-left">
-                            <thead className="bg-gray-50 border-b border-gray-100">
-                                <tr>
-                                    <th className="px-8 py-5 font-bold text-gray-500 text-xs uppercase tracking-wider">Code</th>
-                                    <th className="px-6 py-5 font-bold text-gray-500 text-xs uppercase tracking-wider">Discount</th>
-                                    <th className="px-6 py-5 font-bold text-gray-500 text-xs uppercase tracking-wider">Min. Spend</th>
-                                    <th className="px-6 py-5 font-bold text-gray-500 text-xs uppercase tracking-wider">Status</th>
-                                    <th className="px-6 py-5 font-bold text-gray-500 text-xs uppercase tracking-wider">Expires</th>
-                                    <th className="px-6 py-5 font-bold text-gray-500 text-xs uppercase tracking-wider text-right">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-50">
-                                {coupons.map(coupon => (
-                                    <tr key={coupon._id || coupon.id} className="hover:bg-gray-50/50 transition-colors">
-                                        <td className="px-8 py-5 font-mono font-bold text-brand-blue text-lg tracking-wide">{coupon.code}</td>
-                                        <td className="px-6 py-5 font-bold text-gray-700">{coupon.type === 'percentage' ? `${coupon.value}% OFF` : `₦${coupon.value} OFF`}</td>
-                                        <td className="px-6 py-5">
-                                            {coupon.minOrderAmount > 0 ? (
-                                                <span className="text-sm font-bold text-brand-dark">₦{coupon.minOrderAmount.toLocaleString()}</span>
-                                            ) : (
-                                                <span className="text-gray-400 text-xs">—</span>
-                                            )}
-                                        </td>
-                                        <td className="px-6 py-5">
-                                            <button onClick={() => handleToggleCoupon(coupon._id || coupon.id)} className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold transition-all ${coupon.isActive ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>
-                                                {coupon.isActive ? <CheckCircle size={12} /> : <X size={12} />} {coupon.isActive ? 'Active' : 'Inactive'}
-                                            </button>
-                                        </td>
-                                        <td className="px-6 py-5 text-sm text-gray-500">{coupon.expiresAt ? new Date(coupon.expiresAt).toLocaleDateString() : 'No Expiry'}</td>
-                                        <td className="px-6 py-5 text-right">
-                                            <button onClick={() => handleDeleteCoupon(coupon._id || coupon.id)} className="text-gray-400 hover:text-red-500 p-2 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={18} /></button>
-                                        </td>
+                        <div className="overflow-x-auto custom-scrollbar">
+                            <table className="w-full text-left">
+                                <thead className="bg-gray-50 border-b border-gray-100">
+                                    <tr>
+                                        <th className="px-8 py-5 font-bold text-gray-500 text-xs uppercase tracking-wider">Code</th>
+                                        <th className="px-6 py-5 font-bold text-gray-500 text-xs uppercase tracking-wider">Discount</th>
+                                        <th className="px-6 py-5 font-bold text-gray-500 text-xs uppercase tracking-wider">Min. Spend</th>
+                                        <th className="px-6 py-5 font-bold text-gray-500 text-xs uppercase tracking-wider">Status</th>
+                                        <th className="px-6 py-5 font-bold text-gray-500 text-xs uppercase tracking-wider">Expires</th>
+                                        <th className="px-6 py-5 font-bold text-gray-500 text-xs uppercase tracking-wider text-right">Actions</th>
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody className="divide-y divide-gray-50">
+                                    {coupons.map(coupon => (
+                                        <tr key={coupon._id || coupon.id} className="hover:bg-gray-50/50 transition-colors">
+                                            <td className="px-8 py-5 font-mono font-bold text-brand-blue text-lg tracking-wide">{coupon.code}</td>
+                                            <td className="px-6 py-5 font-bold text-gray-700">{coupon.type === 'percentage' ? `${coupon.value}% OFF` : `₦${coupon.value} OFF`}</td>
+                                            <td className="px-6 py-5">
+                                                {coupon.minOrderAmount > 0 ? (
+                                                    <span className="text-sm font-bold text-brand-dark">₦{coupon.minOrderAmount.toLocaleString()}</span>
+                                                ) : (
+                                                    <span className="text-gray-400 text-xs">—</span>
+                                                )}
+                                            </td>
+                                            <td className="px-6 py-5">
+                                                <button onClick={() => handleToggleCoupon(coupon._id || coupon.id)} className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold transition-all ${coupon.isActive ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>
+                                                    {coupon.isActive ? <CheckCircle size={12} /> : <X size={12} />} {coupon.isActive ? 'Active' : 'Inactive'}
+                                                </button>
+                                            </td>
+                                            <td className="px-6 py-5 text-sm text-gray-500">{coupon.expiresAt ? new Date(coupon.expiresAt).toLocaleDateString() : 'No Expiry'}</td>
+                                            <td className="px-6 py-5 text-right">
+                                                <button onClick={() => handleDeleteCoupon(coupon._id || coupon.id)} className="text-gray-400 hover:text-red-500 p-2 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={18} /></button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             )}
@@ -519,30 +523,32 @@ export const StorePage = () => {
                         </button>
                     </div>
                     <div className="bg-white rounded-[1.5rem] shadow-sm border border-gray-100 overflow-hidden max-w-3xl">
-                        <table className="w-full text-left">
-                            <thead className="bg-gray-50 border-b border-gray-100">
-                                <tr>
-                                    <th className="px-8 py-5 font-bold text-gray-500 text-xs uppercase tracking-wider">Zone Name</th>
-                                    <th className="px-6 py-5 font-bold text-gray-500 text-xs uppercase tracking-wider">Shipping Fee</th>
-                                    <th className="px-6 py-5 font-bold text-gray-500 text-xs uppercase tracking-wider text-right">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-50">
-                                {deliveryZones.length === 0 ? (
-                                    <tr><td colSpan={3} className="px-8 py-10 text-center text-gray-400">No delivery zones set.</td></tr>
-                                ) : (
-                                    deliveryZones.map(zone => (
-                                        <tr key={zone._id} className="hover:bg-gray-50/50">
-                                            <td className="px-8 py-5 font-bold text-gray-800">{zone.name}</td>
-                                            <td className="px-6 py-5 font-bold text-gray-600">₦{zone.price}</td>
-                                            <td className="px-6 py-5 text-right">
-                                                <button onClick={() => handleDeleteZone(zone._id)} className="text-gray-400 hover:text-red-500 p-2 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={18} /></button>
-                                            </td>
-                                        </tr>
-                                    ))
-                                )}
-                            </tbody>
-                        </table>
+                        <div className="overflow-x-auto custom-scrollbar">
+                            <table className="w-full text-left">
+                                <thead className="bg-gray-50 border-b border-gray-100">
+                                    <tr>
+                                        <th className="px-8 py-5 font-bold text-gray-500 text-xs uppercase tracking-wider">Zone Name</th>
+                                        <th className="px-6 py-5 font-bold text-gray-500 text-xs uppercase tracking-wider">Shipping Fee</th>
+                                        <th className="px-6 py-5 font-bold text-gray-500 text-xs uppercase tracking-wider text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-50">
+                                    {deliveryZones.length === 0 ? (
+                                        <tr><td colSpan={3} className="px-8 py-10 text-center text-gray-400">No delivery zones set.</td></tr>
+                                    ) : (
+                                        deliveryZones.map(zone => (
+                                            <tr key={zone._id} className="hover:bg-gray-50/50">
+                                                <td className="px-8 py-5 font-bold text-gray-800">{zone.name}</td>
+                                                <td className="px-6 py-5 font-bold text-gray-600">₦{zone.price}</td>
+                                                <td className="px-6 py-5 text-right">
+                                                    <button onClick={() => handleDeleteZone(zone._id)} className="text-gray-400 hover:text-red-500 p-2 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={18} /></button>
+                                                </td>
+                                            </tr>
+                                        ))
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             )}
@@ -550,71 +556,73 @@ export const StorePage = () => {
             {/* TAB CONTENT: ORDERS */}
             {activeTab === 'orders' && (
                 <div className="animate-fade-in bg-white rounded-[1.5rem] shadow-sm border border-gray-100 overflow-hidden">
-                    <table className="w-full text-left">
-                        <thead className="bg-gray-50 border-b border-gray-100">
-                            <tr>
-                                <th className="px-6 py-5 font-bold text-gray-500 text-xs uppercase tracking-wider">Order ID</th>
-                                <th className="px-6 py-5 font-bold text-gray-500 text-xs uppercase tracking-wider">Customer</th>
-                                <th className="px-6 py-5 font-bold text-gray-500 text-xs uppercase tracking-wider">Items</th>
-                                <th className="px-6 py-5 font-bold text-gray-500 text-xs uppercase tracking-wider">Total</th>
-                                <th className="px-6 py-5 font-bold text-gray-500 text-xs uppercase tracking-wider">Status</th>
-                                <th className="px-6 py-5 font-bold text-gray-500 text-xs uppercase tracking-wider">Date</th>
-                                <th className="px-6 py-5 font-bold text-gray-500 text-xs uppercase tracking-wider text-right">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-50">
-                            {orders.length === 0 ? (
-                                <tr><td colSpan={6} className="px-8 py-10 text-center text-gray-400">No orders yet.</td></tr>
-                            ) : (
-                                orders.map(order => (
-                                    <tr key={order._id || order.id} className="hover:bg-gray-50/50">
-                                        <td className="px-6 py-5 font-mono text-sm font-bold text-brand-blue">{order.orderId}</td>
-                                        <td className="px-6 py-5">
-                                            <p className="font-bold text-gray-800">{order.customer.name}</p>
-                                            <p className="text-xs text-gray-500">{order.customer.email}</p>
-                                            <p className="text-xs text-brand-dark font-bold mt-1">📞 {order.customer.phone}</p>
-                                            <p className="text-xs text-gray-500 mt-0.5">{order.customer.address}, {order.customer.state}</p>
-                                        </td>
-                                        <td className="px-6 py-5 text-sm text-gray-600">
-                                            {order.items.map((item: any) => (
-                                                <div key={item.productId} className="flex gap-1 items-center">
-                                                    <span className="font-bold">{item.quantity}x</span> {item.name}
-                                                </div>
-                                            ))}
-                                        </td>
-                                        <td className="px-6 py-5 font-bold text-gray-800">₦{order.financials.total}</td>
-                                        <td className="px-6 py-5">
-                                            <select
-                                                value={order.status}
-                                                onChange={(e) => handleUpdateStatus(order._id || order.id, e.target.value)}
-                                                className={`px-2 py-1 rounded-lg text-xs font-bold uppercase cursor-pointer border-none outline-none ${order.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
-                                                    order.status === 'processing' ? 'bg-blue-100 text-blue-700' :
-                                                        order.status === 'shipped' ? 'bg-purple-100 text-purple-700' :
-                                                            order.status === 'delivered' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'
-                                                    }`}
-                                            >
-                                                <option value="pending">PENDING</option>
-                                                <option value="processing">PROCESSING</option>
-                                                <option value="shipped">SHIPPED</option>
-                                                <option value="delivered">DELIVERED</option>
-                                                <option value="cancelled">CANCELLED</option>
-                                            </select>
-                                        </td>
-                                        <td className="px-6 py-5 text-xs text-gray-500">{new Date(order.createdAt).toLocaleDateString()}</td>
-                                        <td className="px-6 py-5 text-right">
-                                            <button
-                                                onClick={() => handleGenerateReceipt(order)}
-                                                className="bg-gray-100 hover:bg-gray-200 text-gray-700 p-2 rounded-lg transition-colors flex items-center gap-2 justify-center mx-auto"
-                                                title="Generate Receipt"
-                                            >
-                                                <FileText size={18} />
-                                            </button>
-                                        </td>
-                                    </tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
+                    <div className="overflow-x-auto custom-scrollbar">
+                        <table className="w-full text-left">
+                            <thead className="bg-gray-50 border-b border-gray-100">
+                                <tr>
+                                    <th className="px-6 py-5 font-bold text-gray-500 text-xs uppercase tracking-wider">Order ID</th>
+                                    <th className="px-6 py-5 font-bold text-gray-500 text-xs uppercase tracking-wider">Customer</th>
+                                    <th className="px-6 py-5 font-bold text-gray-500 text-xs uppercase tracking-wider">Items</th>
+                                    <th className="px-6 py-5 font-bold text-gray-500 text-xs uppercase tracking-wider">Total</th>
+                                    <th className="px-6 py-5 font-bold text-gray-500 text-xs uppercase tracking-wider">Status</th>
+                                    <th className="px-6 py-5 font-bold text-gray-500 text-xs uppercase tracking-wider">Date</th>
+                                    <th className="px-6 py-5 font-bold text-gray-500 text-xs uppercase tracking-wider text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-50">
+                                {orders.length === 0 ? (
+                                    <tr><td colSpan={6} className="px-8 py-10 text-center text-gray-400">No orders yet.</td></tr>
+                                ) : (
+                                    orders.map(order => (
+                                        <tr key={order._id || order.id} className="hover:bg-gray-50/50">
+                                            <td className="px-6 py-5 font-mono text-sm font-bold text-brand-blue">{order.orderId}</td>
+                                            <td className="px-6 py-5">
+                                                <p className="font-bold text-gray-800">{order.customer.name}</p>
+                                                <p className="text-xs text-gray-500">{order.customer.email}</p>
+                                                <p className="text-xs text-brand-dark font-bold mt-1">📞 {order.customer.phone}</p>
+                                                <p className="text-xs text-gray-500 mt-0.5">{order.customer.address}, {order.customer.state}</p>
+                                            </td>
+                                            <td className="px-6 py-5 text-sm text-gray-600">
+                                                {order.items.map((item: any) => (
+                                                    <div key={item.productId} className="flex gap-1 items-center">
+                                                        <span className="font-bold">{item.quantity}x</span> {item.name}
+                                                    </div>
+                                                ))}
+                                            </td>
+                                            <td className="px-6 py-5 font-bold text-gray-800">₦{order.financials.total}</td>
+                                            <td className="px-6 py-5">
+                                                <select
+                                                    value={order.status}
+                                                    onChange={(e) => handleUpdateStatus(order._id || order.id, e.target.value)}
+                                                    className={`px-2 py-1 rounded-lg text-xs font-bold uppercase cursor-pointer border-none outline-none ${order.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+                                                        order.status === 'processing' ? 'bg-blue-100 text-blue-700' :
+                                                            order.status === 'shipped' ? 'bg-purple-100 text-purple-700' :
+                                                                order.status === 'delivered' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'
+                                                        }`}
+                                                >
+                                                    <option value="pending">PENDING</option>
+                                                    <option value="processing">PROCESSING</option>
+                                                    <option value="shipped">SHIPPED</option>
+                                                    <option value="delivered">DELIVERED</option>
+                                                    <option value="cancelled">CANCELLED</option>
+                                                </select>
+                                            </td>
+                                            <td className="px-6 py-5 text-xs text-gray-500">{new Date(order.createdAt).toLocaleDateString()}</td>
+                                            <td className="px-6 py-5 text-right">
+                                                <button
+                                                    onClick={() => handleGenerateReceipt(order)}
+                                                    className="bg-gray-100 hover:bg-gray-200 text-gray-700 p-2 rounded-lg transition-colors flex items-center gap-2 justify-center mx-auto"
+                                                    title="Generate Receipt"
+                                                >
+                                                    <FileText size={18} />
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             )}
 
