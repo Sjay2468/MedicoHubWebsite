@@ -18,6 +18,7 @@ export interface IResource extends Document {
 
     uploadedBy: string;
     year?: string;
+    quizData?: any; // For Quiz type resources
     createdAt: Date;
     updatedAt: Date;
 }
@@ -33,13 +34,14 @@ const ResourceSchema: Schema = new Schema({
     isPro: { type: Boolean, default: false },
     isMcampExclusive: { type: Boolean, default: false },
 
-    url: { type: String, required: true },
+    url: { type: String },
     thumbnailUrl: { type: String },
     downloadUrl: { type: String },
     hasAiAccess: { type: Boolean, default: false },
     extractedText: { type: String, select: false }, // Hidden by default
 
-    uploadedBy: { type: String }
+    uploadedBy: { type: String },
+    quizData: { type: Schema.Types.Mixed }
 }, { timestamps: true });
 
 export const Resource = mongoose.model<IResource>('Resource', ResourceSchema);

@@ -48,7 +48,10 @@ const allowedOrigins = [
     'http://localhost:5173',
     'http://localhost:5174',
     'http://localhost:3000',
-    'http://localhost:4173'
+    'http://localhost:4173',
+    'http://127.0.0.1:5173',
+    'http://127.0.0.1:5174',
+    'http://127.0.0.1:3000'
 ];
 
 app.use(cors({
@@ -62,6 +65,17 @@ app.use(cors({
     credentials: true
 }));
 app.use(express.json());
+
+// Global Request Logger
+app.use((req, res, next) => {
+    if (process.env.NODE_ENV !== 'production' || req.path.startsWith('/api/')) {
+        console.log(`[Request] ${new Date().toISOString()} | ${req.method} ${req.path} | Origin: ${req.headers.origin}`);
+        if (req.headers.authorization) {
+            console.log(`[Auth] Header present (${req.headers.authorization.substring(0, 15)}...)`);
+        }
+    }
+    next();
+});
 
 // Custom route for uploads to strict enforce headers
 app.get('/uploads/:filename', (req: Request, res: Response) => {

@@ -31,6 +31,21 @@ const getAuthHeaders = async () => {
     };
 };
 
+const handleResponse = async (res: Response) => {
+    if (!res.ok) {
+        let errorMsg = "API Error";
+        try {
+            const data = await res.json();
+            errorMsg = data.error || data.message || `Server responded with ${res.status}`;
+        } catch (e) {
+            errorMsg = await res.text() || `Server responded with ${res.status}`;
+        }
+        console.error("[API Error Details]", errorMsg);
+        throw new Error(errorMsg);
+    }
+    return res.json();
+};
+
 export const api = {
     resources: {
         getAll: async () => {
@@ -38,8 +53,7 @@ export const api = {
                 const res = await fetch(`${V3_URL}/resources/admin/all`, {
                     headers: await getAuthHeaders()
                 });
-                if (!res.ok) throw new Error("Backend failed");
-                return res.json();
+                return handleResponse(res);
             } catch (err) {
                 console.error("Using Firestore fallback for resources:", err);
                 const ref = collection(db, 'resources');
@@ -54,8 +68,7 @@ export const api = {
                 headers: await getAuthHeaders(),
                 body: JSON.stringify(data)
             });
-            if (!res.ok) throw new Error("Failed to create resource");
-            return res.json();
+            return handleResponse(res);
         },
         update: async (id: string, data: any) => {
             // Backend might not have PATCH for resources yet, fallback to Firestore if needed
@@ -106,9 +119,7 @@ export const api = {
                 const response = await fetch(`${BASE_URL}/users?filter=requests&limit=50`, {
                     headers: await getAuthHeaders()
                 });
-                if (!response.ok) throw new Error("Backend failed");
-                const data = await response.json();
-                return Array.isArray(data) ? data : (data.users || []);
+                return handleResponse(response);
             } catch (err) {
                 // Fallback: manually filter from a bigger set or just fetch direct
                 const ref = collection(db, 'users');
@@ -180,8 +191,7 @@ export const api = {
                 headers: await getAuthHeaders(),
                 body: JSON.stringify(data)
             });
-            if (!res.ok) throw new Error("Failed to create product");
-            return res.json();
+            return handleResponse(res);
         },
         update: async (id: string, data: any) => {
             const ref = doc(db, 'products', id);
@@ -208,8 +218,7 @@ export const api = {
             const res = await fetch(`${BASE_URL}/coupons`, {
                 headers: await getAuthHeaders()
             });
-            if (!res.ok) throw new Error("Failed to fetch coupons");
-            return res.json();
+            return handleResponse(res);
         },
         create: async (data: any) => {
             const res = await fetch(`${BASE_URL}/coupons`, {
@@ -217,8 +226,7 @@ export const api = {
                 headers: await getAuthHeaders(),
                 body: JSON.stringify(data)
             });
-            if (!res.ok) throw new Error("Failed to create coupon");
-            return res.json();
+            return handleResponse(res);
         },
         delete: async (id: string) => {
             const res = await fetch(`${BASE_URL}/coupons/${id}`, {
@@ -242,8 +250,7 @@ export const api = {
             const res = await fetch(`${BASE_URL}/delivery/admin`, {
                 headers: await getAuthHeaders()
             });
-            if (!res.ok) throw new Error("Failed to fetch zones");
-            return res.json();
+            return handleResponse(res);
         },
         create: async (data: any) => {
             const res = await fetch(`${BASE_URL}/delivery`, {
@@ -251,7 +258,7 @@ export const api = {
                 headers: await getAuthHeaders(),
                 body: JSON.stringify(data)
             });
-            return res.json();
+            return handleResponse(res);
         },
         update: async (id: string, data: any) => {
             const res = await fetch(`${BASE_URL}/delivery/${id}`, {
@@ -273,8 +280,7 @@ export const api = {
             const res = await fetch(`${BASE_URL}/orders`, {
                 headers: await getAuthHeaders()
             });
-            if (!res.ok) throw new Error("Failed to fetch orders");
-            return res.json();
+            return handleResponse(res);
         },
         updateStatus: async (id: string, status: string) => {
             const res = await fetch(`${BASE_URL}/orders/${id}/status`, {
