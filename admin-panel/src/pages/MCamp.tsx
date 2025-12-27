@@ -883,11 +883,14 @@ const QuizManager = () => {
                 type: 'Quiz',
                 subject: quizData.subject || 'MCAMP', // Ensure subject is present for validation
                 isMcampExclusive: true,
-                tags: [...(quizData.tags || []), 'MCAMP']
+                tags: [...(quizData.tags || []), 'MCAMP'],
+                quizData: quizData.questions, // Map frontend questions to backend quizData
+                url: 'internal://quiz-mastery' // Internal marker for quiz type
             };
 
-            if (currentQuiz?.id || currentQuiz?._id) {
-                await api.resources.update(currentQuiz.id || currentQuiz._id, dataToSave);
+            const id = currentQuiz?.id || currentQuiz?._id;
+            if (id) {
+                await api.resources.update(id, dataToSave);
             } else {
                 await api.resources.create(dataToSave);
             }
