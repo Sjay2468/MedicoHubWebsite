@@ -29,7 +29,7 @@ export const OrderController = {
                 calculatedSubtotal += product.price * item.quantity;
                 validatedItems.push({
                     productId: item.productId,
-                    name: product.name,
+                    name: product.title,
                     quantity: item.quantity,
                     price: product.price,
                     image: item.image
