@@ -20,9 +20,12 @@ export const Pricing: React.FC<PricingProps> = ({ user }) => {
     message: '',
     type: 'success'
   });
+  const [promoCode, setPromoCode] = React.useState('');
+  const [isDemoMode, setIsDemoMode] = React.useState(false);
 
   // Paystack Config
-  const amount = isAnnual ? 5760000 : 600000; // 57,600 or 6,000 * 100 kobo
+  const baseAmount = isAnnual ? 5760000 : 600000;
+  const amount = isDemoMode ? 0 : baseAmount; // 57,600 or 6,000 * 100 kobo
 
   const config = {
     reference: (new Date()).getTime().toString(),
@@ -74,7 +77,11 @@ export const Pricing: React.FC<PricingProps> = ({ user }) => {
     }
 
     if (user) {
-      initializePayment({ onSuccess, onClose });
+      if (isDemoMode) {
+        onSuccess({ reference: 'DEMO-BYPASS-' + Date.now() });
+      } else {
+        initializePayment({ onSuccess, onClose });
+      }
     } else {
       navigate(AppRoute.SIGNUP, { state: { intent: 'pro' } });
     }
@@ -194,22 +201,39 @@ export const Pricing: React.FC<PricingProps> = ({ user }) => {
               </li>
             ))}
           </ul>
-          <div className="space-y-3">
-            <button
-              onClick={handleProClick}
-              className="block w-full text-center bg-brand-blue hover:bg-blue-600 text-white font-bold py-4 rounded-2xl transition-all shadow-lg shadow-brand-blue/40 active:scale-95 animate-pop-in"
-            >
-              {user?.isSubscribed ? 'Manage Subscription' : 'Activate Pro Membership'}
-            </button>
-            {import.meta.env.VITE_ENABLE_DEMO_BYPASS === 'true' && !user?.isSubscribed && (
-              <button
-                onClick={() => onSuccess({ reference: 'DEMO_BYPASS' })}
-                className="w-full py-3 rounded-xl font-bold transition-all bg-white/10 hover:bg-white/20 border border-white/20 text-brand-blue flex items-center justify-center gap-2"
-              >
-                <Star size={16} fill="currentColor" /> Simulate Success (Demo)
-              </button>
-            )}
-          </div>
+          <button
+            onClick={handleProClick}
+            className="block w-full text-center bg-brand-blue hover:bg-blue-600 text-white font-bold py-4 rounded-2xl transition-all shadow-lg shadow-brand-blue/40 active:scale-95 animate-pop-in"
+          >
+            {user?.isSubscribed ? 'Manage Subscription' : (isDemoMode ? 'Complete Demo Activation' : 'Activate Pro Membership')}
+          </button>
+
+          {!user?.isSubscribed && (
+            <div className="mt-8 pt-8 border-t border-white/10">
+              {isDemoMode ? (
+                <div className="flex items-center justify-between text-brand-blue text-sm font-bold">
+                  <span>Demo Mode Active</span>
+                  <button onClick={() => { setIsDemoMode(false); setPromoCode(''); }} className="text-gray-400 hover:text-white underline">Cancel</button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <p className="text-xs text-gray-500 font-bold uppercase tracking-widest">Have a Promo Code?</p>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="Enter code"
+                      className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-brand-blue"
+                      value={promoCode}
+                      onChange={(e) => {
+                        setPromoCode(e.target.value);
+                        if (e.target.value.toUpperCase() === 'DEMO2025') setIsDemoMode(true);
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>

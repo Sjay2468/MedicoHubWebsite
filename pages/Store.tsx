@@ -127,7 +127,8 @@ export const Store: React.FC<{ user: User | null }> = ({ user }) => {
     ? (subtotal * settings.proDiscountPercentage / 100)
     : 0;
 
-  const grandTotal = Math.max(0, subtotal + shippingFee - discountAmount - proDiscount);
+  const isDemoMode = discount.code === 'DEMO2025';
+  const grandTotal = isDemoMode ? 0 : Math.max(0, subtotal + shippingFee - discountAmount - proDiscount);
 
   const handleVerifyCoupon = async () => {
     if (!couponCode.trim()) return;
@@ -452,24 +453,21 @@ export const Store: React.FC<{ user: User | null }> = ({ user }) => {
                         <span>{formatCurrency(grandTotal)}</span>
                       </div>
                     </div>
-                    {(shippingLocation && contactInfo.name && contactInfo.email && contactInfo.phone && contactInfo.address) ? (
-                      <div className="space-y-3">
-                        <PaystackButton
-                          {...config}
-                          text={`Pay Now (${formatCurrency(grandTotal)})`}
-                          onSuccess={onSuccess}
-                          onClose={onClose}
-                          className="w-full py-4 rounded-xl font-bold transition-all shadow-lg bg-brand-blue hover:bg-blue-600 text-white shadow-brand-blue/20"
-                        />
-                        {import.meta.env.VITE_ENABLE_DEMO_BYPASS === 'true' && (
-                          <button
-                            onClick={() => onSuccess({ reference: 'DEMO_BYPASS' })}
-                            className="w-full py-3 rounded-xl font-bold transition-all bg-amber-100 text-amber-700 hover:bg-amber-200 border border-amber-200 flex items-center justify-center gap-2"
-                          >
-                            <Star size={16} fill="currentColor" /> Demo Payment (One-Click)
-                          </button>
-                        )}
-                      </div>
+                    {grandTotal === 0 && (shippingLocation && contactInfo.name && contactInfo.email && contactInfo.phone && contactInfo.address) ? (
+                      <button
+                        onClick={() => onSuccess({ reference: 'DEMO-BYPASS-' + Date.now() })}
+                        className="w-full py-4 rounded-xl font-bold transition-all shadow-lg bg-brand-yellow hover:bg-yellow-500 text-brand-dark shadow-brand-yellow/20 flex items-center justify-center gap-2"
+                      >
+                        <Star size={18} fill="currentColor" /> Complete Demo Order
+                      </button>
+                    ) : (shippingLocation && contactInfo.name && contactInfo.email && contactInfo.phone && contactInfo.address) ? (
+                      <PaystackButton
+                        {...config}
+                        text={`Pay Now (${formatCurrency(grandTotal)})`}
+                        onSuccess={onSuccess}
+                        onClose={onClose}
+                        className="w-full py-4 rounded-xl font-bold transition-all shadow-lg bg-brand-blue hover:bg-blue-600 text-white shadow-brand-blue/20"
+                      />
                     ) : (
                       <button
                         className="w-full py-4 rounded-xl font-bold transition-all shadow-lg bg-gray-200 text-gray-400 cursor-not-allowed"

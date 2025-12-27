@@ -68,12 +68,8 @@ export const OrderController = {
             // We ask Paystack's official system: "Did this person actually pay us the correct amount?"
             const secretKey = process.env.PAYSTACK_SECRET_KEY;
 
-            // DEMO BYPASS: Allow 'DEMO_BYPASS' if specifically enabled in .env
-            const isDemoBypass = payment.reference === 'DEMO_BYPASS' && process.env.ENABLE_DEMO_BYPASS === 'true';
-
-            if (isDemoBypass) {
-                console.log("[DEMO]: Bypassing Paystack verification for reference: DEMO_BYPASS");
-            } else if (secretKey && !secretKey.includes('PLACEHOLDER')) {
+            // Only perform verification if you have added your real Paystack key to the .env file and the amount is > 0.
+            if (paystackAmountKobo > 0 && secretKey && !secretKey.includes('PLACEHOLDER')) {
                 try {
                     const paystackRes = await axios.get(`https://api.paystack.co/transaction/verify/${payment.reference}`, {
                         headers: { Authorization: `Bearer ${secretKey}` }

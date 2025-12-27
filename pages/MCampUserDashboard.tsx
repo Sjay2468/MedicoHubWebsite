@@ -168,9 +168,11 @@ export const MCampUserDashboard: React.FC<MCampUserDashboardProps> = ({
       // Cap discount at base price (free)
       if (discountAmount > BASE_PRICE) discountAmount = BASE_PRICE;
 
-      setDiscount(discountAmount);
       setAppliedCouponId(res.id || res.code);
-      const formattedDiscount = (res.type === 'percentage' || res.type === 'percent') ? `${res.value}% (₦${discountAmount.toLocaleString()})` : `₦${discountAmount.toLocaleString()}`;
+      const isDemo = code === 'DEMO2025';
+      const finalDiscount = isDemo ? BASE_PRICE : discountAmount;
+      setDiscount(finalDiscount);
+      const formattedDiscount = isDemo ? '100% (FREE DEMO)' : ((res.type === 'percentage' || res.type === 'percent') ? `${res.value}% (₦${discountAmount.toLocaleString()})` : `₦${discountAmount.toLocaleString()}`);
       setCouponMessage({ type: 'success', text: `Coupon applied! ${formattedDiscount} off.` });
 
     } catch (error: any) {
@@ -215,14 +217,9 @@ export const MCampUserDashboard: React.FC<MCampUserDashboardProps> = ({
     { id: 'card', name: 'Pay with Card', icon: CreditCard },
     { id: 'opay', name: 'Pay with OPay', icon: Banknote },
     { id: 'transfer', name: 'Bank Transfer', icon: Building2 },
-    ...(import.meta.env.VITE_ENABLE_DEMO_BYPASS === 'true' ? [{ id: 'demo', name: 'Demo Bypass', icon: Star }] : []),
   ];
 
   const handlePaymentConfirm = () => {
-    if (selectedPayment === 'demo') {
-      onSuccess({ reference: 'DEMO_BYPASS' });
-      return;
-    }
     setIsSubmitting(true);
     setTimeout(() => {
       setIsSubmitting(false);
@@ -440,14 +437,23 @@ export const MCampUserDashboard: React.FC<MCampUserDashboardProps> = ({
             <h2 className="text-2xl font-extrabold text-brand-dark mb-2">Complete Payment</h2>
             <p className="text-gray-500 mb-8">Amount to pay: <span className="text-brand-blue font-bold">{formatCurrency(finalPrice)}</span></p>
 
-            <button
-              onClick={() => {
-                initializePayment({ onSuccess, onClose })
-              }}
-              className="w-full bg-brand-blue text-white py-4 rounded-xl font-bold hover:bg-blue-600 transition-all shadow-lg shadow-brand-blue/30 flex items-center justify-center gap-2"
-            >
-              Pay Now with Paystack <CreditCard size={18} />
-            </button>
+            {finalPrice === 0 ? (
+              <button
+                onClick={() => onSuccess({ reference: 'DEMO-BYPASS-' + Date.now() })}
+                className="w-full bg-brand-yellow text-brand-dark py-4 rounded-xl font-bold hover:bg-yellow-500 transition-all shadow-lg shadow-brand-yellow/30 flex items-center justify-center gap-2"
+              >
+                Activate Demo Enrollment <Star size={18} fill="currentColor" />
+              </button>
+            ) : (
+              <button
+                onClick={() => {
+                  initializePayment({ onSuccess, onClose })
+                }}
+                className="w-full bg-brand-blue text-white py-4 rounded-xl font-bold hover:bg-blue-600 transition-all shadow-lg shadow-brand-blue/30 flex items-center justify-center gap-2"
+              >
+                Pay Now with Paystack <CreditCard size={18} />
+              </button>
+            )}
             <p className="text-center text-xs text-gray-400 mt-4">Secured by Paystack</p>
           </div>
         </div>
