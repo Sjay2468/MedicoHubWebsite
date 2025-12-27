@@ -218,7 +218,9 @@ export const StorePage = () => {
     const fetchCoupons = async () => {
         try {
             const data = await api.coupons.getAll();
-            setCoupons(Array.isArray(data) ? data : []);
+            const list = Array.isArray(data) ? data : [];
+            // Filter out MCAMP coupons from the Store tab
+            setCoupons(list.filter((c: any) => !c.code.startsWith('MCAMP-')));
         } catch (error) {
             console.error("Failed to fetch coupons", error);
         }
@@ -288,7 +290,8 @@ export const StorePage = () => {
             setEditingId(null);
         } catch (error: any) {
             console.error("Failed to save product", error);
-            alert(`Failed to save product: ${error.message || 'Unknown error'}`);
+            const msg = error.details ? error.details.join('\n') : error.message;
+            alert(`Failed to save product:\n${msg}`);
         } finally {
             setIsLoading(false);
         }
@@ -316,13 +319,19 @@ export const StorePage = () => {
     const handleCreateCoupon = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
-            await api.coupons.create(couponForm);
+            const payload = {
+                ...couponForm,
+                value: Number(couponForm.value),
+                maxUses: couponForm.maxUses ? Number(couponForm.maxUses) : 100
+            };
+            await api.coupons.create(payload);
             setIsCouponModalOpen(false);
             setCouponForm({ code: '', type: 'percentage', value: '', minOrderAmount: '', expiresAt: '', maxUses: '' });
             fetchCoupons();
         } catch (error: any) {
             console.error(error);
-            alert(`Failed to create coupon: ${error.message || 'Unknown error'}`);
+            const msg = error.details ? error.details.join('\n') : error.message;
+            alert(`Failed to create coupon:\n${msg}`);
         }
     };
 

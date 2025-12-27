@@ -70,7 +70,9 @@ const CouponManager = () => {
     const loadCoupons = async () => {
         try {
             const list = await api.coupons.getAll();
-            setCoupons(Array.isArray(list) ? list : []);
+            const allCoupons = Array.isArray(list) ? list : [];
+            // Only show MCAMP coupons here
+            setCoupons(allCoupons.filter((c: any) => c.code.startsWith('MCAMP-')));
         } catch (e) {
             console.error("Failed to load coupons", e);
         } finally {
@@ -86,6 +88,9 @@ const CouponManager = () => {
         try {
             await api.coupons.create({
                 ...newCoupon,
+                type: newCoupon.type === 'percent' ? 'percentage' : 'fixed',
+                value: Number(newCoupon.value),
+                maxUses: Number(newCoupon.maxUses),
                 code: newCoupon.code.toUpperCase(),
                 isActive: true
             });
@@ -95,7 +100,8 @@ const CouponManager = () => {
             alert("Coupon created successfully!");
         } catch (e: any) {
             console.error(e);
-            alert(`Failed to create coupon: ${e.message || 'Unknown error'}`);
+            const msg = e.details ? e.details.join('\n') : e.message;
+            alert(`Failed to create coupon:\n${msg}`);
         }
     };
 
@@ -875,12 +881,13 @@ const QuizManager = () => {
             const dataToSave = {
                 ...quizData,
                 type: 'Quiz',
-                isMcampExclusive: true, // Defaulting to MCAMP exclusive
+                subject: quizData.subject || 'MCAMP', // Ensure subject is present for validation
+                isMcampExclusive: true,
                 tags: [...(quizData.tags || []), 'MCAMP']
             };
 
-            if (currentQuiz?.id) {
-                await api.resources.update(currentQuiz.id, dataToSave);
+            if (currentQuiz?.id || currentQuiz?._id) {
+                await api.resources.update(currentQuiz.id || currentQuiz._id, dataToSave);
             } else {
                 await api.resources.create(dataToSave);
             }
@@ -889,7 +896,8 @@ const QuizManager = () => {
             loadQuizzes();
         } catch (e: any) {
             console.error("Failed to save quiz", e);
-            alert(`Failed to save quiz: ${e.message || 'Unknown error'}`);
+            const msg = e.details ? e.details.join('\n') : e.message;
+            alert(`Failed to save quiz:\n${msg}`);
         }
     };
 

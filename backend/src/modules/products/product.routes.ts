@@ -5,13 +5,18 @@ import { verifyAuth, verifyAdmin } from '../../middleware/auth.middleware';
 import { z } from 'zod';
 
 const ProductSchema = z.object({
-    name: z.string().min(2, "Name is required"),
+    title: z.string().min(2, "Title is required"),
     description: z.string().optional(),
     price: z.number().min(0, "Price must be positive"),
-    images: z.array(z.string()).optional(),
-    category: z.enum(['Textbooks', 'Essentials', 'Stationery', 'Other']),
+    imageUrl: z.string().optional(),
+    category: z.string().min(1, "Category is required"),
     stockCount: z.number().int().optional().default(100),
-    isFeatured: z.boolean().optional().default(false)
+    inStock: z.boolean().optional().default(true),
+    isFeatured: z.boolean().optional().default(false),
+    condition: z.object({
+        label: z.string().optional().default('Brand New'),
+        color: z.string().optional().default('green')
+    }).optional()
 });
 
 const router = Router();

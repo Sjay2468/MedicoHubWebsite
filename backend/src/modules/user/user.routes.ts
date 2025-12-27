@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { User } from '../../models/User';
 import { verifyAuth, verifyAdmin } from '../../middleware/auth.middleware';
-import { auth } from '../../config/firebase'; // Keep auth for Firebase Admin actions
+import { auth, admin } from '../../config/firebase';
 
 const router = Router();
 
@@ -31,7 +31,7 @@ router.get('/', verifyAuth, verifyAdmin, async (req: Request, res: Response) => 
         const limitVal = parseInt(req.query.limit as string) || 100;
         const filter = req.query.filter as string; // 'requests'
 
-        let queryBase: any = auth.admin.firestore().collection('users');
+        let queryBase: any = admin.firestore().collection('users');
 
         if (filter === 'requests') {
             // Firestore: find users where requestedYear field exists
@@ -50,7 +50,7 @@ router.get('/', verifyAuth, verifyAdmin, async (req: Request, res: Response) => 
 
         res.json(users);
     } catch (error) {
-        console.error("Error listing users from Firestore:", error);
+        console.error("Error fetching users:", error);
         res.status(500).json({ error: "Internal Server Error" });
     }
 });
@@ -91,7 +91,7 @@ router.patch('/:uid/ban', verifyAuth, verifyAdmin, async (req: Request, res: Res
         await auth.updateUser(uid, { disabled: ban });
 
         // 2. Update status in Firestore
-        await auth.admin.firestore().collection('users').doc(uid).update({
+        await admin.firestore().collection('users').doc(uid).update({
             status: ban ? 'suspended' : 'active',
             updatedAt: new Date().toISOString()
         });
@@ -172,7 +172,7 @@ router.delete('/:uid', verifyAuth, verifyAdmin, async (req: Request, res: Respon
         await auth.deleteUser(uid);
 
         // 2. Delete from Firestore
-        await auth.admin.firestore().collection('users').doc(uid).delete();
+        await admin.firestore().collection('users').doc(uid).delete();
 
         // 3. Delete from MongoDB
         await User.findOneAndDelete({ uid });
@@ -227,7 +227,7 @@ router.patch('/:uid/profile', verifyAuth, async (req: Request, res: Response) =>
 
     try {
         const updates: any = {};
-        if (photoURL) updates.photoURL = photoURL; // Note: Schema might need photoURL
+        if (photoURL) updates.photoURL = photoURL;
         if (name) updates.name = name;
         if (academicYear) updates.academicYear = academicYear;
 
