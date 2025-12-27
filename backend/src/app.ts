@@ -185,6 +185,7 @@ app.use((err: any, req: Request, res: Response, next: any) => {
 
 app.listen(port, () => {
     console.log(`[server]: Medico V3 Backend Running on port ${port}`);
+    console.log(`[server]: Build v3.0.5 - Trust Proxy: ${app.get('trust proxy')}`);
     if (process.env.NODE_ENV !== 'production') {
         console.log(`[docs]: Swagger UI is available at http://localhost:${port}/api-docs`);
     }
