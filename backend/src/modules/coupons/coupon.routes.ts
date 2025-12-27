@@ -36,5 +36,6 @@ router.patch('/:id/toggle', verifyAdmin, CouponController.toggleCouponStatus);
 
 // Public Routes
 router.post('/verify', CouponController.verifyCoupon);
+router.post('/use', CouponController.useCoupon);
 
 export default router;

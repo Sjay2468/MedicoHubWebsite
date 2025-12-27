@@ -103,6 +103,7 @@ export const CouponController = {
             }
 
             res.json({
+                id: coupon._id.toString(),
                 code: coupon.code,
                 type: coupon.type,
                 value: coupon.value,
@@ -112,6 +113,28 @@ export const CouponController = {
         } catch (error) {
             console.error('Verify coupon error:', error);
             res.status(500).json({ error: 'Failed to verify coupon' });
+        }
+    },
+
+    // Public: Record Usage (for non-order transactions like MCAMP)
+    useCoupon: async (req: Request, res: Response) => {
+        try {
+            const { code } = req.body;
+            if (!code) return res.status(400).json({ error: 'Code is required' });
+
+            const coupon = await Coupon.findOne({ code: code.toUpperCase(), isActive: true });
+            if (!coupon) return res.status(404).json({ error: 'Coupon not found' });
+
+            if (coupon.usageCount >= coupon.maxUses) {
+                return res.status(400).json({ error: 'Coupon usage limit reached' });
+            }
+
+            coupon.usageCount += 1;
+            await coupon.save();
+
+            res.json({ success: true, usageCount: coupon.usageCount });
+        } catch (error) {
+            res.status(500).json({ error: 'Failed to record coupon usage' });
         }
     }
 };

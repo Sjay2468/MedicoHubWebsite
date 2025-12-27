@@ -49,7 +49,7 @@ export const Store: React.FC<{ user: User | null }> = ({ user }) => {
     const fetchData = async () => {
       setIsLoading(true);
 
-      // Fetch Products (Firestore)
+      // Fetch Products (Backend v3/MongoDB)
       try {
         const prodData = await api.products.getAll();
         if (prodData && Array.isArray(prodData)) {

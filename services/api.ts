@@ -29,6 +29,14 @@ export const api = {
                 throw new Error(err.error || 'Invalid coupon');
             }
             return res.json();
+        },
+        use: async (code: string) => {
+            const res = await fetch(`${V1_URL}/coupons/use`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ code })
+            });
+            return res.json();
         }
     },
     delivery: {
@@ -70,61 +78,28 @@ export const api = {
     resources: {
         getAll: async () => {
             const token = await auth.currentUser?.getIdToken();
-            let backendResources: any[] = [];
-            let firestoreResources: any[] = [];
-
             try {
                 const res = await fetch(`${V3_URL}/resources`, {
                     headers: { 'Authorization': token ? `Bearer ${token}` : '' }
                 });
-                if (res.ok) backendResources = await res.json();
+                if (!res.ok) throw new Error("Backend resources fetch failed");
+                return await res.json();
             } catch (err) {
-                console.warn("Backend resources fetch failed, using fallback only", err);
+                console.error("Resources fetch failed:", err);
+                return [];
             }
-
-            try {
-                const ref = collection(db, 'resources');
-                const snapshot = await getDocs(ref);
-                firestoreResources = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-            } catch (err) {
-                console.error("Firestore resources fetch failed", err);
-            }
-
-            // Merge and remove duplicates by title or ID
-            const combined = [...backendResources];
-            firestoreResources.forEach(fs => {
-                const isDup = combined.some(b => b.id === fs.id || b.title === fs.title);
-                if (!isDup) combined.push(fs);
-            });
-            return combined;
         }
     },
     products: {
         getAll: async () => {
-            let backendProducts: any[] = [];
-            let firestoreProducts: any[] = [];
-
             try {
                 const res = await fetch(`${V3_URL}/products`);
-                if (res.ok) backendProducts = await res.json();
+                if (!res.ok) throw new Error("Backend products fetch failed");
+                return await res.json();
             } catch (err) {
-                console.warn("Backend products fetch failed", err);
+                console.error("Products fetch failed:", err);
+                return [];
             }
-
-            try {
-                const ref = collection(db, 'products');
-                const snapshot = await getDocs(ref);
-                firestoreProducts = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-            } catch (err) {
-                console.error("Firestore products fetch failed", err);
-            }
-
-            const combined = [...backendProducts];
-            firestoreProducts.forEach(fs => {
-                const isDup = combined.some(b => b.id === fs.id || b.title === fs.title);
-                if (!isDup) combined.push(fs);
-            });
-            return combined;
         }
     },
     analytics: {

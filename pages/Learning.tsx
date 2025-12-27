@@ -535,21 +535,35 @@ export const Learning: React.FC<LearningProps> = ({
     };
 
     const filteredResources = resources.filter(res => {
-        // Exclude MCAMP content
+        // Exclude MCAMP content from general library
         if (res.isMcampExclusive || res.tags?.some(t => t.toUpperCase() === 'MCAMP')) return false;
 
         const matchesSearch = res.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
             res.subject.toLowerCase().includes(searchQuery.toLowerCase());
 
-        // Year Filtering Logic
         if (!matchesSearch) return false;
 
-        if (res.year && user.year) {
-            const userYearNum = parseInt(user.year.replace(/\D/g, '')) || 6; // Default to max if parse fails? Or 1? Using 6 to be permissive if format is weird, but safer to assume correct data.
-            const resYearNum = parseInt(res.year.replace(/\D/g, '')) || 0;
+        // Backend already filters by year, but we double-check here for safety
+        // We need a robust way to compare Year 2 vs 200L
+        const normalizeLevel = (val: string) => {
+            const raw = (val || '').toLowerCase();
+            if (raw.includes('100') || raw.includes('year 1')) return 100;
+            if (raw.includes('200') || raw.includes('year 2')) return 200;
+            if (raw.includes('300') || raw.includes('year 3')) return 300;
+            if (raw.includes('400') || raw.includes('year 4')) return 400;
+            if (raw.includes('500') || raw.includes('year 5')) return 500;
+            if (raw.includes('600') || raw.includes('year 6')) return 600;
+            if (raw.includes('preclinical')) return 200;
+            if (raw.includes('clinical')) return 400;
+            return 0; // General
+        };
 
-            // If resource year is greater than user year, hide it.
-            if (resYearNum > userYearNum) return false;
+        if (res.year && user.year) {
+            const userLevel = normalizeLevel(user.year);
+            const resLevel = normalizeLevel(res.year);
+
+            // If resource level is higher than user level, hide it (unless it's general)
+            if (resLevel > 0 && userLevel > 0 && resLevel > userLevel) return false;
         }
 
         return true;

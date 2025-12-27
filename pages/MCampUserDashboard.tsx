@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../services/firebase';
+import { api } from '../services/api';
 import { usePaystackPayment } from 'react-paystack';
 import { MCampDashboard } from './MCampDashboard';
 
@@ -154,45 +155,29 @@ export const MCampUserDashboard: React.FC<MCampUserDashboardProps> = ({
 
     const code = couponCode.trim().toUpperCase();
     try {
-      const q = query(collection(db, 'coupons'), where('code', '==', code), where('active', '==', true));
-      const snapshot = await getDocs(q);
+      // Use the centralized API instead of direct Firestore query
+      const res = await api.coupons.verify(code, BASE_PRICE);
 
-      if (snapshot.empty) {
-        setDiscount(0);
-        setAppliedCouponId(null);
-        setCouponMessage({ type: 'error', text: 'Invalid coupon code.' });
-        return;
-      }
-
-      const couponDoc = snapshot.docs[0];
-      const coupon = couponDoc.data();
-
-      if (coupon.usedCount >= coupon.maxUses) {
-        setDiscount(0);
-        setAppliedCouponId(null);
-        setCouponMessage({ type: 'error', text: 'This coupon has been fully redeemed.' });
-        return;
-      }
-
-      // Calculate Discount
       let discountAmount = 0;
-      if (coupon.type === 'fixed') {
-        discountAmount = coupon.value;
-      } else if (coupon.type === 'percent') {
-        discountAmount = (BASE_PRICE * coupon.value) / 100;
+      if (res.type === 'percentage' || res.type === 'percent') {
+        discountAmount = (BASE_PRICE * res.value) / 100;
+      } else {
+        discountAmount = res.value;
       }
 
       // Cap discount at base price (free)
       if (discountAmount > BASE_PRICE) discountAmount = BASE_PRICE;
 
       setDiscount(discountAmount);
-      setAppliedCouponId(couponDoc.id);
-      const formattedDiscount = coupon.type === 'percent' ? `${coupon.value}% (₦${discountAmount.toLocaleString()})` : `₦${discountAmount.toLocaleString()}`;
+      setAppliedCouponId(res.id || res.code);
+      const formattedDiscount = (res.type === 'percentage' || res.type === 'percent') ? `${res.value}% (₦${discountAmount.toLocaleString()})` : `₦${discountAmount.toLocaleString()}`;
       setCouponMessage({ type: 'success', text: `Coupon applied! ${formattedDiscount} off.` });
 
-    } catch (error) {
-      console.error("Coupon check failed", error);
-      setCouponMessage({ type: 'error', text: 'Failed to verify coupon.' });
+    } catch (error: any) {
+      console.error("Coupon verification failed:", error);
+      setCouponMessage({ type: 'error', text: error.message || 'Invalid coupon code.' });
+      setDiscount(0);
+      setAppliedCouponId(null);
     }
   };
 
@@ -210,19 +195,9 @@ export const MCampUserDashboard: React.FC<MCampUserDashboardProps> = ({
     // Increment Coupon Usage if applied
     if (appliedCouponId) {
       try {
-        // We import updateDoc locally or assume it's available or use the raw SDK if needed, 
-        // but best to add 'updateDoc' and 'doc' to imports.
-        // Since I can't easily add imports without seeing the top, catch specific issue:
-        // Assuming imports are present or I need to add them. 
-        // Wait, I will add the imports in another chunk if needed, but let's assume they are there
-        // Actually, looking at previous context, `doc` and `updateDoc` might NOT be imported in this file yet.
-        // I will use `import { doc, updateDoc, increment } from 'firebase/firestore'`
-        const { doc, updateDoc, increment } = await import('firebase/firestore');
-        await updateDoc(doc(db, 'coupons', appliedCouponId), {
-          usedCount: increment(1)
-        });
+        await api.coupons.use(couponCode.trim().toUpperCase());
       } catch (e) {
-        console.error("Failed to update coupon usage", e);
+        console.error("Failed to update coupon usage via API", e);
       }
     }
 

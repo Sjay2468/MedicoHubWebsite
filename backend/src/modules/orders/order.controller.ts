@@ -48,7 +48,7 @@ export const OrderController = {
                 if (coupon) {
                     // Check expiry
                     if (!coupon.expiresAt || new Date(coupon.expiresAt) > new Date()) {
-                        if (coupon.type === 'percentage') {
+                        if (coupon.type === 'percentage' || coupon.type === 'percent') {
                             calculatedDiscount = (calculatedSubtotal * coupon.value) / 100;
                         } else {
                             calculatedDiscount = coupon.value;

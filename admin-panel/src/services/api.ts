@@ -65,33 +65,16 @@ const handleResponse = async (res: Response) => {
 export const api = {
     resources: {
         getAll: async () => {
-            let backendResources: any[] = [];
-            let firestoreResources: any[] = [];
-
             try {
                 const res = await fetch(`${V3_URL}/resources/admin/all`, {
                     headers: await getAuthHeaders()
                 });
-                if (res.ok) backendResources = await res.json();
+                if (!res.ok) throw new Error("Backend resources fetch failed");
+                return await res.json();
             } catch (err) {
-                console.warn("Backend resources fetch failed", err);
+                console.error("Resources fetch failed:", err);
+                return [];
             }
-
-            try {
-                const ref = collection(db, 'resources');
-                const q = query(ref, orderBy('createdAt', 'desc'));
-                const snapshot = await getDocs(q);
-                firestoreResources = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-            } catch (err) {
-                console.error("Firestore resources fetch failed", err);
-            }
-
-            const combined = [...backendResources];
-            firestoreResources.forEach(fs => {
-                const isDup = combined.some(b => b.id === fs.id || b.title === fs.title);
-                if (!isDup) combined.push(fs);
-            });
-            return combined;
         },
         create: async (data: any) => {
             const res = await fetch(`${V3_URL}/resources`, {
@@ -102,39 +85,21 @@ export const api = {
             return handleResponse(res);
         },
         update: async (id: string, data: any) => {
-            try {
-                const res = await fetch(`${V3_URL}/resources/${id}`, {
-                    method: 'PATCH',
-                    headers: await getAuthHeaders(),
-                    body: JSON.stringify(data)
-                });
-                if (res.ok) return res.json();
-            } catch (err) {
-                console.warn("Backend update failed, trying Firestore", err);
-            }
-
-            // Fallback to Firestore
-            const ref = doc(db, 'resources', id);
-            await updateDoc(ref, {
-                ...data,
-                updatedAt: new Date().toISOString()
+            const res = await fetch(`${V3_URL}/resources/${id}`, {
+                method: 'PATCH',
+                headers: await getAuthHeaders(),
+                body: JSON.stringify(data)
             });
-            return { id, ...data };
+            if (!res.ok) throw new Error("Failed to update resource on backend");
+            return res.json();
         },
         delete: async (id: string) => {
-            try {
-                const res = await fetch(`${V3_URL}/resources/${id}`, {
-                    method: 'DELETE',
-                    headers: await getAuthHeaders()
-                });
-                if (res.ok) return { success: true };
-            } catch (err) {
-                console.warn("Backend delete failed, trying Firestore", err);
-            }
-
-            const ref = doc(db, 'resources', id);
-            await deleteDoc(ref);
-            return { success: true };
+            const res = await fetch(`${V3_URL}/resources/${id}`, {
+                method: 'DELETE',
+                headers: await getAuthHeaders()
+            });
+            if (!res.ok) throw new Error("Failed to delete resource on backend");
+            return res.json();
         }
     },
     users: {
@@ -217,32 +182,16 @@ export const api = {
     },
     products: {
         getAll: async () => {
-            let backendProducts: any[] = [];
-            let firestoreProducts: any[] = [];
-
             try {
                 const res = await fetch(`${V3_URL}/products`, {
                     headers: await getAuthHeaders()
                 });
-                if (res.ok) backendProducts = await res.json();
+                if (!res.ok) throw new Error("Backend products fetch failed");
+                return await res.json();
             } catch (err) {
-                console.warn("Backend products fetch failed", err);
+                console.error("Products fetch failed:", err);
+                return [];
             }
-
-            try {
-                const ref = collection(db, 'products');
-                const snapshot = await getDocs(ref);
-                firestoreProducts = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-            } catch (err) {
-                console.error("Firestore products fetch failed", err);
-            }
-
-            const combined = [...backendProducts];
-            firestoreProducts.forEach(fs => {
-                const isDup = combined.some(b => b.id === fs.id || b.title === fs.title);
-                if (!isDup) combined.push(fs);
-            });
-            return combined;
         },
         create: async (data: any) => {
             const res = await fetch(`${V3_URL}/products`, {
@@ -253,38 +202,21 @@ export const api = {
             return handleResponse(res);
         },
         update: async (id: string, data: any) => {
-            try {
-                const res = await fetch(`${V3_URL}/products/${id}`, {
-                    method: 'PATCH',
-                    headers: await getAuthHeaders(),
-                    body: JSON.stringify(data)
-                });
-                if (res.ok) return res.json();
-            } catch (err) {
-                console.warn("Backend product update failed, trying Firestore", err);
-            }
-
-            const ref = doc(db, 'products', id);
-            await updateDoc(ref, {
-                ...data,
-                updatedAt: new Date().toISOString()
+            const res = await fetch(`${V3_URL}/products/${id}`, {
+                method: 'PATCH',
+                headers: await getAuthHeaders(),
+                body: JSON.stringify(data)
             });
-            return { id, ...data };
+            if (!res.ok) throw new Error("Failed to update product on backend");
+            return res.json();
         },
         delete: async (id: string) => {
-            try {
-                const res = await fetch(`${V3_URL}/products/${id}`, {
-                    method: 'DELETE',
-                    headers: await getAuthHeaders()
-                });
-                if (res.ok) return { success: true };
-            } catch (err) {
-                console.warn("Backend product delete failed, trying Firestore", err);
-            }
-
-            const ref = doc(db, 'products', id);
-            await deleteDoc(ref);
-            return { success: true };
+            const res = await fetch(`${V3_URL}/products/${id}`, {
+                method: 'DELETE',
+                headers: await getAuthHeaders()
+            });
+            if (!res.ok) throw new Error("Failed to delete product on backend");
+            return res.json();
         }
     },
     coupons: {

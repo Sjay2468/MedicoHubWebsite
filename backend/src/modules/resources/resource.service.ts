@@ -22,22 +22,30 @@ export class ResourceService {
             id: r._id.toString()
         })) as unknown as ResourceDocument[];
 
-        const userYear = userProfile.year || userProfile.academicYear || 'General';
-        const isMcamp = userProfile.mcamp?.isEnrolled || false;
+        const userYear = (userProfile.year || userProfile.academicYear || 'General').toString().toLowerCase();
+        const isMcamp = userProfile.mcamp?.isEnrolled || userProfile.mcampId || false;
 
         return allResources.filter((res: ResourceDocument) => {
-            const isYearMatch = !res.year ||
-                res.year === '' ||
-                res.year === 'General' ||
-                (res.tags && res.tags.includes(userYear)) ||
-                res.year === userYear ||
-                (res.tags && res.tags.includes('General'));
+            const resYear = (res.year || '').toLowerCase();
+            const resTags = (res.tags || []).map(t => t.toLowerCase());
 
-            if (res.isMcampExclusive) {
-                return isMcamp;
+            // 1. MCAMP Exclusive Logic
+            if (res.isMcampExclusive && !isMcamp) {
+                return false;
             }
 
-            return isYearMatch;
+            // 2. Year Matching Logic
+            const isGeneral = !resYear || resYear === 'general' || resYear === '' || resTags.includes('general');
+            if (isGeneral) return true;
+
+            // Flexible matching (e.g., "200L" matches "Year 2/200L")
+            const isMatch = resYear === userYear ||
+                userYear.includes(resYear) ||
+                resYear.includes(userYear) ||
+                resTags.includes(userYear) ||
+                resTags.some(tag => userYear.includes(tag) || tag.includes(userYear));
+
+            return isMatch;
         });
     }
 
