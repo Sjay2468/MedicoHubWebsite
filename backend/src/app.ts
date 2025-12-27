@@ -94,23 +94,15 @@ app.use((req, res, next) => {
     next();
 });
 
-// Custom route for uploads to strict enforce headers
-app.get('/uploads/:filename', (req: Request, res: Response) => {
-    const filename = req.params.filename;
-    const filePath = path.join(process.cwd(), 'public/uploads', filename);
-
-    if (filename.includes('..')) {
-        return res.status(400).send('Invalid filename');
-    }
-
-    res.sendFile(filePath, {
-        headers: {
-            'Content-Type': filename.endsWith('.pdf') ? 'application/pdf' : undefined,
-            'Content-Disposition': filename.endsWith('.pdf') ? 'inline' : 'inline',
-            'Access-Control-Allow-Origin': '*'
-        }
+// Health Check for Render/Monitoring
+app.get('/health', (req, res) => {
+    res.json({
+        status: 'online',
+        timestamp: new Date().toISOString(),
+        version: '3.0.5'
     });
 });
+
 
 // Swagger Setup
 const swaggerOptions = {

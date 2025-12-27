@@ -2,12 +2,18 @@
 import { Router } from 'express';
 import { ProductService } from './product.service';
 import { verifyAuth, verifyAdmin } from '../../middleware/auth.middleware';
+import { z } from 'zod';
 
-/**
- * PRODUCT ROUTES:
- * This file handles all the "Pathways" for our store items.
- * It's how the frontend asks for a list of textbooks or deletes an item.
- */
+const ProductSchema = z.object({
+    name: z.string().min(2, "Name is required"),
+    description: z.string().optional(),
+    price: z.number().min(0, "Price must be positive"),
+    images: z.array(z.string()).optional(),
+    category: z.enum(['Textbooks', 'Essentials', 'Stationery', 'Other']),
+    stockCount: z.number().int().optional().default(100),
+    isFeatured: z.boolean().optional().default(false)
+});
+
 const router = Router();
 
 // Anybody can GET the list of products (to see them in the store)
@@ -15,28 +21,34 @@ router.get('/', async (req, res) => {
     try {
         const results = await ProductService.getAllProducts();
         res.json(results);
-    } catch (error) {
-        res.status(500).json({ error: "Failed to fetch products" });
+    } catch (error: any) {
+        res.status(500).json({ error: error.message || "Failed to fetch products" });
     }
 });
 
 // Adding or Deleting products is restricted!
-// Only ADMINS (Store Owners) are allowed to do this.
 router.post('/', verifyAdmin, async (req, res) => {
     try {
-        const result = await ProductService.createProduct(req.body);
+        const validatedData = ProductSchema.parse(req.body);
+        const result = await ProductService.createProduct(validatedData);
         res.json(result);
-    } catch (error) {
-        res.status(500).json({ error: "Failed to create product" });
+    } catch (error: any) {
+        if (error instanceof z.ZodError) {
+            return res.status(400).json({
+                error: "Validation failed",
+                details: error.errors.map(e => `${e.path.join('.')}: ${e.message}`)
+            });
+        }
+        res.status(500).json({ error: error.message || "Failed to create product" });
     }
 });
 
 router.delete('/:id', verifyAdmin, async (req, res) => {
     try {
         await ProductService.deleteProduct(req.params.id);
-        res.json({ success: true });
-    } catch (error) {
-        res.status(500).json({ error: "Failed to delete product" });
+        res.json({ success: true, message: "Product deleted" });
+    } catch (error: any) {
+        res.status(500).json({ error: error.message || "Failed to delete product" });
     }
 });
 

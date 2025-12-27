@@ -99,6 +99,7 @@ export const OrderController = {
 
             const newOrder = new Order({
                 orderId,
+                userId: req.user?.uid, // Track the logged-in user if available
                 customer,
                 items: validatedItems,
                 financials: {
@@ -116,6 +117,14 @@ export const OrderController = {
 
             await newOrder.save();
 
+            // 5.5 Update Global Stats for Revenue tracking
+            const today = new Date().toISOString().split('T')[0];
+            const { GlobalStats } = require('../../models/GlobalStats');
+            await GlobalStats.findOneAndUpdate(
+                { date: today },
+                { $inc: { revenue: expectedTotal, totalActivity: 1 } },
+                { upsert: true }
+            );
             // 6. Send Emails (Non-blocking)
             EmailService.sendOrderConfirmation(newOrder).catch(console.error);
             EmailService.sendAdminOrderAlert(newOrder).catch(console.error);

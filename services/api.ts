@@ -2,7 +2,7 @@ import { auth, db } from './firebase';
 import { collection, getDocs, addDoc, doc, deleteDoc, updateDoc, query, orderBy, getDoc, setDoc } from 'firebase/firestore';
 import { ResourceProgress } from '../types';
 
-const BACKEND_URL = import.meta.env.VITE_API_URL || 'https://medico-hub-backend-0ufb.onrender.com/api/v1';
+const BACKEND_URL = import.meta.env.VITE_API_URL || 'https://medico-backend-06fb.onrender.com/api/v1';
 
 export const api = {
     coupons: {

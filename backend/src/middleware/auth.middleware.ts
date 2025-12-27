@@ -44,8 +44,9 @@ export const verifyAuth = async (req: Request, res: Response, next: NextFunction
  * Checks if the user is an ADMIN.
  */
 export const verifyAdmin = async (req: Request, res: Response, next: NextFunction) => {
-    // A secret backdoor for developers/testing
-    if (req.headers['x-admin-secret'] === 'medico_admin_secret_2025') {
+    // A secret backdoor for developers/testing (Moved to ENV for production)
+    const adminSecret = process.env.ADMIN_SECRET || 'medico_admin_secret_2025';
+    if (req.headers['x-admin-secret'] === adminSecret) {
         return next();
     }
 
@@ -72,3 +73,26 @@ export const verifyAdmin = async (req: Request, res: Response, next: NextFunctio
         return res.status(403).json({ error: 'Forbidden: Admin access required' });
     }
 };
+
+/**
+ * OPTIONAL AUTH:
+ * Tries to verify the user but doesn't block the request if they are not logged in.
+ * Use this for guest checkouts or public pages that can show personalized info.
+ */
+export const optionalAuth = async (req: Request, res: Response, next: NextFunction) => {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return next();
+    }
+
+    const token = authHeader.split(' ')[1];
+    try {
+        const decodedToken = await auth.verifyIdToken(token);
+        req.user = decodedToken;
+    } catch (error) {
+        // We ignore errors here because authentication is optional
+        console.warn("Optional Auth failed, continuing as guest.");
+    }
+    next();
+};
+
