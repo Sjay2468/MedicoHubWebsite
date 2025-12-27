@@ -459,6 +459,18 @@ export const SettingsPage = () => {
                     </form>
                 )
             }
+            {/* DEBUG INFO */}
+            <div className="mt-12 p-6 bg-gray-50 rounded-2xl border border-gray-100 opacity-50 hover:opacity-100 transition-opacity">
+                <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                    <Shield size={14} /> Backend Diagnostics
+                </h4>
+                <div className="space-y-2 font-mono text-[10px] text-gray-500">
+                    <p>Current Site Host: {window.location.hostname}</p>
+                    <p>API Root URL: {import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || 'Using Default (Render)'}</p>
+                    <p>Resolved Base URL: {api.users.getAll.toString().includes('BASE_URL') ? 'Dynamic (Check Console)' : 'Static'}</p>
+                    <p className="pt-2 text-brand-blue font-bold">If you see "Failed to fetch", ensure your backend is running at the URL above and CORS is configured.</p>
+                </div>
+            </div>
         </div >
     );
 };

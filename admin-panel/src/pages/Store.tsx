@@ -203,7 +203,10 @@ export const StorePage = () => {
             setIsDeliveryModalOpen(false);
             setDeliveryForm({ name: '', price: '' });
             fetchDelivery();
-        } catch (e) { alert("Failed to create zone"); }
+        } catch (e: any) {
+            console.error(e);
+            alert(`Failed to create zone: ${e.message || 'Unknown error'}`);
+        }
     };
 
     const handleDeleteZone = async (id: string) => {
@@ -317,9 +320,9 @@ export const StorePage = () => {
             setIsCouponModalOpen(false);
             setCouponForm({ code: '', type: 'percentage', value: '', minOrderAmount: '', expiresAt: '', maxUses: '' });
             fetchCoupons();
-        } catch (error) {
+        } catch (error: any) {
             console.error(error);
-            alert("Failed to create coupon");
+            alert(`Failed to create coupon: ${error.message || 'Unknown error'}`);
         }
     };
 

@@ -4,10 +4,25 @@ import { collection, getDocs, addDoc, doc, deleteDoc, updateDoc, query, orderBy,
 // Robust URL Handling: Ensure we have the correct base for v1 and v3
 const getRootUrl = () => {
     let url = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || 'https://medico-hub-backend-0ufb.onrender.com';
-    // Remove trailing slash if any
-    url = url.replace(/\/$/, "");
-    // Remove /api/v1 or /api/v3 if already present to avoid doubling
-    url = url.replace(/\/api\/v1$/, "").replace(/\/api\/v3$/, "");
+
+    // 1. Force strings and trim
+    url = String(url).trim();
+
+    // 2. Remove any /api/v1, /api/v3 or trailing slashes at the end
+    // Use a loop to handle cases like /api/v1/
+    while (url.endsWith('/') || url.endsWith('/api/v1') || url.endsWith('/api/v3') || url.endsWith('/api')) {
+        url = url.replace(/\/$/, "")
+            .replace(/\/api\/v1$/, "")
+            .replace(/\/api\/v3$/, "")
+            .replace(/\/api$/, "");
+    }
+
+    // 3. Ensure Protocol: If we are on HTTPS, the API MUST be HTTPS
+    if (window.location.protocol === 'https:' && url.startsWith('http:')) {
+        console.warn("[Admin API] Detected Mixed Content: Upgrading insecure API URL to HTTPS.");
+        url = url.replace('http:', 'https:');
+    }
+
     return url;
 };
 
@@ -15,12 +30,13 @@ const ROOT_URL = getRootUrl();
 const BASE_URL = `${ROOT_URL}/api/v1`;
 const V3_URL = `${ROOT_URL}/api/v3`;
 
-console.log("[Admin API] Root URL:", ROOT_URL);
-console.log("[Admin API] V1 URL:", BASE_URL);
-console.log("[Admin API] V3 URL:", V3_URL);
+console.log("%c[Admin API] Initialized Settings", "color: #0066FF; font-weight: bold; font-size: 12px;");
+console.log("Root:", ROOT_URL);
+console.log("V1:", BASE_URL);
+console.log("V3:", V3_URL);
 
-if (window.location.protocol === 'https:' && ROOT_URL.startsWith('http:')) {
-    console.warn("[Admin API] Mixed Content Warning: Your site is running on HTTPS but your API URL is HTTP. This will cause 'Failed to fetch' errors in most browsers.");
+if (ROOT_URL.includes('localhost') && window.location.hostname !== 'localhost') {
+    console.warn("[Admin API] Possible Configuration Error: You are on a live site but VITE_API_URL is pointing to localhost!");
 }
 
 const getAuthHeaders = async () => {
@@ -347,8 +363,7 @@ export const api = {
                 headers: headers,
                 body: formData
             });
-            if (!response.ok) throw new Error("Upload failed");
-            const data = await response.json();
+            const data = await handleResponse(response);
             return data.url;
         }
     }
