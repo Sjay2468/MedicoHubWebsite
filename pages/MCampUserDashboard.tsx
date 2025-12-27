@@ -4,7 +4,7 @@ import { User, Notification } from '../types';
 import { DashboardLayout } from '../components/DashboardLayout';
 import {
   Brain, Target, Clock, Trophy, CreditCard, Banknote, Building2,
-  Shield, Check, ArrowRight, ArrowLeft, Tag, CheckCircle, Search, Users
+  Shield, Check, ArrowRight, ArrowLeft, Tag, CheckCircle, Search, Users, Star
 } from 'lucide-react';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../services/firebase';
@@ -215,9 +215,14 @@ export const MCampUserDashboard: React.FC<MCampUserDashboardProps> = ({
     { id: 'card', name: 'Pay with Card', icon: CreditCard },
     { id: 'opay', name: 'Pay with OPay', icon: Banknote },
     { id: 'transfer', name: 'Bank Transfer', icon: Building2 },
+    ...(import.meta.env.VITE_ENABLE_DEMO_BYPASS === 'true' ? [{ id: 'demo', name: 'Demo Bypass', icon: Star }] : []),
   ];
 
   const handlePaymentConfirm = () => {
+    if (selectedPayment === 'demo') {
+      onSuccess({ reference: 'DEMO_BYPASS' });
+      return;
+    }
     setIsSubmitting(true);
     setTimeout(() => {
       setIsSubmitting(false);

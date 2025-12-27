@@ -194,12 +194,22 @@ export const Pricing: React.FC<PricingProps> = ({ user }) => {
               </li>
             ))}
           </ul>
-          <button
-            onClick={handleProClick}
-            className="block w-full text-center bg-brand-blue hover:bg-blue-600 text-white font-bold py-4 rounded-2xl transition-all shadow-lg shadow-brand-blue/40 active:scale-95 animate-pop-in"
-          >
-            {user?.isSubscribed ? 'Manage Subscription' : 'Activate Pro Membership'}
-          </button>
+          <div className="space-y-3">
+            <button
+              onClick={handleProClick}
+              className="block w-full text-center bg-brand-blue hover:bg-blue-600 text-white font-bold py-4 rounded-2xl transition-all shadow-lg shadow-brand-blue/40 active:scale-95 animate-pop-in"
+            >
+              {user?.isSubscribed ? 'Manage Subscription' : 'Activate Pro Membership'}
+            </button>
+            {import.meta.env.VITE_ENABLE_DEMO_BYPASS === 'true' && !user?.isSubscribed && (
+              <button
+                onClick={() => onSuccess({ reference: 'DEMO_BYPASS' })}
+                className="w-full py-3 rounded-xl font-bold transition-all bg-white/10 hover:bg-white/20 border border-white/20 text-brand-blue flex items-center justify-center gap-2"
+              >
+                <Star size={16} fill="currentColor" /> Simulate Success (Demo)
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>
