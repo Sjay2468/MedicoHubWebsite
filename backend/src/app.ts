@@ -15,6 +15,9 @@ connectDB();
 
 const app: Express = express();
 
+// Required for Render/Cloudflare proxy support (fixing express-rate-limit errors)
+app.set('trust proxy', 1);
+
 // SECURITY: Hide that we are using Express to make it harder for hackers to target the site.
 app.disable('x-powered-by');
 
