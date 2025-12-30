@@ -37,7 +37,7 @@ export const MCampDashboard: React.FC<MCampDashboardProps> = ({
     const [progress, setProgress] = React.useState(0);
     const [localUser, setLocalUser] = React.useState(user);
 
-    if (!user.mcamp?.isEnrolled || user.mcamp?.isSuspended) {
+    if (!user.mcamp?.isEnrolled) {
         return (
             <DashboardLayout
                 user={user}
@@ -49,43 +49,29 @@ export const MCampDashboard: React.FC<MCampDashboardProps> = ({
                 onDeleteAccount={onDeleteAccount}
             >
                 <div className="flex flex-col items-center justify-center min-h-[70vh] text-center p-8 bg-white rounded-[2rem] border border-gray-100 shadow-sm animate-fade-in">
-                    {!user.mcamp?.isEnrolled ? (
-                        <>
-                            <div className="w-20 h-20 bg-amber-50 rounded-3xl flex items-center justify-center text-amber-500 mb-6">
-                                <Lock size={40} />
-                            </div>
-                            <h2 className="text-2xl font-bold text-gray-900 mb-2">MCAMP Access Required</h2>
-                            <p className="text-gray-500 max-w-sm mx-auto mb-8 leading-relaxed font-medium">This dashboard is only available for students enrolled in our Medical Mentorship Cohort.</p>
-                            <button onClick={() => navigate(AppRoute.MCAMP)} className="bg-brand-blue text-white px-8 py-3 rounded-xl font-bold hover:bg-blue-600 transition-all">
-                                Apply for MCAMP
-                            </button>
-                        </>
-                    ) : (
-                        <>
-                            <div className="w-20 h-20 bg-red-50 rounded-3xl flex items-center justify-center text-red-500 mb-6 shadow-xl shadow-red-100/50">
-                                <Zap size={40} />
-                            </div>
-                            <h2 className="text-3xl font-extrabold text-brand-dark mb-2">Account Restricted</h2>
-                            <p className="text-gray-500 max-w-md mx-auto mb-8 leading-relaxed font-medium">Your MCAMP access has been temporarily suspended by an administrator. Please contact support for resolution.</p>
-                            <div className="flex gap-4">
-                                <button onClick={() => navigate(AppRoute.DASHBOARD)} className="bg-gray-100 text-gray-600 px-8 py-3 rounded-xl font-bold hover:bg-gray-200 transition-all">
-                                    Back to Dashboard
-                                </button>
-                                <a
-                                    href="https://wa.me/2347088262583"
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="bg-brand-blue text-white px-8 py-3 rounded-xl font-bold hover:bg-blue-600 transition-all flex items-center gap-2"
-                                >
-                                    <MessageCircle size={18} /> Contact Admin
-                                </a>
-                            </div>
-                        </>
-                    )}
+                    <div className="w-20 h-20 bg-amber-50 rounded-3xl flex items-center justify-center text-amber-500 mb-6">
+                        <Lock size={40} />
+                    </div>
+                    <h2 className="text-2xl font-bold text-gray-900 mb-2">MCAMP Access Required</h2>
+                    <p className="text-gray-500 max-w-sm mx-auto mb-8 leading-relaxed font-medium">This dashboard is only available for students enrolled in our Medical Mentorship Cohort.</p>
+                    <button onClick={() => navigate(AppRoute.MCAMP)} className="bg-brand-blue text-white px-8 py-3 rounded-xl font-bold hover:bg-blue-600 transition-all">
+                        Apply for MCAMP
+                    </button>
                 </div>
             </DashboardLayout>
         );
     }
+
+    // Suspension logic: Frozen in Time
+    const maxAllowedDay = React.useMemo(() => {
+        if (!user.mcamp?.isSuspended || !user.mcamp?.suspensionDate || !user.mcamp?.startDate) {
+            return currentDay;
+        }
+        const start = new Date(user.mcamp.startDate);
+        const suspension = new Date(user.mcamp.suspensionDate);
+        const diff = Math.ceil(Math.abs(suspension.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+        return Math.min(diff, 90);
+    }, [user.mcamp, currentDay]);
 
     // Sync local user state with prop
     React.useEffect(() => { setLocalUser(user); }, [user]);
@@ -276,6 +262,21 @@ export const MCampDashboard: React.FC<MCampDashboardProps> = ({
                 <div className="bg-brand-dark rounded-[2.5rem] p-8 md:p-12 mb-12 text-white relative overflow-hidden shadow-2xl">
                     <div className="absolute top-0 right-0 w-full h-full opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
 
+                    {user.mcamp?.isSuspended && (
+                        <div className="relative z-20 bg-red-500/20 backdrop-blur-md border border-red-500/30 rounded-2xl p-4 mb-8 animate-pulse flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <AlertTriangle className="text-red-400" size={24} />
+                                <div>
+                                    <p className="font-extrabold text-sm uppercase tracking-widest text-red-400">Account Restricted</p>
+                                    <p className="text-red-100 text-xs">Curriculum frozen at Day {maxAllowedDay} due to administrative suspension.</p>
+                                </div>
+                            </div>
+                            <a href="https://wa.me/2347088262583" target="_blank" rel="noopener noreferrer" className="bg-white text-red-600 px-4 py-2 rounded-lg text-xs font-bold hover:bg-red-50 transition-colors">
+                                Contact Admin
+                            </a>
+                        </div>
+                    )}
+
                     <div className="relative z-10 flex flex-col md:flex-row justify-between items-end gap-8">
                         <div>
                             <div className="flex flex-wrap gap-2 mb-4">
@@ -334,10 +335,10 @@ export const MCampDashboard: React.FC<MCampDashboardProps> = ({
                         ) : (
                             <div className="space-y-4">
                                 {weeks.map((week) => {
-                                    // LOGIC: Unlocked if Time says so OR Admin explicitly unlocked it
+                                    // LOGIC: Unlocked if Time (capped by suspension) says so OR Admin explicitly unlocked it
                                     const weekStartDay = (Number(week.id) - 1) * 7 + 1;
-                                    const isTimeUnlocked = currentDay >= weekStartDay;
-                                    const isAdminUnlocked = !!week.isUnlocked;
+                                    const isTimeUnlocked = maxAllowedDay >= weekStartDay;
+                                    const isAdminUnlocked = !!week.isUnlocked && (!user.mcamp?.isSuspended); // Admin unlock ignored if suspended
 
                                     const isLocked = !(isTimeUnlocked || isAdminUnlocked);
                                     const isExpanded = expandedWeekId === week.id;
