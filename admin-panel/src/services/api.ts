@@ -47,7 +47,7 @@ const getAuthHeaders = async () => {
     };
 };
 
-const handleResponse = async (res: Response) => {
+const handleResponse = async (res: Response, urlForLogging?: string) => {
     if (!res.ok) {
         let errorMsg = "API Error";
         try {
@@ -56,9 +56,10 @@ const handleResponse = async (res: Response) => {
         } catch (e) {
             errorMsg = await res.text() || `Server responded with ${res.status}`;
         }
-        console.error("[API Error Details]", errorMsg);
+        console.error(`[Admin API ERROR] ${res.status} on ${urlForLogging}:`, errorMsg);
         throw new Error(errorMsg);
     }
+    console.log(`[Admin API SUCCESS] ${res.status} on ${urlForLogging}`);
     return res.json();
 };
 
@@ -77,21 +78,24 @@ export const api = {
             }
         },
         create: async (data: any) => {
-            const res = await fetch(`${V3_URL}/resources`, {
+            const url = `${V3_URL}/resources`;
+            console.log(`[Admin API] Creating Resource: POST ${url}`);
+            const res = await fetch(url, {
                 method: 'POST',
                 headers: await getAuthHeaders(),
                 body: JSON.stringify(data)
             });
-            return handleResponse(res);
+            return handleResponse(res, url);
         },
         update: async (id: string, data: any) => {
-            const res = await fetch(`${V3_URL}/resources/${id}`, {
+            const url = `${V3_URL}/resources/${id}`;
+            console.log(`[Admin API] Updating Resource: PATCH ${url}`);
+            const res = await fetch(url, {
                 method: 'PATCH',
                 headers: await getAuthHeaders(),
                 body: JSON.stringify(data)
             });
-            if (!res.ok) throw new Error("Failed to update resource on backend");
-            return res.json();
+            return handleResponse(res, url);
         },
         delete: async (id: string) => {
             const res = await fetch(`${V3_URL}/resources/${id}`, {

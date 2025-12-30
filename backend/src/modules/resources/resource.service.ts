@@ -10,6 +10,20 @@ const contextCache = new LRUCache<string, string>({
     allowStale: false,
 });
 
+// Lazy load DB internally to avoid circular dependency issues
+let dbInstance: any = null;
+const getDb = () => {
+    if (!dbInstance) {
+        try {
+            // Using a safe relative path for the compiled JS environment
+            dbInstance = require('../../config/firebase').db;
+        } catch (e) {
+            console.error("[ResourceService] DB Init Failed:", e);
+        }
+    }
+    return dbInstance;
+};
+
 export class ResourceService {
     /**
      * Fetch resources tailored to a user's profile.
@@ -31,7 +45,8 @@ export class ResourceService {
 
         if (isMcamp && userProfile.mcamp?.isSuspended && userProfile.mcamp?.startDate && userProfile.mcamp?.suspensionDate) {
             try {
-                const { db } = require('../../config/firebase');
+                const db = getDb();
+                if (!db) throw new Error("Database instance unavailable");
                 const snap = await db.collection('mcamp').doc('curriculum').get();
                 if (snap.exists) {
                     const weeks = snap.data().weeks || [];
