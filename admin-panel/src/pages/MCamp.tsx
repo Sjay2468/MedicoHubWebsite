@@ -1277,7 +1277,7 @@ const QuizEditor = ({ initialData, onSave, onCancel }: any) => {
                         </div>
                     </div>
                     <div className="space-y-1">
-                        <label className="text-xs font-bold text-gray-500 uppercase">Target Week (Optional)</label>
+                        <label className="text-xs font-bold text-gray-500 uppercase">Target Week (Mandatory)</label>
                         <input
                             type="number"
                             placeholder="e.g. 1"
@@ -1480,7 +1480,13 @@ const QuizEditor = ({ initialData, onSave, onCancel }: any) => {
 
             <div className="flex justify-end gap-4 pt-6 border-t border-gray-100">
                 <button onClick={onCancel} className="px-6 py-3 font-bold text-gray-500 hover:bg-gray-50 rounded-xl">Cancel</button>
-                <button onClick={() => onSave({ ...formData, deadline: (document.getElementById('quiz-deadline') as HTMLInputElement)?.value })} className="px-8 py-3 bg-brand-dark text-white font-bold rounded-xl shadow-lg hover:bg-black transition-all">
+                <button onClick={() => {
+                    if (!formData.weekNumber || formData.weekNumber === '') {
+                        alert("Target Week is required for MCAMP quizzes to show up correctly.");
+                        return;
+                    }
+                    onSave({ ...formData, deadline: (document.getElementById('quiz-deadline') as HTMLInputElement)?.value });
+                }} className="px-8 py-3 bg-brand-dark text-white font-bold rounded-xl shadow-lg hover:bg-black transition-all">
                     Save Quiz
                 </button>
             </div>

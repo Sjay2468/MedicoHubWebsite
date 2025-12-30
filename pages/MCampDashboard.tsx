@@ -37,38 +37,53 @@ export const MCampDashboard: React.FC<MCampDashboardProps> = ({
     const [progress, setProgress] = React.useState(0);
     const [localUser, setLocalUser] = React.useState(user);
 
-    if (!user.mcamp?.isEnrolled) {
+    if (!user.mcamp?.isEnrolled || user.mcamp?.isSuspended) {
         return (
-            <div className="flex flex-col items-center justify-center min-h-[60vh] text-center p-8 bg-white rounded-[2rem] border-2 border-dashed border-gray-100">
-                <div className="w-20 h-20 bg-amber-50 rounded-3xl flex items-center justify-center text-amber-500 mb-6">
-                    <Lock size={40} />
+            <DashboardLayout
+                user={user}
+                onLogout={onLogout}
+                notifications={notifications}
+                onMarkAllRead={onMarkAllRead}
+                onClearNotification={onClearNotification}
+                onClearAll={onClearAll}
+                onDeleteAccount={onDeleteAccount}
+            >
+                <div className="flex flex-col items-center justify-center min-h-[70vh] text-center p-8 bg-white rounded-[2rem] border border-gray-100 shadow-sm animate-fade-in">
+                    {!user.mcamp?.isEnrolled ? (
+                        <>
+                            <div className="w-20 h-20 bg-amber-50 rounded-3xl flex items-center justify-center text-amber-500 mb-6">
+                                <Lock size={40} />
+                            </div>
+                            <h2 className="text-2xl font-bold text-gray-900 mb-2">MCAMP Access Required</h2>
+                            <p className="text-gray-500 max-w-sm mx-auto mb-8 leading-relaxed font-medium">This dashboard is only available for students enrolled in our Medical Mentorship Cohort.</p>
+                            <button onClick={() => navigate(AppRoute.MCAMP)} className="bg-brand-blue text-white px-8 py-3 rounded-xl font-bold hover:bg-blue-600 transition-all">
+                                Apply for MCAMP
+                            </button>
+                        </>
+                    ) : (
+                        <>
+                            <div className="w-20 h-20 bg-red-50 rounded-3xl flex items-center justify-center text-red-500 mb-6 shadow-xl shadow-red-100/50">
+                                <Zap size={40} />
+                            </div>
+                            <h2 className="text-3xl font-extrabold text-brand-dark mb-2">Account Restricted</h2>
+                            <p className="text-gray-500 max-w-md mx-auto mb-8 leading-relaxed font-medium">Your MCAMP access has been temporarily suspended by an administrator. Please contact support for resolution.</p>
+                            <div className="flex gap-4">
+                                <button onClick={() => navigate(AppRoute.DASHBOARD)} className="bg-gray-100 text-gray-600 px-8 py-3 rounded-xl font-bold hover:bg-gray-200 transition-all">
+                                    Back to Dashboard
+                                </button>
+                                <a
+                                    href="https://wa.me/2347088262583"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="bg-brand-blue text-white px-8 py-3 rounded-xl font-bold hover:bg-blue-600 transition-all flex items-center gap-2"
+                                >
+                                    <MessageCircle size={18} /> Contact Admin
+                                </a>
+                            </div>
+                        </>
+                    )}
                 </div>
-                <h2 className="text-2xl font-bold text-gray-900 mb-2">MCAMP Access Required</h2>
-                <p className="text-gray-500 max-w-sm mx-auto mb-8">This dashboard is only available for students enrolled in our Medical Mentorship Cohort.</p>
-                <button onClick={() => navigate(AppRoute.MCAMP)} className="bg-brand-blue text-white px-8 py-3 rounded-xl font-bold hover:bg-blue-600 transition-all">
-                    Apply for MCAMP
-                </button>
-            </div>
-        );
-    }
-
-    if (user.mcamp?.isSuspended) {
-        return (
-            <div className="flex flex-col items-center justify-center min-h-[60vh] text-center p-8 bg-white rounded-[2rem] border-2 border-red-50">
-                <div className="w-20 h-20 bg-red-50 rounded-3xl flex items-center justify-center text-red-500 mb-6 shadow-xl shadow-red-100/50">
-                    <Zap size={40} />
-                </div>
-                <h2 className="text-3xl font-extrabold text-brand-dark mb-2">Account Restricted</h2>
-                <p className="text-gray-500 max-w-md mx-auto mb-8 leading-relaxed font-medium">Your MCAMP access has been temporarily suspended by an administrator. Please contact support for resolution.</p>
-                <div className="flex gap-4">
-                    <button onClick={() => navigate(AppRoute.DASHBOARD)} className="bg-gray-100 text-gray-600 px-8 py-3 rounded-xl font-bold hover:bg-gray-200 transition-all">
-                        Back to Dashboard
-                    </button>
-                    <a href="mailto:support@medicohub.com" className="bg-brand-blue text-white px-8 py-3 rounded-xl font-bold hover:bg-blue-600 transition-all">
-                        Contact Admin
-                    </a>
-                </div>
-            </div>
+            </DashboardLayout>
         );
     }
 
@@ -90,6 +105,7 @@ export const MCampDashboard: React.FC<MCampDashboardProps> = ({
     const [weeks, setWeeks] = React.useState<any[]>([]);
     const [targetYear, setTargetYear] = React.useState<string>('Year 2');
     const [allResources, setAllResources] = React.useState<any[]>([]);
+    const [resourcesLoading, setResourcesLoading] = React.useState(true);
     const [expandedWeekId, setExpandedWeekId] = React.useState<number | null>(null);
 
     // Quiz State
@@ -140,10 +156,13 @@ export const MCampDashboard: React.FC<MCampDashboardProps> = ({
         const fetchData = async () => {
             // 1. Resources
             try {
+                setResourcesLoading(true);
                 const resData = await api.resources.getAll();
                 setAllResources(Array.isArray(resData) ? resData : []);
             } catch (e) {
                 console.error("Failed resources", e);
+            } finally {
+                setResourcesLoading(false);
             }
 
             // 2. Curriculum (Real-time)
@@ -449,7 +468,7 @@ export const MCampDashboard: React.FC<MCampDashboardProps> = ({
                                                 ? "View Results"
                                                 : "View Status")
                                             : "Start Quiz")
-                                        : "Pending..."
+                                        : (resourcesLoading ? "Loading..." : "Quiz Unavailable")
                                     }
                                     <ChevronRight size={20} />
                                 </button>

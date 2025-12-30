@@ -29,7 +29,10 @@ export class ResourceService {
             const resYear = (res.year || '').toLowerCase();
             const resTags = (res.tags || []).map(t => t.toLowerCase());
 
-            // 1. MCAMP Exclusive Logic
+            // 1. MCAMP Logic: Allow exclusive content OR tagged content to bypass year filters for cohort members
+            if (isMcamp && (res.isMcampExclusive || resTags.includes('mcamp'))) {
+                return true;
+            }
             if (res.isMcampExclusive && !isMcamp) {
                 return false;
             }
@@ -38,10 +41,18 @@ export class ResourceService {
             const isGeneral = !resYear || resYear === 'general' || resYear === '' || resTags.includes('general');
             if (isGeneral) return true;
 
-            // Flexible matching (e.g., "200L" matches "Year 2/200L")
+            // Robust matching: Check if normalized levels match (e.g. "Year 2" vs "200L")
+            const getLevel = (s: string) => {
+                const n = s.match(/\d+/);
+                return n ? n[0] : s;
+            };
+            const userLvl = getLevel(userYear);
+            const resLvl = getLevel(resYear);
+
             const isMatch = resYear === userYear ||
                 userYear.includes(resYear) ||
                 resYear.includes(userYear) ||
+                userLvl === resLvl ||
                 resTags.includes(userYear) ||
                 resTags.some(tag => userYear.includes(tag) || tag.includes(userYear));
 
