@@ -1179,7 +1179,7 @@ const QuizEditor = ({ initialData, onSave, onCancel }: any) => {
         durationMinutes: 15,
         weekNumber: '',
         maxAttempts: 1,
-        questions: [] as any[],
+        questions: (initialData?.quizData || initialData?.questions || []) as any[],
         ...initialData
     });
 

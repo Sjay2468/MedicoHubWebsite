@@ -191,6 +191,7 @@ export const MCampDashboard: React.FC<MCampDashboardProps> = ({
                 setActiveQuiz({
                     ...found,
                     id: found.id || found._id,
+                    questions: found.quizData || found.questions || [],
                     isExpired
                 });
             } else {
