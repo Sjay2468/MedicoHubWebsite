@@ -117,7 +117,7 @@ export const MCampDashboard: React.FC<MCampDashboardProps> = ({
             const start = new Date(user.mcamp.startDate);
             const now = new Date();
             const diffTime = Math.abs(now.getTime() - start.getTime());
-            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            const diffDays = Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
             setCurrentDay(diffDays > 90 ? 90 : diffDays);
             setProgress(Math.min(100, Math.round((diffDays / 90) * 100)));
 
@@ -205,6 +205,7 @@ export const MCampDashboard: React.FC<MCampDashboardProps> = ({
                 setActiveQuiz({
                     ...found,
                     id: found.id || found._id,
+                    questions: found.quizData || found.questions || [],
                     isExpired
                 });
             } else {

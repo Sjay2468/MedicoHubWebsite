@@ -1174,13 +1174,13 @@ const QuizManager = () => {
 
 const QuizEditor = ({ initialData, onSave, onCancel }: any) => {
     const [formData, setFormData] = useState({
-        title: '',
-        description: '',
-        durationMinutes: 15,
-        weekNumber: '',
-        maxAttempts: 1,
-        questions: (initialData?.quizData || initialData?.questions || []) as any[],
-        ...initialData
+        ...initialData,
+        title: initialData?.title || '',
+        description: initialData?.description || '',
+        durationMinutes: initialData?.durationMinutes || 15,
+        weekNumber: initialData?.weekNumber || '',
+        maxAttempts: initialData?.maxAttempts || 1,
+        questions: (initialData?.quizData || initialData?.questions || []) as any[]
     });
 
     const [currentQuestion, setCurrentQuestion] = useState<any>({
