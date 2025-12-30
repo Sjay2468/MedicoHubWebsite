@@ -6,6 +6,7 @@ import { LineChart, Line, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YA
 import { Link } from 'react-router-dom';
 import { Info, AlertCircle, AlertTriangle, CheckCircle2, Megaphone } from 'lucide-react';
 import { useSettings } from '../context/SettingsContext';
+import { api } from '../services/api';
 
 /**
  * DASHBOARD PAGE:
@@ -21,12 +22,6 @@ interface DashboardProps {
     onClearAll: () => void;
     onDeleteAccount: () => void;
 }
-
-const recentResources: Resource[] = [
-    { id: '1', title: 'Cardiology: Valve Disorders', type: 'Video', subject: 'Cardiology', dateAdded: 'Today', isPro: true },
-    { id: '2', title: 'Krebs Cycle Mnemonics', type: 'PDF', subject: 'Biochemistry', dateAdded: 'Yesterday', isPro: false },
-    { id: '5', title: 'ECG Interpretation Masterclass', type: 'Video', subject: 'Cardiology', dateAdded: '1 week ago', isPro: true },
-];
 
 const getThumbnailStyle = (index: number) => {
     const styles = [
@@ -88,6 +83,34 @@ export const Dashboard: React.FC<DashboardProps> = ({
         }
         return user.analytics.monthlyActivity;
     }, [user.analytics]);
+
+    const [allResources, setAllResources] = React.useState<Resource[]>([]);
+    const [userProgress, setUserProgress] = React.useState<Record<string, any>>({});
+
+    React.useEffect(() => {
+        const load = async () => {
+            try {
+                const [res, prog] = await Promise.all([
+                    api.resources.getAll(),
+                    api.analytics.getUserProgress(user.uid || '')
+                ]);
+                setAllResources(Array.isArray(res) ? res : []);
+                const progMap = (prog || []).reduce((acc: any, curr: any) => ({ ...acc, [curr.resourceId]: curr }), {});
+                setUserProgress(progMap);
+            } catch (e) {
+                console.error("Failed to load dashboard data", e);
+            }
+        };
+        load();
+    }, [user.uid]);
+
+    const recentResources = React.useMemo(() => {
+        const sorted = (Object.values(userProgress) as any[])
+            .sort((a, b) => new Date(b.lastUpdated).getTime() - new Date(a.lastUpdated).getTime())
+            .slice(0, 3);
+
+        return sorted.map(p => allResources.find(r => r.id === p.resourceId)).filter(Boolean) as Resource[];
+    }, [userProgress, allResources]);
 
     // Logic to prepare the graph data for the Year view
     const yearlyData = React.useMemo(() => {
@@ -255,42 +278,44 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     </div>
 
                     {/* Right Side: Quick Pick Up (Recent Resources) */}
-                    <div className="lg:col-span-1 animate-fade-in-up" style={{ animationDelay: '200ms' }}>
-                        <h3 className="text-xl font-bold text-gray-900 mb-6">Jump Back In</h3>
-                        <div className="space-y-4">
-                            {recentResources.map((res, idx) => {
-                                const style = getThumbnailStyle(idx);
-                                const Icon = style.icon;
-                                const isLocked = res.isPro && !user.isSubscribed;
+                    {recentResources.length > 0 && (
+                        <div className="lg:col-span-1 animate-fade-in-up" style={{ animationDelay: '200ms' }}>
+                            <h3 className="text-xl font-bold text-gray-900 mb-6">Jump Back In</h3>
+                            <div className="space-y-4">
+                                {recentResources.map((res, idx) => {
+                                    const style = getThumbnailStyle(idx);
+                                    const Icon = style.icon;
+                                    const isLocked = res.isPro && !user.isSubscribed;
 
-                                return (
-                                    <Link
-                                        to={isLocked ? AppRoute.PRICING : `${AppRoute.LEARNING}/${res.id}`}
-                                        key={res.id}
-                                        className={`bg-white p-4 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-all flex gap-4 items-center group relative ${isLocked ? 'opacity-70' : ''}`}
-                                    >
-                                        <div className={`w-14 h-14 rounded-xl flex items-center justify-center shrink-0 ${res.type === 'Video' ? 'bg-brand-dark text-white' : style.bg + ' ' + style.text}`}>
-                                            {res.type === 'Video' ? <PlayCircle size={24} /> : <Icon size={24} />}
-                                        </div>
-                                        <div className="min-w-0 flex-1">
-                                            <div className="flex justify-between items-center mb-1">
-                                                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">{res.subject}</p>
-                                                {res.isPro && <span className="text-[10px] font-bold bg-brand-dark text-brand-yellow px-1.5 py-0.5 rounded uppercase tracking-wider">Pro</span>}
+                                    return (
+                                        <Link
+                                            to={isLocked ? AppRoute.PRICING : `${AppRoute.LEARNING}/${res.id}`}
+                                            key={res.id}
+                                            className={`bg-white p-4 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-all flex gap-4 items-center group relative ${isLocked ? 'opacity-70' : ''}`}
+                                        >
+                                            <div className={`w-14 h-14 rounded-xl flex items-center justify-center shrink-0 ${res.type === 'Video' ? 'bg-brand-dark text-white' : style.bg + ' ' + style.text}`}>
+                                                {res.type === 'Video' ? <PlayCircle size={24} /> : <Icon size={24} />}
                                             </div>
-                                            <h4 className="font-bold text-brand-dark text-sm truncate">{res.title}</h4>
-                                        </div>
-                                        {isLocked && (
-                                            <div className="absolute inset-0 bg-white/40 backdrop-blur-[1px] rounded-2xl flex items-center justify-center">
-                                                <div className="bg-white p-1.5 rounded-full shadow-sm">
-                                                    <Lock size={14} className="text-brand-dark" />
+                                            <div className="min-w-0 flex-1">
+                                                <div className="flex justify-between items-center mb-1">
+                                                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">{res.subject}</p>
+                                                    {res.isPro && <span className="text-[10px] font-bold bg-brand-dark text-brand-yellow px-1.5 py-0.5 rounded uppercase tracking-wider">Pro</span>}
                                                 </div>
+                                                <h4 className="font-bold text-brand-dark text-sm truncate">{res.title}</h4>
                                             </div>
-                                        )}
-                                    </Link>
-                                )
-                            })}
+                                            {isLocked && (
+                                                <div className="absolute inset-0 bg-white/40 backdrop-blur-[1px] rounded-2xl flex items-center justify-center">
+                                                    <div className="bg-white p-1.5 rounded-full shadow-sm">
+                                                        <Lock size={14} className="text-brand-dark" />
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </Link>
+                                    )
+                                })}
+                            </div>
                         </div>
-                    </div>
+                    )}
 
                 </div>
 

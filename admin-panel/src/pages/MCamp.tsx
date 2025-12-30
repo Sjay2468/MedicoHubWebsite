@@ -283,6 +283,7 @@ const ScheduleManager = () => {
     const [expandedWeekId, setExpandedWeekId] = useState<number | null>(1);
     const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
+    const [targetYear, setTargetYear] = useState<string>('Year 2');
 
     useEffect(() => {
         fetchData();
@@ -301,7 +302,9 @@ const ScheduleManager = () => {
 
             let loadedWeeks = [];
             if (currDoc.exists()) {
-                loadedWeeks = currDoc.data().weeks || [];
+                const data = currDoc.data();
+                loadedWeeks = data.weeks || [];
+                if (data.targetYear) setTargetYear(data.targetYear);
             } else {
                 loadedWeeks = Array.from({ length: 13 }, (_, i) => ({
                     id: i + 1,
@@ -355,170 +358,198 @@ const ScheduleManager = () => {
         }
     };
 
-    const saveChanges = async () => {
-        setIsSaving(true);
-        try {
-            await updateDoc(doc(db, 'mcamp', 'curriculum'), { weeks });
-            setHasUnsavedChanges(false);
-            // Simple confirmation
-            setTimeout(() => alert("Schedule saved successfully!"), 100);
-        } catch (error) {
-            console.error("Failed to save curriculum", error);
-            alert("Failed to save changes.");
-        } finally {
-            setIsSaving(false);
+    setIsSaving(true);
+    try {
+        await updateDoc(doc(db, 'mcamp', 'curriculum'), { weeks, targetYear });
+        setHasUnsavedChanges(false);
+        // Simple confirmation
+        setTimeout(() => alert("Schedule saved successfully!"), 100);
+    } catch (error) {
+        console.error("Failed to save curriculum", error);
+        alert("Failed to save changes.");
+    } finally {
+        setIsSaving(false);
+    }
+};
+
+const toggleUnlock = (weekId: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const newWeeks = weeks.map(w => w.id === weekId ? { ...w, isUnlocked: !w.isUnlocked } : w);
+    setWeeks(newWeeks);
+    setHasUnsavedChanges(true);
+};
+
+const handleAssignResources = (resourceIds: string[]) => {
+    if (!selectedDay) return;
+    const newWeeks = weeks.map(w => {
+        if (w.id === selectedDay.weekId) {
+            return {
+                ...w,
+                days: {
+                    ...w.days,
+                    [selectedDay.dayId]: resourceIds
+                }
+            };
         }
-    };
+        return w;
+    });
+    setWeeks(newWeeks);
+    setHasUnsavedChanges(true);
+    setIsResourceModalOpen(false);
+};
 
-    const toggleUnlock = (weekId: number, e: React.MouseEvent) => {
-        e.stopPropagation();
-        const newWeeks = weeks.map(w => w.id === weekId ? { ...w, isUnlocked: !w.isUnlocked } : w);
-        setWeeks(newWeeks);
-        setHasUnsavedChanges(true);
-    };
+// Get resources for currently selected day
+const currentDayResources = selectedDay
+    ? (weeks.find(w => w.id === selectedDay.weekId)?.days[selectedDay.dayId] || [])
+    : [];
 
-    const handleAssignResources = (resourceIds: string[]) => {
-        if (!selectedDay) return;
-        const newWeeks = weeks.map(w => {
-            if (w.id === selectedDay.weekId) {
-                return {
-                    ...w,
-                    days: {
-                        ...w.days,
-                        [selectedDay.dayId]: resourceIds
-                    }
-                };
-            }
-            return w;
-        });
-        setWeeks(newWeeks);
-        setHasUnsavedChanges(true);
-        setIsResourceModalOpen(false);
-    };
+if (loading) return <div className="p-12 text-center text-gray-500">Loading schedule...</div>;
 
-    // Get resources for currently selected day
-    const currentDayResources = selectedDay
-        ? (weeks.find(w => w.id === selectedDay.weekId)?.days[selectedDay.dayId] || [])
-        : [];
-
-    if (loading) return <div className="p-12 text-center text-gray-500">Loading schedule...</div>;
-
-    return (
-        <div className="space-y-8">
-            <div className="flex justify-between items-center">
+return (
+    <div className="space-y-8">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
                 <h2 className="text-2xl font-bold text-gray-800">Weekly Schedule</h2>
-                <div className="flex items-center gap-4">
-                    {hasUnsavedChanges && <span className="text-xs font-bold text-amber-500 animate-pulse">● Unsaved Changes</span>}
+                <p className="text-gray-500 text-sm">Assign study materials for each day of the 13-week program.</p>
+            </div>
+            <div className="flex flex-wrap items-center gap-4 bg-gray-50 p-2 rounded-2xl border border-gray-100">
+                <div className="flex items-center gap-2 pl-2 border-r border-gray-200 pr-4">
+                    <GraduationCap size={16} className="text-brand-blue" />
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Target Level:</span>
+                    <select
+                        value={targetYear}
+                        onChange={(e) => {
+                            setTargetYear(e.target.value);
+                            setHasUnsavedChanges(true);
+                        }}
+                        className="bg-transparent font-bold text-sm focus:outline-none text-brand-dark"
+                    >
+                        <option value="Year 1">Year 1 (100L)</option>
+                        <option value="Year 2">Year 2 (200L)</option>
+                        <option value="Year 3">Year 3 (300L)</option>
+                        <option value="Year 4">Year 4 (400L)</option>
+                        <option value="Year 5">Year 5 (500L)</option>
+                        <option value="Year 6">Year 6 (600L)</option>
+                    </select>
+                </div>
+
+                <div className="flex items-center gap-3">
+                    {hasUnsavedChanges && (
+                        <span className="text-[10px] font-bold text-amber-500 animate-pulse flex items-center gap-1">
+                            <AlertCircle size={12} /> Unsaved Changes
+                        </span>
+                    )}
                     <button
                         onClick={saveChanges}
                         disabled={!hasUnsavedChanges || isSaving}
-                        className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold transition-all ${hasUnsavedChanges
-                            ? 'bg-brand-blue text-white hover:bg-blue-600 shadow-lg shadow-brand-blue/30 active:scale-95'
-                            : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                        className={`flex items-center gap-2 px-6 py-2 rounded-xl text-sm font-bold transition-all ${hasUnsavedChanges
+                            ? 'bg-brand-blue text-white hover:bg-blue-600 shadow-lg shadow-brand-blue/30'
+                            : 'bg-white border border-gray-200 text-gray-400 cursor-not-allowed'
                             }`}
                     >
-                        {isSaving ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> : <Save size={18} />}
-                        Save Changes
+                        {isSaving ? <Loader size={16} className="animate-spin" /> : <Save size={16} />}
+                        {isSaving ? 'Saving...' : 'Save Schedule'}
                     </button>
                 </div>
             </div>
-
-            <div className="grid gap-4">
-                {weeks.map((week) => {
-                    const isExpanded = expandedWeekId === week.id;
-                    return (
-                        <div key={week.id} className={`border rounded-2xl overflow-hidden shadow-sm transition-all ${isExpanded ? 'ring-2 ring-brand-blue/10 border-brand-blue/20' : 'border-gray-200 bg-white'}`}>
-                            <div
-                                onClick={() => setExpandedWeekId(isExpanded ? null : week.id)}
-                                className={`flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50 transition-colors ${isExpanded ? 'bg-gray-50' : ''}`}
-                            >
-                                <div className="flex items-center gap-4">
-                                    <div className={`p-2 rounded-lg ${isExpanded ? 'bg-brand-blue text-white' : 'bg-gray-100 text-gray-500'}`}>
-                                        {isExpanded ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
-                                    </div>
-                                    <h3 className="font-extrabold text-lg text-brand-dark flex items-center gap-2">
-                                        {week.title}
-                                    </h3>
-                                    <div className="text-xs font-medium text-gray-400">
-                                        {Object.values(week.days || {}).flat().length} Resources
-                                    </div>
-                                </div>
-
-                                <button
-                                    onClick={(e) => toggleUnlock(week.id, e)}
-                                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold uppercase transition-colors ${week.isUnlocked ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-gray-200 text-gray-400 hover:bg-gray-300'}`}
-                                >
-                                    {week.isUnlocked ? <Unlock size={14} /> : <Lock size={14} />}
-                                    {week.isUnlocked ? 'Unlocked' : 'Locked'}
-                                </button>
-                            </div>
-
-                            {isExpanded && (
-                                <div className="p-4 grid grid-cols-1 md:grid-cols-7 gap-4 bg-white border-t border-gray-100 animate-fade-in-down">
-                                    {[1, 2, 3, 4, 5, 6, 7].map(day => {
-                                        const assignedIds = week.days?.[day] || [];
-                                        return (
-                                            <div
-                                                key={day}
-                                                onClick={() => { setSelectedDay({ weekId: week.id, dayId: day }); setIsResourceModalOpen(true); }}
-                                                className="min-h-[120px] border border-dashed border-gray-300 rounded-xl p-3 hover:border-brand-blue hover:bg-blue-50/30 cursor-pointer transition-all bg-gray-50/50 group flex flex-col justify-between"
-                                            >
-                                                <div className="flex justify-between items-start">
-                                                    <span className="text-xs font-bold text-gray-400 uppercase">Day {day}</span>
-                                                    {assignedIds.length > 0 && <span className="bg-brand-blue text-white text-[10px] w-5 h-5 flex items-center justify-center rounded-full font-bold">{assignedIds.length}</span>}
-                                                </div>
-                                                {assignedIds.length === 0 ? (
-                                                    <div className="text-center mt-2">
-                                                        <Plus size={20} className="mx-auto text-gray-300 group-hover:text-brand-blue transition-colors" />
-                                                        <span className="text-[10px] text-gray-300 group-hover:text-brand-blue block mt-1">Assign</span>
-                                                    </div>
-                                                ) : (
-                                                    <div className="mt-2 space-y-1">
-                                                        <div className="flex -space-x-1 overflow-hidden">
-                                                            {assignedIds.slice(0, 3).map((id: string) => (
-                                                                <div key={id} className="w-4 h-4 rounded-full bg-brand-dark border border-white"></div>
-                                                            ))}
-                                                            {assignedIds.length > 3 && <div className="w-4 h-4 rounded-full bg-gray-200 border border-white flex items-center justify-center text-[8px] font-bold text-gray-500">+{assignedIds.length - 3}</div>}
-                                                        </div>
-                                                        <p className="text-[10px] text-gray-600 font-medium truncate leading-tight mt-1">
-                                                            {assignedIds.length} items assigned
-                                                        </p>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            )}
-                        </div>
-                    );
-                })}
-            </div>
-
-            {/* Resource Picker Modal */}
-            {isResourceModalOpen && createPortal(
-                <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-brand-dark/40 backdrop-blur-sm animate-fade-in">
-                    <div className="bg-white rounded-[2rem] w-full max-w-2xl shadow-2xl overflow-hidden animate-pop-in flex flex-col max-h-[90vh]">
-                        <div className="p-6 border-b border-gray-100 flex justify-between items-center">
-                            <div>
-                                <h3 className="text-xl font-bold text-brand-dark">Assign Content</h3>
-                                <p className="text-gray-500 text-sm">Week {selectedDay?.weekId} • Day {selectedDay?.dayId}</p>
-                            </div>
-                            <button onClick={() => setIsResourceModalOpen(false)} className="p-2 hover:bg-gray-100 rounded-full"><X size={20} /></button>
-                        </div>
-                        <div className="p-6 overflow-y-auto custom-scrollbar flex-1">
-                            <HelperResourcePicker
-                                allResources={resources}
-                                initialSelected={currentDayResources}
-                                onSave={handleAssignResources}
-                            />
-                        </div>
-                    </div>
-                </div>,
-                document.body
-            )}
         </div>
-    );
+
+        <div className="grid gap-4">
+            {weeks.map((week) => {
+                const isExpanded = expandedWeekId === week.id;
+                return (
+                    <div key={week.id} className={`border rounded-2xl overflow-hidden shadow-sm transition-all ${isExpanded ? 'ring-2 ring-brand-blue/10 border-brand-blue/20' : 'border-gray-200 bg-white'}`}>
+                        <div
+                            onClick={() => setExpandedWeekId(isExpanded ? null : week.id)}
+                            className={`flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50 transition-colors ${isExpanded ? 'bg-gray-50' : ''}`}
+                        >
+                            <div className="flex items-center gap-4">
+                                <div className={`p-2 rounded-lg ${isExpanded ? 'bg-brand-blue text-white' : 'bg-gray-100 text-gray-500'}`}>
+                                    {isExpanded ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
+                                </div>
+                                <h3 className="font-extrabold text-lg text-brand-dark flex items-center gap-2">
+                                    {week.title}
+                                </h3>
+                                <div className="text-xs font-medium text-gray-400">
+                                    {Object.values(week.days || {}).flat().length} Resources
+                                </div>
+                            </div>
+
+                            <button
+                                onClick={(e) => toggleUnlock(week.id, e)}
+                                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold uppercase transition-colors ${week.isUnlocked ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-gray-200 text-gray-400 hover:bg-gray-300'}`}
+                            >
+                                {week.isUnlocked ? <Unlock size={14} /> : <Lock size={14} />}
+                                {week.isUnlocked ? 'Unlocked' : 'Locked'}
+                            </button>
+                        </div>
+
+                        {isExpanded && (
+                            <div className="p-4 grid grid-cols-1 md:grid-cols-7 gap-4 bg-white border-t border-gray-100 animate-fade-in-down">
+                                {[1, 2, 3, 4, 5, 6, 7].map(day => {
+                                    const assignedIds = week.days?.[day] || [];
+                                    return (
+                                        <div
+                                            key={day}
+                                            onClick={() => { setSelectedDay({ weekId: week.id, dayId: day }); setIsResourceModalOpen(true); }}
+                                            className="min-h-[120px] border border-dashed border-gray-300 rounded-xl p-3 hover:border-brand-blue hover:bg-blue-50/30 cursor-pointer transition-all bg-gray-50/50 group flex flex-col justify-between"
+                                        >
+                                            <div className="flex justify-between items-start">
+                                                <span className="text-xs font-bold text-gray-400 uppercase">Day {day}</span>
+                                                {assignedIds.length > 0 && <span className="bg-brand-blue text-white text-[10px] w-5 h-5 flex items-center justify-center rounded-full font-bold">{assignedIds.length}</span>}
+                                            </div>
+                                            {assignedIds.length === 0 ? (
+                                                <div className="text-center mt-2">
+                                                    <Plus size={20} className="mx-auto text-gray-300 group-hover:text-brand-blue transition-colors" />
+                                                    <span className="text-[10px] text-gray-300 group-hover:text-brand-blue block mt-1">Assign</span>
+                                                </div>
+                                            ) : (
+                                                <div className="mt-2 space-y-1">
+                                                    <div className="flex -space-x-1 overflow-hidden">
+                                                        {assignedIds.slice(0, 3).map((id: string) => (
+                                                            <div key={id} className="w-4 h-4 rounded-full bg-brand-dark border border-white"></div>
+                                                        ))}
+                                                        {assignedIds.length > 3 && <div className="w-4 h-4 rounded-full bg-gray-200 border border-white flex items-center justify-center text-[8px] font-bold text-gray-500">+{assignedIds.length - 3}</div>}
+                                                    </div>
+                                                    <p className="text-[10px] text-gray-600 font-medium truncate leading-tight mt-1">
+                                                        {assignedIds.length} items assigned
+                                                    </p>
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </div>
+                );
+            })}
+        </div>
+
+        {/* Resource Picker Modal */}
+        {isResourceModalOpen && createPortal(
+            <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-brand-dark/40 backdrop-blur-sm animate-fade-in">
+                <div className="bg-white rounded-[2rem] w-full max-w-2xl shadow-2xl overflow-hidden animate-pop-in flex flex-col max-h-[90vh]">
+                    <div className="p-6 border-b border-gray-100 flex justify-between items-center">
+                        <div>
+                            <h3 className="text-xl font-bold text-brand-dark">Assign Content</h3>
+                            <p className="text-gray-500 text-sm">Week {selectedDay?.weekId} • Day {selectedDay?.dayId}</p>
+                        </div>
+                        <button onClick={() => setIsResourceModalOpen(false)} className="p-2 hover:bg-gray-100 rounded-full"><X size={20} /></button>
+                    </div>
+                    <div className="p-6 overflow-y-auto custom-scrollbar flex-1">
+                        <HelperResourcePicker
+                            allResources={resources}
+                            initialSelected={currentDayResources}
+                            onSave={handleAssignResources}
+                        />
+                    </div>
+                </div>
+            </div>,
+            document.body
+        )}
+    </div>
+);
 };
 
 const HelperResourcePicker = ({ allResources, initialSelected, onSave }: any) => {
@@ -704,6 +735,7 @@ const LeaderboardView = () => {
                                 <th className="px-6 py-4 font-bold text-gray-500 text-xs uppercase text-center">
                                     Quizzes
                                 </th>
+                                <th className="px-6 py-4 font-bold text-gray-500 text-xs uppercase text-center">Status</th>
                                 <th className="px-6 py-4 font-bold text-gray-500 text-xs uppercase text-right">Actions</th>
                             </tr>
                         </thead>
@@ -743,6 +775,11 @@ const LeaderboardView = () => {
                                             <div className="font-bold text-gray-700">{user.quizzesTaken}</div>
                                             <div className="text-[10px] text-gray-400 uppercase font-bold">Submitted</div>
                                         </td>
+                                        <td className="px-6 py-4 text-center">
+                                            <span className={`text-[10px] px-2 py-1 rounded-full font-bold uppercase ${user.mcamp?.isSuspended ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'}`}>
+                                                {user.mcamp?.isSuspended ? 'Suspended' : 'Active'}
+                                            </span>
+                                        </td>
                                         <td className="px-6 py-4 text-right">
                                             <div className="flex items-center justify-end gap-2">
                                                 <button
@@ -751,6 +788,23 @@ const LeaderboardView = () => {
                                                     title="Send Announcement"
                                                 >
                                                     <Megaphone size={14} /> Send
+                                                </button>
+                                                <button
+                                                    onClick={async () => {
+                                                        if (window.confirm(`Are you sure you want to ${user.mcamp?.isSuspended ? 'ACTIVATE' : 'SUSPEND'} this user?`)) {
+                                                            await api.users.update(user.uid || user.id, {
+                                                                mcamp: {
+                                                                    ...user.mcamp,
+                                                                    isSuspended: !user.mcamp?.isSuspended,
+                                                                    suspensionDate: !user.mcamp?.isSuspended ? new Date().toISOString() : null
+                                                                }
+                                                            });
+                                                            loadData();
+                                                        }
+                                                    }}
+                                                    className={`text-xs px-3 py-1.5 rounded-lg font-bold transition-colors ${user.mcamp?.isSuspended ? 'bg-green-100 text-green-600 hover:bg-green-200' : 'bg-red-50 text-red-500 hover:bg-red-100'}`}
+                                                >
+                                                    {user.mcamp?.isSuspended ? 'Activate' : 'Suspend'}
                                                 </button>
                                                 {!hasId && (
                                                     <button onClick={() => generateId(user.uid || user.id)} className="text-xs bg-brand-dark text-white px-3 py-1.5 rounded-lg font-bold hover:bg-black transition-colors">
@@ -1071,6 +1125,11 @@ const QuizManager = () => {
                                             <p className="font-bold text-gray-900">{quiz.title}</p>
                                             <p className="text-xs text-gray-500 truncate max-w-[200px]">{quiz.description}</p>
                                             <p className="text-[10px] text-gray-300 font-mono mt-1">ID: {quizId}</p>
+                                            {quiz.deadline && (
+                                                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded mt-2">
+                                                    <Clock size={10} /> Deadline: {new Date(quiz.deadline).toLocaleString()}
+                                                </span>
+                                            )}
                                         </td>
                                         <td className="px-6 py-4">
                                             {quiz.weekNumber ? (
@@ -1226,6 +1285,19 @@ const QuizEditor = ({ initialData, onSave, onCancel }: any) => {
                             onChange={e => updateField('weekNumber', Number(e.target.value))}
                         />
                         <p className="text-[10px] text-gray-400">Used for "Weekly Mastery" identification.</p>
+                    </div>
+                    <div className="space-y-1">
+                        <label className="text-xs font-bold text-gray-500 uppercase flex items-center gap-1">
+                            <Clock size={12} /> Submission Deadline (Optional)
+                        </label>
+                        <input
+                            id="quiz-deadline"
+                            type="datetime-local"
+                            defaultValue={formData.deadline ? new Date(formData.deadline).toISOString().slice(0, 16) : ''}
+                            className="w-full p-3 bg-gray-50 rounded-xl border border-gray-200 focus:outline-none focus:border-brand-blue font-bold"
+                            onChange={e => updateField('deadline', e.target.value)}
+                        />
+                        <p className="text-[10px] text-gray-400">Quiz will automatically close after this time.</p>
                     </div>
                 </div>
 
@@ -1407,7 +1479,7 @@ const QuizEditor = ({ initialData, onSave, onCancel }: any) => {
 
             <div className="flex justify-end gap-4 pt-6 border-t border-gray-100">
                 <button onClick={onCancel} className="px-6 py-3 font-bold text-gray-500 hover:bg-gray-50 rounded-xl">Cancel</button>
-                <button onClick={() => onSave(formData)} className="px-8 py-3 bg-brand-dark text-white font-bold rounded-xl shadow-lg hover:bg-black transition-all">
+                <button onClick={() => onSave({ ...formData, deadline: (document.getElementById('quiz-deadline') as HTMLInputElement)?.value })} className="px-8 py-3 bg-brand-dark text-white font-bold rounded-xl shadow-lg hover:bg-black transition-all">
                     Save Quiz
                 </button>
             </div>

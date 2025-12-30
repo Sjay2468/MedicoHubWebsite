@@ -3,7 +3,7 @@ import * as React from 'react';
 import { User, AppRoute, QuizSession } from '../types';
 import { DashboardLayout } from '../components/DashboardLayout';
 import { useNavigate } from 'react-router-dom';
-import { Lock, PlayCircle, FileText, CheckCircle, Clock, Trophy, AlertCircle, Zap, Check, ChevronRight, ChevronDown, Calendar, Users, MessageCircle } from 'lucide-react';
+import { Lock, PlayCircle, FileText, CheckCircle, Clock, Trophy, AlertCircle, Zap, Check, ChevronRight, ChevronDown, Calendar, Users, MessageCircle, CheckCircle2, Star } from 'lucide-react';
 import { api } from '../services/api';
 import { QuizEngine, QuizIntro } from '../components/QuizEngine';
 import { useSettings } from '../context/SettingsContext';
@@ -37,6 +37,41 @@ export const MCampDashboard: React.FC<MCampDashboardProps> = ({
     const [progress, setProgress] = React.useState(0);
     const [localUser, setLocalUser] = React.useState(user);
 
+    if (!user.mcamp?.isEnrolled) {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-[60vh] text-center p-8 bg-white rounded-[2rem] border-2 border-dashed border-gray-100">
+                <div className="w-20 h-20 bg-amber-50 rounded-3xl flex items-center justify-center text-amber-500 mb-6">
+                    <Lock size={40} />
+                </div>
+                <h2 className="text-2xl font-bold text-gray-900 mb-2">MCAMP Access Required</h2>
+                <p className="text-gray-500 max-w-sm mx-auto mb-8">This dashboard is only available for students enrolled in our Medical Mentorship Cohort.</p>
+                <button onClick={() => navigate(AppRoute.MCAMP)} className="bg-brand-blue text-white px-8 py-3 rounded-xl font-bold hover:bg-blue-600 transition-all">
+                    Apply for MCAMP
+                </button>
+            </div>
+        );
+    }
+
+    if (user.mcamp?.isSuspended) {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-[60vh] text-center p-8 bg-white rounded-[2rem] border-2 border-red-50">
+                <div className="w-20 h-20 bg-red-50 rounded-3xl flex items-center justify-center text-red-500 mb-6 shadow-xl shadow-red-100/50">
+                    <Zap size={40} />
+                </div>
+                <h2 className="text-3xl font-extrabold text-brand-dark mb-2">Account Restricted</h2>
+                <p className="text-gray-500 max-w-md mx-auto mb-8 leading-relaxed font-medium">Your MCAMP access has been temporarily suspended by an administrator. Please contact support for resolution.</p>
+                <div className="flex gap-4">
+                    <button onClick={() => navigate(AppRoute.DASHBOARD)} className="bg-gray-100 text-gray-600 px-8 py-3 rounded-xl font-bold hover:bg-gray-200 transition-all">
+                        Back to Dashboard
+                    </button>
+                    <a href="mailto:support@medicohub.com" className="bg-brand-blue text-white px-8 py-3 rounded-xl font-bold hover:bg-blue-600 transition-all">
+                        Contact Admin
+                    </a>
+                </div>
+            </div>
+        );
+    }
+
     // Sync local user state with prop
     React.useEffect(() => { setLocalUser(user); }, [user]);
 
@@ -53,6 +88,7 @@ export const MCampDashboard: React.FC<MCampDashboardProps> = ({
 
     // Data State
     const [weeks, setWeeks] = React.useState<any[]>([]);
+    const [targetYear, setTargetYear] = React.useState<string>('Year 2');
     const [allResources, setAllResources] = React.useState<any[]>([]);
     const [expandedWeekId, setExpandedWeekId] = React.useState<number | null>(null);
 
@@ -78,6 +114,25 @@ export const MCampDashboard: React.FC<MCampDashboardProps> = ({
         }
     }, [user]);
 
+    const overallMastery = React.useMemo(() => {
+        // Attendance: 13 quizzes = 100% (Weight 40%)
+        const attempts = Object.keys(localUser.quizAttempts || {}).length;
+        const attendanceScore = Math.min(attempts / 13, 1) * 40;
+
+        // Performance: Avg graded score (Weight 60%)
+        const graded = Object.values(localUser.quizAttempts || {}).filter((a: any) => a.status === 'completed' && a.score !== undefined);
+        let performanceScore = 0;
+        if (graded.length > 0) {
+            const total = graded.reduce((sum: number, a: any) => sum + (Number(a.score) || 0), 0) as number;
+            const avg = total / graded.length;
+            performanceScore = (avg / 100) * 60;
+        } else if (attempts > 0) {
+            performanceScore = 30; // 50% performance bonus for attempt if not yet graded
+        }
+
+        return Math.round(attendanceScore + performanceScore);
+    }, [localUser.quizAttempts]);
+
     // Fetch Curriculum & Resources
     React.useEffect(() => {
         let unsubscribeCurriculum: (() => void) | undefined;
@@ -95,7 +150,9 @@ export const MCampDashboard: React.FC<MCampDashboardProps> = ({
             try {
                 unsubscribeCurriculum = onSnapshot(doc(db, 'mcamp', 'curriculum'), (snap) => {
                     if (snap.exists()) {
-                        setWeeks(snap.data().weeks || []);
+                        const data = snap.data();
+                        setWeeks(data.weeks || []);
+                        if (data.targetYear) setTargetYear(data.targetYear);
                     }
                 }, (error) => {
                     console.error("Failed curriculum snapshot", error);
@@ -115,8 +172,6 @@ export const MCampDashboard: React.FC<MCampDashboardProps> = ({
     React.useEffect(() => {
         if (allResources.length > 0) {
             const currentWeek = Math.ceil(currentDay / 7);
-            // Search for quiz manually tagged for this week OR implicitly
-            // We look for 'Quiz' type, 'MCAMP' tag, and matching weekNumber property
             const found = allResources.find((r: any) =>
                 r.type === 'Quiz' &&
                 (r.tags?.includes('MCAMP') || r.isMcampExclusive) &&
@@ -124,10 +179,13 @@ export const MCampDashboard: React.FC<MCampDashboardProps> = ({
             );
 
             if (found) {
-                // Ensure ID is set properly for the quiz engine
+                // Check Deadline
+                const isExpired = found.deadline && new Date(found.deadline) < new Date();
+
                 setActiveQuiz({
                     ...found,
-                    id: found.id || found._id
+                    id: found.id || found._id,
+                    isExpired
                 });
             } else {
                 setActiveQuiz(null);
@@ -217,16 +275,18 @@ export const MCampDashboard: React.FC<MCampDashboardProps> = ({
                             </h1>
                             <p className="text-gray-400 max-w-xl text-lg font-medium">
                                 Current Phase: <span className="text-white">Week {Math.ceil(currentDay / 7)}</span>
+                                <span className="mx-3 text-gray-700">|</span>
+                                Target Level: <span className="text-brand-yellow font-bold">{targetYear}</span>
                             </p>
                         </div>
 
                         <div className="bg-white/10 backdrop-blur-md p-6 rounded-2xl border border-white/10 w-full md:w-auto min-w-[280px]">
                             <div className="flex justify-between items-center mb-2">
                                 <span className="text-gray-400 font-bold text-xs uppercase">Overall Mastery</span>
-                                <span className="text-brand-yellow font-bold">{progress}%</span>
+                                <span className="text-brand-yellow font-bold">{overallMastery}%</span>
                             </div>
                             <div className="h-3 bg-white/10 rounded-full overflow-hidden">
-                                <div className="h-full bg-brand-yellow transition-all duration-1000" style={{ width: `${progress}%` }}></div>
+                                <div className="h-full bg-brand-yellow transition-all duration-1000" style={{ width: `${overallMastery}%` }}></div>
                             </div>
                             <div className="mt-4 flex gap-4 text-sm">
                                 <div className="flex items-center gap-2 text-gray-300">

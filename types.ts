@@ -17,6 +17,8 @@ export interface User {
     cohortId: string;
     uniqueId: string;
     startDate: string; // ISO Date of cohort start
+    isSuspended?: boolean;
+    suspensionDate?: string;
   };
   quizAttempts?: Record<string, {
     status: 'completed' | 'pending_grading';

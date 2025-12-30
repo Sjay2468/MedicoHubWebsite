@@ -191,9 +191,9 @@ export const Pricing: React.FC<PricingProps> = ({ user }) => {
               'Unlimited AI Queries',
               'Full Library Access',
               'Advanced Performance Charts',
-              '10% Store Discount',
+              'Exclusive Store Discounts',
               'Priority Support',
-              'Exclusive MCAMP Discounts'
+              'Professional Mentorship Access'
             ].map(f => (
               <li key={f} className="flex items-center gap-3">
                 <div className="bg-brand-blue p-1 rounded-full text-white"><Check size={14} /></div>

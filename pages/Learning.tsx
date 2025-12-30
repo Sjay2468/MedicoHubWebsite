@@ -509,12 +509,10 @@ export const Learning: React.FC<LearningProps> = ({
                 const isMcampResource = (res as any).isMcampExclusive || res.id.startsWith('m');
                 let isAccessible = true;
 
-                if (res.isPro && isMcampResource) {
-                    isAccessible = true;
+                if (isMcampResource) {
+                    isAccessible = !!user.mcamp?.isEnrolled;
                 } else if (res.isPro) {
                     isAccessible = user.isSubscribed;
-                } else if (isMcampResource) {
-                    isAccessible = !!user.mcamp?.isEnrolled;
                 }
 
                 if (!isAccessible) {
@@ -712,7 +710,7 @@ export const Learning: React.FC<LearningProps> = ({
                                                                     id="yt-player"
                                                                     width="100%"
                                                                     height="100%"
-                                                                    src={`https://www.youtube.com/embed/${getYouTubeId(activeResource.url || '')}?autoplay=1&modestbranding=1&rel=0&iv_load_policy=3&controls=1&disablekb=0&showinfo=0&enablejsapi=1`}
+                                                                    src={`https://www.youtube.com/embed/${getYouTubeId(activeResource.url || '')}?autoplay=1&modestbranding=1&rel=0&iv_load_policy=3&controls=1&disablekb=0&showinfo=0&enablejsapi=1&origin=${window.location.origin}`}
                                                                     title={activeResource.title}
                                                                     frameBorder="0"
                                                                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
@@ -1261,16 +1259,15 @@ export const Learning: React.FC<LearningProps> = ({
             }
 
             {/* AI Chat Overlay */}
-            {
-                isAiChatOpen && activeResource && activeResource.type !== 'Quiz' && activeResource.type !== 'Video' && (
-                    <AIChatOverlay
-                        user={user}
-                        resource={activeResource}
-                        onClose={() => setIsAiChatOpen(false)}
-                        currentPage={pageNumber}
-                    />
-                )
-            }
+            {isAiChatOpen && activeResource && (
+                <AIChatOverlay
+                    key={activeResource.id}
+                    user={user}
+                    resource={activeResource}
+                    onClose={() => setIsAiChatOpen(false)}
+                    currentPage={pageNumber}
+                />
+            )}
         </DashboardLayout >
     );
 };
