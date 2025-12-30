@@ -103,7 +103,7 @@ export const MCampDashboard: React.FC<MCampDashboardProps> = ({
             const start = new Date(user.mcamp.startDate);
             const now = new Date();
             const diffTime = Math.abs(now.getTime() - start.getTime());
-            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            const diffDays = Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
             setCurrentDay(diffDays > 90 ? 90 : diffDays);
             setProgress(Math.min(100, Math.round((diffDays / 90) * 100)));
 
@@ -177,11 +177,12 @@ export const MCampDashboard: React.FC<MCampDashboardProps> = ({
     React.useEffect(() => {
         if (allResources.length > 0) {
             const currentWeek = Math.ceil(currentDay / 7);
-            const found = allResources.find((r: any) =>
-                r.type === 'Quiz' &&
-                (r.tags?.includes('MCAMP') || r.isMcampExclusive) &&
-                Number(r.weekNumber) === currentWeek
-            );
+            const found = allResources.find((r: any) => {
+                const isQuiz = (r.type === 'Quiz' || r.url?.includes('quiz'));
+                const isMcamp = r.isMcampExclusive || r.tags?.some((t: string) => t.toUpperCase() === 'MCAMP');
+                const weekMatches = Number(r.weekNumber || r.week) === currentWeek;
+                return isQuiz && isMcamp && weekMatches;
+            });
 
             if (found) {
                 // Check Deadline
