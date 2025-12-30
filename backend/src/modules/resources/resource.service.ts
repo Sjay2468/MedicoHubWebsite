@@ -39,55 +39,14 @@ export class ResourceService {
         const userYear = (userProfile.year || userProfile.academicYear || 'General').toString().toLowerCase();
         const isMcamp = userProfile.mcamp?.isEnrolled || userProfile.mcampId || false;
 
-        // 1. Build Curriculum Map if user is suspended (to enforce frozen-in-time rule)
-        const curriculumMap: Record<string, number> = {};
-        let suspensionDay = 999;
-
-        if (isMcamp && userProfile.mcamp?.isSuspended && userProfile.mcamp?.startDate && userProfile.mcamp?.suspensionDate) {
-            try {
-                const db = getDb();
-                if (!db) throw new Error("Database instance unavailable");
-                const snap = await db.collection('mcamp').doc('curriculum').get();
-                if (snap.exists) {
-                    const weeks = snap.data().weeks || [];
-                    weeks.forEach((w: any) => {
-                        Object.entries(w.days || {}).forEach(([dayId, ids]: [any, any]) => {
-                            const day = (Number(w.id) - 1) * 7 + Number(dayId);
-                            ids.forEach((id: string) => {
-                                if (!curriculumMap[id] || day < curriculumMap[id]) curriculumMap[id] = day;
-                            });
-                        });
-                    });
-                }
-                const start = new Date(userProfile.mcamp.startDate);
-                const suspension = new Date(userProfile.mcamp.suspensionDate);
-                suspensionDay = Math.ceil(Math.abs(suspension.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
-            } catch (e) {
-                console.error("Suspension map build failed", e);
-            }
-        }
-
         return allResources.filter((res: ResourceDocument) => {
             const resYear = (res.year || '').toLowerCase();
             const resTags = (res.tags || []).map(t => t.toLowerCase());
 
-            // 1. MCAMP Logic: Permanent access if enrolled, but frozen if suspended
-            const isMcampResource = res.isMcampExclusive || resTags.includes('mcamp');
-            if (isMcamp && isMcampResource) {
-                if (userProfile.mcamp?.isSuspended) {
-                    // Check curriculum day
-                    const unlockDay = curriculumMap[res.id];
-                    if (unlockDay && unlockDay > suspensionDay) return false;
-
-                    // Check quiz week
-                    if (res.type === 'Quiz' && (res as any).weekNumber) {
-                        const quizUnlockDay = (Number((res as any).weekNumber) - 1) * 7 + 1;
-                        if (quizUnlockDay > suspensionDay) return false;
-                    }
-                }
+            // 1. MCAMP Logic: Allow exclusive content OR tagged content to bypass year filters for cohort members
+            if (isMcamp && (res.isMcampExclusive || resTags.includes('mcamp'))) {
                 return true;
             }
-
             if (res.isMcampExclusive && !isMcamp) {
                 return false;
             }
