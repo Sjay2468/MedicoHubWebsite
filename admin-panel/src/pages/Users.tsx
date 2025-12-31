@@ -140,8 +140,8 @@ export const UsersPage = () => {
                 academicYear: selectedUser.requestedYear,
                 requestedYear: null
             });
-            // Update local state
-            setUsers(prev => prev.map(u => (u.uid || u._id) === (selectedUser.uid || selectedUser._id) ? { ...u, year: u.requestedYear, requestedYear: undefined } : u));
+            // Update local state - set both year and academicYear for compatibility
+            setUsers(prev => prev.map(u => (u.uid || u._id) === (selectedUser.uid || selectedUser._id) ? { ...u, year: selectedUser.requestedYear, academicYear: selectedUser.requestedYear, requestedYear: undefined } : u));
             setSelectedUser(null);
             alert("Upgrade Approved Successfully");
         } catch (e) {

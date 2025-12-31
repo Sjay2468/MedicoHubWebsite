@@ -12,6 +12,7 @@ export interface IUser extends Document {
     firstName?: string;
     surname?: string;
     photoURL?: string;
+    year?: string; // Virtual field for frontend compatibility (mirrors academicYear)
 
     isSubscribed: boolean;
     subscriptions: {
@@ -108,6 +109,18 @@ const UserSchema: Schema = new Schema({
         monthlyActivity: [Number],
         yearlyActivity: { type: Map, of: Number }
     }
-}, { timestamps: true });
+}, {
+    timestamps: true,
+    toJSON: {
+        virtuals: true,
+        transform: function (doc: any, ret: any) {
+            // Map academicYear to year for frontend compatibility
+            if (ret.academicYear) {
+                ret.year = ret.academicYear;
+            }
+            return ret;
+        }
+    }
+});
 
 export const User = mongoose.model<IUser>('User', UserSchema);
