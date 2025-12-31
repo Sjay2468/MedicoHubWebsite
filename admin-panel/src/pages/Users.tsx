@@ -69,7 +69,7 @@ export const UsersPage = () => {
 
             // Optimistic update
             setUsers(prev => prev.map(u =>
-                u.id === selectedUser.id ? { ...u, ...editForm } : u
+                (u.uid || u._id) === (selectedUser.uid || selectedUser._id) ? { ...u, ...editForm } : u
             ));
 
             setSelectedUser(null);
@@ -91,7 +91,7 @@ export const UsersPage = () => {
         setIsSaving(true);
         try {
             await api.users.delete(selectedUser.id);
-            setUsers(prev => prev.filter(u => u.id !== selectedUser.id));
+            setUsers(prev => prev.filter(u => (u.uid || u._id) !== (selectedUser.uid || selectedUser._id)));
             setSelectedUser(null);
             setShowDeleteConfirm(false);
         } catch (error) {
@@ -136,12 +136,12 @@ export const UsersPage = () => {
         setIsSaving(true);
         try {
             // Update year to requestedYear and remove requestedYear field
-            await api.users.update(selectedUser.id, {
+            await api.users.update(selectedUser.uid || selectedUser._id, {
                 academicYear: selectedUser.requestedYear,
                 requestedYear: null
             });
             // Update local state
-            setUsers(prev => prev.map(u => u.id === selectedUser.id ? { ...u, year: u.requestedYear, requestedYear: undefined } : u));
+            setUsers(prev => prev.map(u => (u.uid || u._id) === (selectedUser.uid || selectedUser._id) ? { ...u, year: u.requestedYear, requestedYear: undefined } : u));
             setSelectedUser(null);
             alert("Upgrade Approved Successfully");
         } catch (e) {
@@ -224,7 +224,7 @@ export const UsersPage = () => {
                                 <tr><td colSpan={5} className="px-6 py-10 text-center text-gray-500">No users found.</td></tr>
                             ) : (
                                 filteredUsers.map((user) => (
-                                    <tr key={user.id || user.uid} className="hover:bg-gray-50 transition-colors cursor-pointer group" onClick={() => handleEditClick(user)}>
+                                    <tr key={user.uid || user._id} className="hover:bg-gray-50 transition-colors cursor-pointer group" onClick={() => handleEditClick(user)}>
                                         <td className="px-6 py-4">
                                             <div className="flex items-center gap-3">
                                                 <div className="w-10 h-10 rounded-full bg-blue-50 text-brand-blue flex items-center justify-center font-bold text-sm uppercase shrink-0">
