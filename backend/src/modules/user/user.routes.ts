@@ -85,14 +85,12 @@ router.patch('/:uid/ban', verifyAuth, verifyAdmin, async (req: Request, res: Res
         // 1. Disable in Firebase Auth
         await auth.updateUser(uid, { disabled: ban });
 
-        // 2. Update status in Firestore
-        await admin.firestore().collection('users').doc(uid).update({
-            status: ban ? 'suspended' : 'active',
-            updatedAt: new Date().toISOString()
-        });
-
-        // 3. Fallback Update in MongoDB (if user exists there)
-        await User.findOneAndUpdate({ uid }, { $set: { status: ban ? 'suspended' : 'active' } });
+        // 2. Update status in MongoDB
+        await User.findOneAndUpdate(
+            { uid },
+            { $set: { status: ban ? 'suspended' : 'active' } },
+            { upsert: true }
+        );
 
         res.json({ success: true, message: `User ${ban ? 'banned' : 'unbanned'}` });
     } catch (error) {
@@ -274,7 +272,7 @@ router.patch('/:uid/profile', verifyAuth, async (req: Request, res: Response) =>
             { new: true, upsert: true }
         );
 
-        res.json({ success: true, user: updatedUser });
+        res.json({ success: true, user });
     } catch (error) {
         console.error("Error updating profile in MongoDB:", error);
         res.status(500).json({ error: "Failed to update profile" });
