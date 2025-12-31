@@ -1320,10 +1320,13 @@ const QuizEditor = ({ initialData, onSave, onCancel }: any) => {
                                         value={currentQuestion.type || 'SBO'}
                                         onChange={e => setCurrentQuestion({ ...currentQuestion, type: e.target.value })}
                                     >
-                                        <option value="SBO">Single Choice</option>
-                                        <option value="MCQ">Multiple Choice</option>
-                                        <option value="FIB">Fill in the Blank</option>
-                                        <option value="MFIB">Multiple Fill in the Blank</option>
+                                        <option value="SBO">Single Choice (SBO)</option>
+                                        <option value="MCQ">Multiple Choice (MCQ)</option>
+                                        <option value="FIB">Fill in the Blank (FIB)</option>
+                                        <option value="FILL_GAP">Fill Gap</option>
+                                        <option value="MFIB">Multiple Fill (MFIB)</option>
+                                        <option value="IMAGE_ID">Image Identification</option>
+                                        <option value="ESSAY">Essay / Reasoning</option>
                                     </select>
                                 </div>
                                 <input
@@ -1362,13 +1365,17 @@ const QuizEditor = ({ initialData, onSave, onCancel }: any) => {
                                 </div>
 
                                 <div className="space-y-2">
-                                    {currentQuestion.type === 'FIB' ? (
+                                    {(currentQuestion.type === 'FIB' || currentQuestion.type === 'FILL_GAP' || currentQuestion.type === 'IMAGE_ID') ? (
                                         <input
                                             className="w-full p-2 bg-green-50 text-green-700 text-sm border border-green-100 rounded font-bold"
                                             placeholder="Correct Answer..."
                                             value={currentQuestion.correctAnswer || ''}
                                             onChange={e => setCurrentQuestion({ ...currentQuestion, correctAnswer: e.target.value })}
                                         />
+                                    ) : currentQuestion.type === 'ESSAY' ? (
+                                        <div className="p-3 bg-blue-50 text-blue-600 rounded-lg text-[10px] font-bold uppercase tracking-wider">
+                                            Essay questions are manually graded by admins.
+                                        </div>
                                     ) : currentQuestion.type === 'MFIB' ? (
                                         <div className="space-y-2">
                                             <label className="text-xs font-bold text-gray-500 uppercase">Correct Answers (ordered)</label>
@@ -1463,12 +1470,18 @@ const QuizEditor = ({ initialData, onSave, onCancel }: any) => {
                             <div key={idx} className="bg-white p-3 rounded-xl border border-gray-100 flex justify-between items-start group">
                                 <div>
                                     <div className="flex items-center gap-2 mb-1">
-                                        <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded font-bold uppercase">{q.type || 'SBO'}</span>
+                                        <span className={`text-[10px] px-1.5 py-0.5 rounded font-black uppercase ${q.type === 'ESSAY' ? 'bg-blue-100 text-blue-600' :
+                                            q.type === 'MFIB' ? 'bg-purple-100 text-purple-600' : 'bg-gray-100 text-gray-500'
+                                            }`}>{q.type || 'SBO'}</span>
                                         {q.imageUrl && <img src={q.imageUrl} alt="Q" className="w-6 h-6 rounded object-cover border border-gray-200" />}
                                         <p className="text-sm font-bold text-gray-800">{idx + 1}. {q.prompt}</p>
                                     </div>
-                                    <p className="text-xs text-brand-blue mt-1 font-mono">
-                                        Answer: {q.type === 'FIB' ? q.correctAnswer : q.type === 'MCQ' ? (Array.isArray(q.correctAnswer) ? q.correctAnswer.map((i: number) => q.options[i]).join(', ') : '') : q.options[q.correctAnswer]}
+                                    <p className="text-xs text-brand-blue mt-1 font-mono italic">
+                                        {q.type === 'ESSAY' ? 'Manual Grading Mode' :
+                                            q.type === 'MFIB' ? `Answers: ${(q.correctAnswer || []).join(', ')}` :
+                                                q.type === 'MCQ' ? `Correct: ${(Array.isArray(q.correctAnswer) ? q.correctAnswer : []).map((i: number) => q.options[i]).join(', ')}` :
+                                                    (q.type === 'FIB' || q.type === 'FILL_GAP' || q.type === 'IMAGE_ID') ? `Key: ${q.correctAnswer}` :
+                                                        `Answer: ${q.options?.[q.correctAnswer] || 'Not Set'}`}
                                     </p>
                                 </div>
                                 <button onClick={() => removeQuestion(idx)} className="text-gray-300 hover:text-red-500"><X size={14} /></button>
@@ -1601,11 +1614,15 @@ const GradingView = () => {
 
         if (q.type === 'MCQ') {
             const indices = Array.isArray(ans) ? ans : [ans];
-            return indices.map((i: number) => q.options?.[i] || '?').join(', ');
+            return indices.map((i: number) => q.options?.[i] || `Opt ${i + 1}`).join(', ');
         }
 
         if (q.type === 'SBO') {
             return q.options?.[ans] || (typeof ans === 'number' ? `Option ${ans + 1}` : ans);
+        }
+
+        if (q.type === 'MFIB') {
+            return (Array.isArray(ans) ? ans : [ans]).join(' | ');
         }
 
         return String(ans);
@@ -1721,17 +1738,19 @@ const GradingDetail = ({ submission, quiz, onBack, onSave }: any) => {
                 if (Array.isArray(uAns) && Array.isArray(q.correctAnswer)) {
                     isCorrect = JSON.stringify(uAns.sort()) === JSON.stringify(q.correctAnswer.sort());
                 }
-            } else if (q.type === 'FIB') {
-                isCorrect = String(uAns).toLowerCase().trim() === String(q.correctAnswer).toLowerCase().trim();
+            } else if (q.type === 'FIB' || q.type === 'FILL_GAP' || q.type === 'IMAGE_ID') {
+                isCorrect = String(uAns || "").toLowerCase().trim() === String(q.correctAnswer || "").toLowerCase().trim();
             } else if (q.type === 'MFIB') {
                 // Check if all answers match in order
                 const uArr = Array.isArray(uAns) ? uAns : [];
                 const cArr = Array.isArray(q.correctAnswer) ? q.correctAnswer : [];
-                if (uArr.length === cArr.length) {
+                if (uArr.length === cArr.length && cArr.length > 0) {
                     isCorrect = cArr.every((ans: string, idx: number) =>
                         String(ans).toLowerCase().trim() === String(uArr[idx] || '').toLowerCase().trim()
                     );
                 }
+            } else if (q.type === 'ESSAY') {
+                isCorrect = false; // Always manual for essays
             } else {
                 isCorrect = Number(uAns) === Number(q.correctAnswer);
             }
