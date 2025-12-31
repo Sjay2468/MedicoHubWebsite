@@ -109,8 +109,8 @@ export const api = {
                     headers: await getAuthHeaders()
                 });
 
-                await handleResponse(response);
-                const data = await response.json();
+                const data = await handleResponse(response);
+                // const data = await response.json();
                 return Array.isArray(data) ? data : (data.users || []);
             } catch (err: any) {
                 console.error(`[API] Failed to fetch users from ${url}`, err);
