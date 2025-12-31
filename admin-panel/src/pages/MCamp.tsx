@@ -1136,7 +1136,7 @@ const QuizManager = () => {
                                             )}
                                         </td>
                                         <td className="px-6 py-4">
-                                            {quiz.weekNumber ? (
+                                            {(quiz.weekNumber !== undefined && quiz.weekNumber !== null && quiz.weekNumber !== '') ? (
                                                 <span className="inline-flex items-center gap-1 bg-brand-blue/10 text-brand-blue px-2 py-1 rounded text-xs font-bold">
                                                     Week {quiz.weekNumber}
                                                 </span>

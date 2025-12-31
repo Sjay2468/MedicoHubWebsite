@@ -19,6 +19,9 @@ const ResourceSchema = z.object({
     url: z.string().optional(),
     thumbnailUrl: z.string().optional(),
     hasAiAccess: z.boolean().optional(),
+    weekNumber: z.number().optional(),
+    durationMinutes: z.number().optional(),
+    maxAttempts: z.number().optional(),
     quizData: z.any().optional()
 });
 
