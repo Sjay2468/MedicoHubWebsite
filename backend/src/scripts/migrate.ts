@@ -42,7 +42,28 @@ const migrateUsers = async () => {
             isSubscribed: data.isSubscribed || false,
             subscriptions: data.subscriptions || [],
             mcamp: data.mcamp,
-            analytics: data.analytics // simplified copy
+            analytics: {
+                totalSecondsStudied: data.analytics?.totalSecondsStudied || 0,
+                totalHours: data.analytics?.totalHours || 0,
+                pointsEarned: data.analytics?.pointsEarned || 0,
+                streakDays: data.analytics?.streakDays || 0,
+                currentStreak: data.analytics?.currentStreak || 0,
+                lastActive: data.analytics?.lastActive ? new Date(data.analytics.lastActive) : new Date(),
+                lastStudyDate: data.analytics?.lastStudyDate || '',
+                // Fix: Extract just the numbers for monthlyActivity if it exists as objects
+                monthlyActivity: Array.isArray(data.analytics?.monthlyActivity)
+                    ? data.analytics.monthlyActivity.map((m: any) => typeof m === 'object' ? m.hours : m)
+                    : [],
+                // Fix: Convert Array to Map for yearlyActivity
+                yearlyActivity: Array.isArray(data.analytics?.yearlyActivity)
+                    ? data.analytics.yearlyActivity.reduce((acc: any, curr: any) => {
+                        if (curr.month && curr.hours !== undefined) {
+                            acc[curr.month] = curr.hours;
+                        }
+                        return acc;
+                    }, {})
+                    : {}
+            }
         });
         count++;
     }
