@@ -103,17 +103,19 @@ export const api = {
     },
     users: {
         getAll: async () => {
-            const response = await fetch(`${BASE_URL}/users?limit=200`, {
-                headers: await getAuthHeaders()
-            });
+            const url = `${BASE_URL}/users?limit=200`;
+            try {
+                const response = await fetch(url, {
+                    headers: await getAuthHeaders()
+                });
 
-            if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(`Backend fetch failed: ${response.status} ${errorText}`);
+                await handleResponse(response);
+                const data = await response.json();
+                return Array.isArray(data) ? data : (data.users || []);
+            } catch (err: any) {
+                console.error(`[API] Failed to fetch users from ${url}`, err);
+                throw new Error(`Connection failed to ${url}: ${err.message || 'Unknown Error'}`);
             }
-
-            const data = await response.json();
-            return Array.isArray(data) ? data : (data.users || []);
         },
         getUpgradeRequests: async () => {
             const response = await fetch(`${BASE_URL}/users?filter=requests&limit=50`, {

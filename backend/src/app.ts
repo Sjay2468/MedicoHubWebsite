@@ -60,6 +60,9 @@ app.use(cors({
     allowedHeaders: ['Content-Type', 'Authorization', 'x-admin-secret']
 }));
 
+// 5. Handle Preflight Requests Explicitly
+app.options('*', cors());
+
 // SECURITY: Hide that we are using Express
 app.disable('x-powered-by');
 
