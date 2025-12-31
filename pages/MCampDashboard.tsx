@@ -172,7 +172,7 @@ export const MCampDashboard: React.FC<MCampDashboardProps> = ({
             const found = allResources.find((r: any) =>
                 r.type === 'Quiz' &&
                 (r.tags?.includes('MCAMP') || r.isMcampExclusive) &&
-                Number(r.weekNumber) === currentWeek
+                (Number(r.weekNumber) === currentWeek || Number(r.quizData?.weekNumber) === currentWeek)
             );
 
             if (found) {
@@ -182,6 +182,7 @@ export const MCampDashboard: React.FC<MCampDashboardProps> = ({
                 setActiveQuiz({
                     ...found,
                     id: found.id || found._id,
+                    questions: found.quizData || found.questions || [],
                     isExpired
                 });
             } else {

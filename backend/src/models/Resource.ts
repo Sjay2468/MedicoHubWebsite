@@ -18,6 +18,9 @@ export interface IResource extends Document {
 
     uploadedBy: string;
     year?: string;
+    weekNumber?: number;
+    durationMinutes?: number;
+    maxAttempts?: number;
     quizData?: any; // For Quiz type resources
     createdAt: Date;
     updatedAt: Date;
@@ -29,6 +32,9 @@ const ResourceSchema: Schema = new Schema({
     type: { type: String, required: true, enum: ['Video', 'PDF', 'Article', 'Quiz'] },
     subject: { type: String, required: true },
     year: { type: String },
+    weekNumber: { type: Number },
+    durationMinutes: { type: Number },
+    maxAttempts: { type: Number },
     tags: [String],
 
     isPro: { type: Boolean, default: false },

@@ -947,7 +947,10 @@ const QuizManager = () => {
     const loadQuizzes = async () => {
         try {
             const all = await api.resources.getAll();
-            const quizList = all.filter((r: any) => r.type === 'Quiz' && (r.isMcampExclusive || r.tags?.includes('MCAMP')));
+            const quizList = all.filter((r: any) => r.type === 'Quiz' && (r.isMcampExclusive || r.tags?.includes('MCAMP'))).map((q: any) => ({
+                ...q,
+                questions: q.quizData || q.questions || []
+            }));
             setQuizzes(quizList);
         } catch (e) {
             console.error(e);
@@ -1142,7 +1145,7 @@ const QuizManager = () => {
                                         <td className="px-6 py-4 text-sm text-gray-600">
                                             <div className="flex flex-col gap-1">
                                                 <span className="flex items-center gap-1"><Clock size={12} /> {quiz.durationMinutes || 15} min</span>
-                                                <span className="flex items-center gap-1"><CheckSquare size={12} /> {quiz.questions?.length || 0} Qs</span>
+                                                <span className="flex items-center gap-1"><CheckSquare size={12} /> {quiz.quizData?.length || quiz.questions?.length || 0} Qs</span>
                                             </div>
                                         </td>
                                         <td className="px-6 py-4 text-right space-x-2">
@@ -1179,7 +1182,7 @@ const QuizEditor = ({ initialData, onSave, onCancel }: any) => {
         durationMinutes: 15,
         weekNumber: '',
         maxAttempts: 1,
-        questions: [] as any[],
+        questions: initialData?.quizData || initialData?.questions || [] as any[],
         ...initialData
     });
 
