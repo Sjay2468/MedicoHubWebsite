@@ -145,7 +145,9 @@ router.delete('/:uid', verifyAuth, async (req: Request, res: Response) => {
     const { uid } = req.params;
 
     // Security: Only allow user to delete themselves OR an admin
-    if (req.user.uid !== uid && req.user.role !== 'admin') {
+    // Security: Only allow user to delete themselves OR an admin
+    // @ts-ignore
+    if (req.user.uid !== uid && req.user.admin !== true && req.user.role !== 'admin') {
         return res.status(403).json({ error: "Access denied. You can only delete your own account." });
     }
 
@@ -232,7 +234,9 @@ router.patch('/:uid/profile', verifyAuth, async (req: Request, res: Response) =>
 
     // Security check: Only allow user to edit their own profile OR admin
     // @ts-ignore
-    if (req.user.uid !== uid && req.user.role !== 'admin') {
+    // Security check: Only allow user to edit their own profile OR admin
+    // @ts-ignore
+    if (req.user.uid !== uid && req.user.admin !== true && req.user.role !== 'admin') {
         return res.status(403).json({ error: "Unauthorized" });
     }
 
