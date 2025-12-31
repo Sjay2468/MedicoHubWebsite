@@ -65,7 +65,7 @@ export const UsersPage = () => {
         if (!selectedUser) return;
         setIsSaving(true);
         try {
-            await api.users.update(selectedUser.id, editForm);
+            await api.users.update(selectedUser.uid || selectedUser._id, editForm);
 
             // Optimistic update
             setUsers(prev => prev.map(u =>
@@ -90,7 +90,7 @@ export const UsersPage = () => {
 
         setIsSaving(true);
         try {
-            await api.users.delete(selectedUser.id);
+            await api.users.delete(selectedUser.uid || selectedUser._id);
             setUsers(prev => prev.filter(u => (u.uid || u._id) !== (selectedUser.uid || selectedUser._id)));
             setSelectedUser(null);
             setShowDeleteConfirm(false);
