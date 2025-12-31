@@ -1530,7 +1530,10 @@ const GradingView = () => {
             ]);
 
             // Filter only quizzes (and MCAMP ones primarily)
-            const quizMap = Array.isArray(allResources) ? allResources.filter((r: any) => r.type === 'Quiz' || r.isMcampExclusive) : [];
+            const quizMap = Array.isArray(allResources)
+                ? allResources.filter((r: any) => r.type === 'Quiz' || r.isMcampExclusive)
+                    .map((q: any) => ({ ...q, questions: q.quizData || q.questions || [] }))
+                : [];
             setResources(quizMap);
 
             const userList = (Array.isArray(users) ? users : users?.users) || [];
@@ -1612,7 +1615,7 @@ const GradingView = () => {
         }
     };
 
-    const formatAnswer = (ans: any, q: any) => {
+    const formatAnswer = (ans: any, q: any, _isSystem = false) => {
         if (ans === undefined || ans === null) return <span className="text-gray-400 italic">No Answer</span>;
 
         if (q.type === 'MCQ') {
@@ -1725,7 +1728,7 @@ const GradingView = () => {
 };
 
 // --- GRADING DETAIL SUB-COMPONENT ---
-const GradingDetail = ({ submission, quiz, onBack, onSave }: any) => {
+const GradingDetail = ({ submission, quiz, onBack, onSave, formatAnswer }: any) => {
     // Initial state: load from submission corrections OR auto-calculate
     const [grades, setGrades] = useState<Record<string, boolean>>(() => {
         if (submission.corrections) return submission.corrections;
@@ -1898,15 +1901,4 @@ const GradingConfirmModal = ({ isOpen, onClose, onConfirm, score, mcampId }: any
     );
 };
 
-const formatAnswer = (val: any, q: any, _isSystem = false) => {
-    if (val === undefined || val === null || val === '') return <span className="text-gray-400 italic">No Answer</span>;
-    if (q.type === 'MCQ' || q.type === 'SBO') {
-        const indices = Array.isArray(val) ? val : [val];
-        return indices.map((i: number) => q.options?.[i] || '?').join(', ');
-    }
-    if (q.type === 'MFIB') {
-        const arr = Array.isArray(val) ? val : [val];
-        return arr.join(', ');
-    }
-    return String(val);
-};
+
