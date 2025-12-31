@@ -10,20 +10,6 @@ const contextCache = new LRUCache<string, string>({
     allowStale: false,
 });
 
-// Lazy load DB internally to avoid circular dependency issues
-let dbInstance: any = null;
-const getDb = () => {
-    if (!dbInstance) {
-        try {
-            // Using a safe relative path for the compiled JS environment
-            dbInstance = require('../../config/firebase').db;
-        } catch (e) {
-            console.error("[ResourceService] DB Init Failed:", e);
-        }
-    }
-    return dbInstance;
-};
-
 export class ResourceService {
     /**
      * Fetch resources tailored to a user's profile.
@@ -37,25 +23,71 @@ export class ResourceService {
         })) as unknown as ResourceDocument[];
 
         const userYear = (userProfile.year || userProfile.academicYear || 'General').toString().toLowerCase();
-        const isMcamp = userProfile.mcamp?.isEnrolled || userProfile.mcampId || false;
+
+        // MCAMP Profile Info
+        const mcamp = userProfile.mcamp || {};
+        const isMcampMember = !!(mcamp.isEnrolled || mcamp.cohortId || userProfile.mcampId);
+        const isSuspended = !!mcamp.isSuspended;
+        const suspensionDate = mcamp.suspensionDate;
+        const startDate = mcamp.startDate;
+
+        let allowedMcampIds = new Set<string>();
+
+        // 1. Resolve MCAMP Allowed Resource IDs if member
+        if (isMcampMember) {
+            if (isSuspended && suspensionDate && startDate) {
+                // Calculate cutoff day
+                const start = new Date(startDate);
+                const end = new Date(suspensionDate);
+                const diffDays = Math.ceil(Math.abs(end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+
+                try {
+                    const { db } = require('../../config/firebase');
+                    const curriculumSnap = await db.collection('mcamp').doc('curriculum').get();
+                    if (curriculumSnap.exists()) {
+                        const weeks = curriculumSnap.data().weeks || [];
+                        weeks.forEach((w: any) => {
+                            const weekStartDay = (Number(w.id) - 1) * 7 + 1;
+                            if (w.days) {
+                                Object.entries(w.days).forEach(([dayId, ids]: [string, any]) => {
+                                    const actualDay = weekStartDay + (Number(dayId) - 1);
+                                    if (actualDay <= diffDays) {
+                                        (ids || []).forEach((id: string) => allowedMcampIds.add(id));
+                                    }
+                                });
+                            }
+                        });
+                    }
+                } catch (err) {
+                    console.error("Failed to fetch curriculum for suspension filter:", err);
+                }
+            } else {
+                // Not suspended: Permanent lifetime access to all MCAMP content
+                allResources.forEach(res => {
+                    const tags = (res.tags || []).map(t => t.toLowerCase());
+                    if (res.isMcampExclusive || tags.includes('mcamp')) {
+                        allowedMcampIds.add(res.id);
+                    }
+                });
+            }
+        }
 
         return allResources.filter((res: ResourceDocument) => {
             const resYear = (res.year || '').toLowerCase();
             const resTags = (res.tags || []).map(t => t.toLowerCase());
 
-            // 1. MCAMP Logic: Allow exclusive content OR tagged content to bypass year filters for cohort members
-            if (isMcamp && (res.isMcampExclusive || resTags.includes('mcamp'))) {
-                return true;
-            }
-            if (res.isMcampExclusive && !isMcamp) {
+            // Check if explicitly allowed (MCAMP whitelist)
+            if (allowedMcampIds.has(res.id)) return true;
+
+            // Block MCAMP exclusives for non-members or those without explicit whitelist
+            if (res.isMcampExclusive || resTags.includes('mcamp')) {
                 return false;
             }
 
-            // 2. Year Matching Logic
+            // Standard Year Matching Logic for General Resources
             const isGeneral = !resYear || resYear === 'general' || resYear === '' || resTags.includes('general');
             if (isGeneral) return true;
 
-            // Robust matching: Check if normalized levels match (e.g. "Year 2" vs "200L")
             const getLevel = (s: string) => {
                 const n = s.match(/\d+/);
                 return n ? n[0] : s;
@@ -63,14 +95,12 @@ export class ResourceService {
             const userLvl = getLevel(userYear);
             const resLvl = getLevel(resYear);
 
-            const isMatch = resYear === userYear ||
+            return resYear === userYear ||
                 userYear.includes(resYear) ||
                 resYear.includes(userYear) ||
                 userLvl === resLvl ||
                 resTags.includes(userYear) ||
                 resTags.some(tag => userYear.includes(tag) || tag.includes(userYear));
-
-            return isMatch;
         });
     }
 

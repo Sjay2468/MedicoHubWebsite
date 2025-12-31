@@ -8,7 +8,7 @@ const router = Router();
 
 // Validation Schema for Resource
 const ResourceSchema = z.object({
-    title: z.string().min(1, "Title is required"),
+    title: z.string().min(3, "Title must be at least 3 characters"),
     description: z.string().optional(),
     type: z.enum(['Video', 'PDF', 'Article', 'Quiz']),
     subject: z.string().min(2, "Subject is required"),
@@ -19,9 +19,7 @@ const ResourceSchema = z.object({
     url: z.string().optional(),
     thumbnailUrl: z.string().optional(),
     hasAiAccess: z.boolean().optional(),
-    quizData: z.any().optional(),
-    weekNumber: z.any().optional(),
-    deadline: z.string().optional()
+    quizData: z.any().optional()
 });
 
 // GET /api/v3/resources/:id/context

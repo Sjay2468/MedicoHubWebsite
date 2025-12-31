@@ -64,8 +64,7 @@ app.use(cors({
 app.disable('x-powered-by');
 
 // 3. Fundamental Middlewares
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ limit: '10mb', extended: true }));
+app.use(express.json());
 const port = process.env.PORT || 5000;
 
 // SECURITY: Add extra safety headers (Helmet)

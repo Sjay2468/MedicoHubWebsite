@@ -50,19 +50,14 @@ const getAuthHeaders = async () => {
 const handleResponse = async (res: Response) => {
     if (!res.ok) {
         let errorMsg = "API Error";
-        let details = null;
         try {
             const data = await res.json();
             errorMsg = data.error || data.message || `Server responded with ${res.status}`;
-            details = data.details;
         } catch (e) {
             errorMsg = await res.text() || `Server responded with ${res.status}`;
         }
-
-        const err = new Error(errorMsg) as any;
-        err.details = details;
-        console.error("[API Error Details]", errorMsg, details);
-        throw err;
+        console.error("[API Error Details]", errorMsg);
+        throw new Error(errorMsg);
     }
     return res.json();
 };

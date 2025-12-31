@@ -2,7 +2,8 @@ import * as React from 'react';
 import { QuizSession, User } from '../types';
 import {
     Brain, Timer, Check, ChevronLeft, ChevronRight, HelpCircle, X,
-    Trophy, Clock, BookOpen, Shield, AlertCircle, ArrowRight, CheckCircle
+    Trophy, Clock, BookOpen, Shield, AlertCircle, ArrowRight, CheckCircle,
+    Edit, CheckCircle2
 } from 'lucide-react';
 
 export const QuizEngine: React.FC<{
@@ -10,24 +11,70 @@ export const QuizEngine: React.FC<{
     onFinish: (answers: Record<string, any>) => void;
     onCancel: () => void;
 }> = ({ session, onFinish, onCancel }) => {
-    const [currentIdx, setCurrentIdx] = React.useState(0);
-    const [answers, setAnswers] = React.useState<Record<string, any>>({});
-    const [timeLeft, setTimeLeft] = React.useState(session.durationMinutes * 60);
+    const quizKey = `mcamp_quiz_${session.id}`;
+
+    // Initialize state from localStorage or defaults
+    const [currentIdx, setCurrentIdx] = React.useState(() => {
+        const saved = localStorage.getItem(`${quizKey}_idx`);
+        return saved ? parseInt(saved) : 0;
+    });
+
+    const [answers, setAnswers] = React.useState<Record<string, any>>(() => {
+        const saved = localStorage.getItem(`${quizKey}_answers`);
+        return saved ? JSON.parse(saved) : {};
+    });
+
+    const [startTime] = React.useState(() => {
+        const saved = localStorage.getItem(`${quizKey}_start`);
+        const now = Date.now();
+        if (saved) return parseInt(saved);
+        localStorage.setItem(`${quizKey}_start`, now.toString());
+        return now;
+    });
+
+    const [timeLeft, setTimeLeft] = React.useState(() => {
+        const totalSecs = session.durationMinutes * 60;
+        const elapsed = Math.floor((Date.now() - startTime) / 1000);
+        return Math.max(0, totalSecs - elapsed);
+    });
+
     const [showConfirmSubmit, setShowConfirmSubmit] = React.useState(false);
 
+    // Persistence Effect
     React.useEffect(() => {
+        localStorage.setItem(`${quizKey}_idx`, currentIdx.toString());
+        localStorage.setItem(`${quizKey}_answers`, JSON.stringify(answers));
+    }, [currentIdx, answers, quizKey]);
+
+    // Precise Timer Effect
+    React.useEffect(() => {
+        if (timeLeft <= 0) {
+            handleFinalSubmit(answers);
+            return;
+        }
+
         const timer = setInterval(() => {
-            setTimeLeft((prev) => {
-                if (prev <= 1) {
-                    clearInterval(timer);
-                    onFinish(answers);
-                    return 0;
-                }
-                return prev - 1;
-            });
+            const totalSecs = session.durationMinutes * 60;
+            const elapsed = Math.floor((Date.now() - startTime) / 1000);
+            const remaining = Math.max(0, totalSecs - elapsed);
+
+            setTimeLeft(remaining);
+
+            if (remaining <= 0) {
+                clearInterval(timer);
+                handleFinalSubmit(answers);
+            }
         }, 1000);
+
         return () => clearInterval(timer);
-    }, [answers, onFinish]);
+    }, [startTime, session.durationMinutes, answers]);
+
+    const handleFinalSubmit = (finalAnswers: Record<string, any>) => {
+        localStorage.removeItem(`${quizKey}_idx`);
+        localStorage.removeItem(`${quizKey}_answers`);
+        localStorage.removeItem(`${quizKey}_start`);
+        onFinish(finalAnswers);
+    };
 
     const formatTime = (seconds: number) => {
         const m = Math.floor(seconds / 60);
@@ -41,103 +88,136 @@ export const QuizEngine: React.FC<{
         setAnswers(prev => ({ ...prev, [currentQuestion.id]: val }));
     };
 
-    const isAnswered = (id: string) => answers[id] !== undefined && answers[id] !== '';
+    const isAnswered = (id: string) => {
+        const val = answers[id];
+        if (val === undefined || val === null) return false;
+        if (Array.isArray(val)) return val.some(v => v !== undefined && v !== '');
+        return val !== '';
+    };
 
     return (
-        <div className="fixed inset-0 z-[100] bg-gray-50 flex flex-col overflow-hidden animate-fade-in">
-            {/* Quiz Header */}
-            <header className="bg-brand-dark text-white px-4 md:px-6 py-3 md:py-4 flex justify-between items-center shrink-0 shadow-lg">
-                <div className="flex items-center gap-2 md:gap-4 overflow-hidden">
-                    <div className="bg-brand-blue p-2 rounded-xl shrink-0">
-                        <Brain size={18} className="md:w-5 md:h-5" />
+        <div className="fixed inset-0 z-[100] bg-white flex flex-col overflow-hidden animate-fade-in font-sans">
+            {/* Exam Header */}
+            <header className="bg-brand-dark text-white px-4 md:px-8 py-3 md:py-6 flex justify-between items-center shrink-0 shadow-2xl relative z-10">
+                <div className="flex items-center gap-3 md:gap-5 overflow-hidden">
+                    <div className="bg-brand-blue/20 p-2 md:p-3 rounded-2xl border border-brand-blue/30 shrink-0">
+                        <Brain size={20} className="md:w-6 md:h-6 text-brand-blue" />
                     </div>
                     <div className="truncate">
-                        <h2 className="font-bold text-xs md:text-sm truncate">{session.title}</h2>
-                        <p className="text-[10px] text-gray-400">Week {session.weekNumber} Mastery</p>
+                        <h2 className="font-extrabold text-sm md:text-xl truncate leading-tight">{session.title}</h2>
+                        <div className="flex items-center gap-2 mt-1">
+                            <span className="text-[10px] text-gray-500 font-bold uppercase tracking-tighter">Cohort Progress</span>
+                            <div className="w-20 md:w-32 h-1 bg-white/10 rounded-full overflow-hidden">
+                                <div
+                                    className="h-full bg-brand-blue transition-all duration-500"
+                                    style={{ width: `${((currentIdx + 1) / session.questions.length) * 100}%` }}
+                                ></div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                <div className="flex items-center gap-3 md:gap-6">
-                    <div className={`flex items-center gap-1.5 md:gap-2 px-3 md:px-4 py-1.5 md:py-2 rounded-full font-mono font-bold text-sm md:text-lg ${timeLeft < 60 ? 'bg-red-500 text-white animate-pulse' : 'bg-white/10 text-brand-yellow'}`}>
-                        <Timer size={16} className="md:w-5 md:h-5" />
+                <div className="flex items-center gap-3 md:gap-8">
+                    <div className={`flex items-center gap-2 md:gap-3 px-4 md:px-6 py-2 md:py-3 rounded-2xl md:rounded-[1.2rem] font-mono font-black text-base md:text-2xl transition-colors ${timeLeft < 60 ? 'bg-red-500 text-white animate-pulse shadow-lg shadow-red-500/30' : 'bg-white/5 text-brand-yellow border border-white/10'}`}>
+                        <Timer size={20} className="md:w-6 md:h-6" />
                         {formatTime(timeLeft)}
                     </div>
                     <button
                         onClick={() => setShowConfirmSubmit(true)}
-                        className="bg-brand-blue hover:bg-blue-600 text-white px-3 md:px-6 py-1.5 md:py-2 rounded-xl font-bold text-[10px] md:text-sm transition-all shadow-lg shadow-brand-blue/20 shrink-0"
+                        className="bg-brand-blue hover:bg-blue-600 text-white px-5 md:px-8 py-2 md:py-3.5 rounded-xl md:rounded-[1.2rem] font-black text-xs md:text-sm transition-all shadow-xl shadow-brand-blue/20 shrink-0 hover:-translate-y-0.5"
                     >
-                        Submit
+                        End Session
                     </button>
                 </div>
             </header>
 
-            <div className="flex flex-1 overflow-hidden">
+            <div className="flex flex-1 overflow-hidden bg-gray-50/30">
                 {/* Navigation Sidebar (Desktop Only) */}
-                <aside className="hidden lg:flex w-72 bg-white border-r border-gray-100 flex-col p-6 overflow-y-auto">
-                    <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-6">Question Navigator</h3>
-                    <div className="grid grid-cols-4 gap-3">
+                <aside className="hidden lg:flex w-80 bg-white border-r border-gray-100 flex-col p-8 overflow-y-auto">
+                    <div className="mb-8">
+                        <h3 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em] mb-4">Question Matrix</h3>
+                        <p className="text-xs text-gray-400 font-medium">Select a tile to jump directly to a challenge.</p>
+                    </div>
+
+                    <div className="grid grid-cols-4 gap-4">
                         {session.questions.map((q, i) => (
                             <button
                                 key={q.id}
                                 onClick={() => setCurrentIdx(i)}
-                                className={`w-12 h-12 rounded-xl font-bold text-sm transition-all flex items-center justify-center ${currentIdx === i
-                                    ? 'bg-brand-blue text-white shadow-lg ring-2 ring-brand-blue ring-offset-2'
+                                className={`w-full aspect-square rounded-2xl font-black text-sm transition-all flex items-center justify-center border-2 ${currentIdx === i
+                                    ? 'bg-brand-dark text-white border-brand-dark shadow-xl scale-110 relative z-10'
                                     : isAnswered(q.id)
-                                        ? 'bg-green-100 text-green-700'
-                                        : 'bg-gray-50 text-gray-400 hover:bg-gray-100'
+                                        ? 'bg-brand-blue/5 border-brand-blue/20 text-brand-blue hover:bg-brand-blue/10'
+                                        : 'bg-white border-gray-100 text-gray-300 hover:border-gray-200'
                                     }`}
                             >
                                 {i + 1}
                             </button>
                         ))}
                     </div>
-                    <div className="mt-auto space-y-4">
-                        <div className="flex items-center gap-2 text-xs font-medium text-gray-500">
-                            <div className="w-3 h-3 bg-brand-blue rounded-sm"></div> Current
+
+                    <div className="mt-auto pt-8 border-t border-gray-50 space-y-4">
+                        <div className="flex items-center gap-3 text-xs font-bold text-gray-500">
+                            <div className="w-4 h-4 bg-brand-dark rounded-lg shadow-sm"></div> Active
                         </div>
-                        <div className="flex items-center gap-2 text-xs font-medium text-gray-500">
-                            <div className="w-3 h-3 bg-green-100 rounded-sm"></div> Answered
+                        <div className="flex items-center gap-3 text-xs font-bold text-gray-500">
+                            <div className="w-4 h-4 bg-brand-blue/20 border-2 border-brand-blue/20 rounded-lg"></div> Attempted
                         </div>
-                        <div className="flex items-center gap-2 text-xs font-medium text-gray-500">
-                            <div className="w-3 h-3 bg-gray-100 rounded-sm"></div> Unanswered
+                        <div className="flex items-center gap-3 text-xs font-bold text-gray-500">
+                            <div className="w-4 h-4 bg-white border-2 border-gray-100 rounded-lg"></div> Remaining
                         </div>
                     </div>
                 </aside>
 
                 {/* Question Area */}
-                <main className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-12 bg-gray-50/50">
-                    <div className="max-w-3xl mx-auto space-y-6 md:space-y-8">
-                        <div className="flex items-center justify-between">
-                            <span className="text-[10px] md:text-sm font-bold text-brand-blue uppercase tracking-widest">Question {currentIdx + 1} of {session.questions.length}</span>
-                            <span className="text-[10px] font-medium text-gray-400">{currentQuestion.type}</span>
+                <main className="flex-1 overflow-y-auto p-4 md:p-16 lg:p-24 relative">
+                    <div className="max-w-3xl mx-auto">
+                        <div className="flex items-center justify-between mb-8">
+                            <div className="flex items-center gap-3">
+                                <span className="bg-brand-blue/10 text-brand-blue px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest leading-none">Phase {currentIdx + 1}</span>
+                                <span className="text-gray-300 font-bold">/</span>
+                                <span className="text-gray-400 text-xs font-bold">{session.questions.length} Concepts</span>
+                            </div>
+                            <div className="flex items-center gap-2 px-3 py-1 bg-gray-100 rounded-lg">
+                                <HelpCircle size={14} className="text-gray-400" />
+                                <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">{currentQuestion.type || 'SBO'} Mode</span>
+                            </div>
                         </div>
 
-                        <div className="bg-white p-6 md:p-10 rounded-[2rem] md:rounded-[2.5rem] shadow-sm border border-gray-100">
-                            <h1 className="text-lg md:text-2xl font-bold text-brand-dark leading-relaxed mb-6 md:mb-10">
+                        <div className="animate-fade-in-up">
+                            <h1 className="text-2xl md:text-4xl font-black text-brand-dark leading-[1.3] mb-8 md:mb-12">
                                 {currentQuestion.prompt}
                             </h1>
 
                             {currentQuestion.imageUrl && (
-                                <div className="mb-6 md:mb-10 rounded-2xl overflow-hidden border border-gray-100">
-                                    <img src={currentQuestion.imageUrl} alt="Question Reference" className="w-full h-auto object-cover max-h-[300px]" />
+                                <div className="mb-8 md:mb-12 rounded-[2rem] overflow-hidden border-4 border-white shadow-2xl relative group">
+                                    <div className="absolute inset-0 bg-black/5 group-hover:bg-transparent transition-colors"></div>
+                                    <img src={currentQuestion.imageUrl} alt="Clinical Reference" className="w-full h-auto object-cover max-h-[400px]" />
                                 </div>
                             )}
 
-                            <div className="space-y-3 md:space-y-4">
+                            <div className="space-y-4 md:space-y-5">
                                 {(currentQuestion.type === 'SBO' || !currentQuestion.type) && currentQuestion.options?.map((opt, i) => (
                                     <button
                                         key={i}
                                         onClick={() => handleAnswerChange(i)}
-                                        className={`w-full text-left p-4 md:p-5 rounded-xl md:rounded-2xl border-2 transition-all flex items-center gap-3 md:gap-4 group ${answers[currentQuestion.id] === i
-                                            ? 'border-brand-blue bg-blue-50/50'
-                                            : 'border-gray-100 hover:border-gray-200 hover:bg-gray-50'
+                                        className={`w-full text-left p-5 md:p-7 rounded-[1.5rem] md:rounded-[2rem] border-2 transition-all flex items-center gap-5 md:gap-6 group relative overflow-hidden ${answers[currentQuestion.id] === i
+                                            ? 'border-brand-blue bg-blue-50/30'
+                                            : 'border-white bg-white hover:border-gray-200 shadow-sm hover:shadow-md'
                                             }`}
                                     >
-                                        <div className={`w-7 h-7 md:w-8 md:h-8 rounded-full border-2 flex items-center justify-center font-bold text-xs md:text-sm shrink-0 transition-colors ${answers[currentQuestion.id] === i ? 'bg-brand-blue border-brand-blue text-white' : 'border-gray-200 text-gray-400 group-hover:border-brand-blue'
+                                        <div className={`w-10 h-10 md:w-12 md:h-12 rounded-2xl border-2 flex items-center justify-center font-black text-sm md:text-xl shrink-0 transition-all ${answers[currentQuestion.id] === i
+                                            ? 'bg-brand-blue border-brand-blue text-white rotate-6 shadow-lg shadow-brand-blue/30'
+                                            : 'border-gray-100 text-gray-400 group-hover:border-brand-blue/30 group-hover:text-brand-blue group-hover:-rotate-3'
                                             }`}>
                                             {String.fromCharCode(65 + i)}
                                         </div>
-                                        <span className={`text-sm md:text-base font-medium ${answers[currentQuestion.id] === i ? 'text-brand-dark' : 'text-gray-600'}`}>{opt}</span>
+                                        <span className={`text-base md:text-xl font-bold transition-colors ${answers[currentQuestion.id] === i ? 'text-brand-dark' : 'text-gray-600'}`}>{opt}</span>
+                                        {answers[currentQuestion.id] === i && (
+                                            <div className="absolute right-6 opacity-20">
+                                                <CheckCircle2 size={48} className="text-brand-blue" />
+                                            </div>
+                                        )}
                                     </button>
                                 ))}
 
@@ -152,40 +232,45 @@ export const QuizEngine: React.FC<{
                                         <button
                                             key={i}
                                             onClick={toggle}
-                                            className={`w-full text-left p-4 md:p-5 rounded-xl md:rounded-2xl border-2 transition-all flex items-center gap-3 md:gap-4 group ${isChecked
-                                                ? 'border-brand-blue bg-blue-50/50'
-                                                : 'border-gray-100 hover:border-gray-200 hover:bg-gray-50'
+                                            className={`w-full text-left p-5 md:p-7 rounded-[1.5rem] md:rounded-[2rem] border-2 transition-all flex items-center gap-5 md:gap-6 group ${isChecked
+                                                ? 'border-brand-blue bg-blue-50/30'
+                                                : 'border-white bg-white hover:border-gray-200 shadow-sm hover:shadow-md'
                                                 }`}
                                         >
-                                            <div className={`w-5 h-5 md:w-6 md:h-6 rounded-md border-2 flex items-center justify-center shrink-0 transition-colors ${isChecked ? 'bg-brand-blue border-brand-blue text-white' : 'border-gray-200 group-hover:border-brand-blue'
+                                            <div className={`w-10 h-10 md:w-12 md:h-12 rounded-2xl border-2 flex items-center justify-center shrink-0 transition-all ${isChecked
+                                                ? 'bg-brand-blue border-brand-blue text-white shadow-lg'
+                                                : 'border-gray-100 group-hover:border-brand-blue/30'
                                                 }`}>
-                                                {isChecked && <Check size={12} className="md:w-3.5 md:h-3.5" />}
+                                                {isChecked ? <Check size={24} strokeWidth={4} /> : <div className="w-2 h-2 rounded-full bg-gray-100"></div>}
                                             </div>
-                                            <span className={`text-sm md:text-base font-medium ${isChecked ? 'text-brand-dark' : 'text-gray-600'}`}>{opt}</span>
+                                            <span className={`text-base md:text-xl font-bold ${isChecked ? 'text-brand-dark' : 'text-gray-600'}`}>{opt}</span>
                                         </button>
                                     );
                                 })}
 
                                 {(currentQuestion.type === 'FIB' || currentQuestion.type === 'FILL_GAP' || currentQuestion.type === 'IMAGE_ID') && (
-                                    <div className="relative">
+                                    <div className="relative group">
+                                        <div className="absolute left-6 top-1/2 -translate-y-1/2 pointer-events-none opacity-40 group-focus-within:opacity-100 transition-opacity">
+                                            <Edit size={24} className="text-brand-blue" />
+                                        </div>
                                         <input
                                             type="text"
-                                            placeholder="Type your answer here..."
+                                            placeholder="Standard medical nomenclature expected..."
                                             value={answers[currentQuestion.id] || ''}
                                             onChange={(e) => handleAnswerChange(e.target.value)}
-                                            className="w-full p-4 md:p-5 bg-gray-50 border-2 border-gray-100 rounded-xl md:rounded-2xl focus:bg-white focus:border-brand-blue outline-none transition-all font-bold text-brand-dark text-sm md:text-base"
+                                            className="w-full pl-16 pr-8 py-6 md:py-8 bg-white border-2 border-white shadow-sm focus:shadow-xl focus:border-brand-blue outline-none transition-all rounded-[1.5rem] md:rounded-[2rem] font-black text-brand-dark text-lg md:text-2xl placeholder:text-gray-300 placeholder:font-bold"
                                         />
                                     </div>
                                 )}
 
                                 {currentQuestion.type === 'MFIB' && (
-                                    <div className="space-y-3">
+                                    <div className="space-y-4">
                                         {(Array.isArray(currentQuestion.correctAnswer) ? currentQuestion.correctAnswer : []).map((_: any, i: number) => (
-                                            <div key={i} className="relative">
-                                                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400 opacity-50">#{i + 1}</span>
+                                            <div key={i} className="relative group">
+                                                <span className="absolute left-6 top-1/2 -translate-y-1/2 text-xs font-black text-brand-blue/40 uppercase tracking-tighter">Gap #{i + 1}</span>
                                                 <input
                                                     type="text"
-                                                    placeholder="Type answer here..."
+                                                    placeholder="Missing term..."
                                                     value={(answers[currentQuestion.id] || [])[i] || ''}
                                                     onChange={(e) => {
                                                         const current = Array.isArray(answers[currentQuestion.id]) ? [...answers[currentQuestion.id]] : [];
@@ -193,7 +278,7 @@ export const QuizEngine: React.FC<{
                                                         next[i] = e.target.value;
                                                         handleAnswerChange(next);
                                                     }}
-                                                    className="w-full pl-12 pr-4 py-4 md:py-5 bg-gray-50 border-2 border-gray-100 rounded-xl md:rounded-2xl focus:bg-white focus:border-brand-blue outline-none transition-all font-bold text-brand-dark text-sm md:text-base"
+                                                    className="w-full pl-24 pr-8 py-6 bg-white border-2 border-white shadow-sm focus:shadow-xl focus:border-brand-blue outline-none transition-all rounded-2xl md:rounded-[1.5rem] font-black text-brand-dark text-lg md:text-xl"
                                                 />
                                             </div>
                                         ))}
@@ -203,24 +288,25 @@ export const QuizEngine: React.FC<{
                                 {currentQuestion.type === 'ESSAY' && (
                                     <div className="relative">
                                         <textarea
-                                            placeholder="Type your detailed explanation here..."
+                                            placeholder="Provide your structured clinical reasoning here..."
                                             value={answers[currentQuestion.id] || ''}
                                             onChange={(e) => handleAnswerChange(e.target.value)}
-                                            className="w-full p-4 md:p-5 bg-gray-50 border-2 border-gray-100 rounded-xl md:rounded-2xl focus:bg-white focus:border-brand-blue outline-none transition-all font-medium text-brand-dark min-h-[150px] md:min-h-[200px] resize-none text-sm md:text-base"
+                                            className="w-full p-8 bg-white border-2 border-white shadow-sm focus:shadow-xl focus:border-brand-blue outline-none transition-all rounded-[2rem] font-bold text-brand-dark min-h-[250px] md:min-h-[350px] resize-none text-lg md:text-xl leading-relaxed"
                                         />
+                                        <div className="absolute bottom-6 right-8 text-[10px] font-black text-gray-300 uppercase tracking-widest">Essay Submission Mode</div>
                                     </div>
                                 )}
                             </div>
                         </div>
 
-                        {/* Pagination Controls */}
-                        <div className="flex justify-between items-center pb-12 gap-4">
+                        {/* Navigation Footer */}
+                        <div className="flex justify-between items-center py-12 md:py-20 gap-6">
                             <button
                                 disabled={currentIdx === 0}
                                 onClick={() => setCurrentIdx(currentIdx - 1)}
-                                className="flex items-center gap-1 md:gap-2 px-3 md:px-6 py-2.5 md:py-3 rounded-xl font-bold text-gray-500 hover:text-brand-dark disabled:opacity-0 transition-all text-xs md:text-sm"
+                                className="flex items-center gap-2 md:gap-3 px-6 md:px-10 py-4 rounded-2xl font-black text-gray-400 hover:text-brand-dark disabled:opacity-0 transition-all hover:bg-white active:scale-95 shadow-sm"
                             >
-                                <ChevronLeft size={16} className="md:w-5 md:h-5" /> Previous
+                                <ChevronLeft size={20} className="md:w-6 md:h-6" /> Back
                             </button>
 
                             <button
@@ -231,51 +317,52 @@ export const QuizEngine: React.FC<{
                                         setCurrentIdx(currentIdx + 1);
                                     }
                                 }}
-                                className={`flex items-center gap-1.5 md:gap-2 px-6 md:px-10 py-3 md:py-4 rounded-xl md:rounded-2xl font-bold text-white transition-all shadow-xl active:scale-95 text-xs md:text-sm ${currentIdx === session.questions.length - 1
-                                    ? 'bg-green-600 hover:bg-green-700 shadow-green-600/20'
-                                    : 'bg-brand-dark hover:bg-black shadow-brand-dark/20'
+                                className={`flex items-center gap-3 md:gap-4 px-8 md:px-16 py-5 md:py-6 rounded-[1.5rem] md:rounded-[2rem] font-black text-white transition-all shadow-2xl active:scale-95 text-base md:text-xl ${currentIdx === session.questions.length - 1
+                                    ? 'bg-green-600 hover:bg-green-700 shadow-green-600/30'
+                                    : 'bg-brand-dark hover:bg-black shadow-brand-dark/30'
                                     }`}
                             >
-                                {currentIdx === session.questions.length - 1 ? 'Finish' : 'Next Question'}
-                                {currentIdx !== session.questions.length - 1 && <ChevronRight size={16} className="md:w-5 md:h-5" />}
+                                {currentIdx === session.questions.length - 1 ? 'End Assessment' : 'Continue'}
+                                {currentIdx !== session.questions.length - 1 && <ChevronRight size={20} className="md:w-6 md:h-6" />}
                             </button>
                         </div>
                     </div>
                 </main>
             </div>
 
-            {/* Confirmation Modal */}
+            {/* Verification Modal */}
             {showConfirmSubmit && (
-                <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-brand-dark/50 backdrop-blur-sm animate-pop-in">
-                    <div className="bg-white rounded-[2rem] md:rounded-[2.5rem] p-6 md:p-10 max-w-sm w-full text-center shadow-2xl relative">
+                <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-brand-dark/40 backdrop-blur-md animate-fade-in">
+                    <div className="bg-white rounded-[3rem] p-10 md:p-14 max-w-lg w-full text-center shadow-[0_35px_60px_-15px_rgba(0,0,0,0.3)] relative overflow-hidden">
+                        <div className="absolute top-0 left-0 w-full h-2 bg-brand-blue"></div>
                         <button
                             onClick={() => setShowConfirmSubmit(false)}
-                            className="absolute top-6 right-6 text-gray-400 hover:text-gray-600 transition-colors"
+                            className="absolute top-8 right-8 text-gray-400 hover:text-gray-600 transition-colors"
                         >
-                            <X size={20} />
+                            <X size={28} />
                         </button>
 
-                        <div className="w-16 h-16 md:w-20 md:h-20 bg-blue-50 text-brand-blue rounded-2xl md:rounded-3xl flex items-center justify-center mx-auto mb-6 md:mb-8">
-                            <HelpCircle size={32} className="md:w-10 md:h-10" />
+                        <div className="w-20 h-20 md:w-24 md:h-24 bg-blue-50 text-brand-blue rounded-[2.5rem] flex items-center justify-center mx-auto mb-8 shadow-inner shadow-blue-100">
+                            <Shield size={40} className="md:w-12 md:h-12" />
                         </div>
 
-                        <h3 className="text-xl md:text-2xl font-bold text-brand-dark mb-3 md:mb-4">Finish Attempt?</h3>
-                        <p className="text-xs md:text-sm text-gray-500 mb-8 md:mb-10 leading-relaxed">
-                            Are you sure you want to submit? You have {session.questions.length - Object.keys(answers).length} unanswered questions.
+                        <h3 className="text-2xl md:text-4xl font-black text-brand-dark mb-4">Confirm Submission?</h3>
+                        <p className="text-sm md:text-lg text-gray-500 mb-10 leading-relaxed font-medium">
+                            You've answered <span className="text-brand-blue font-black underline decoration-4 underline-offset-4">{Object.values(answers).filter(v => !!v).length} of {session.questions.length}</span> challenges. Are you ready to submit your assessment for official grading?
                         </p>
 
-                        <div className="flex flex-col gap-2 md:gap-3">
+                        <div className="flex flex-col gap-4">
                             <button
-                                onClick={() => onFinish(answers)}
-                                className="w-full bg-brand-blue text-white py-3 md:py-4 rounded-xl md:rounded-2xl font-extrabold text-sm md:text-lg hover:bg-blue-600 transition-all shadow-lg shadow-brand-blue/30"
+                                onClick={() => handleFinalSubmit(answers)}
+                                className="w-full bg-brand-blue text-white py-5 md:py-6 rounded-[1.5rem] md:rounded-[2rem] font-black text-lg md:text-2xl hover:bg-blue-600 transition-all shadow-xl shadow-brand-blue/30 active:scale-95"
                             >
-                                Yes, Submit Now
+                                Submit Official Attempt
                             </button>
                             <button
                                 onClick={() => setShowConfirmSubmit(false)}
-                                className="w-full bg-gray-50 text-gray-500 py-3 md:py-4 rounded-xl md:rounded-2xl font-bold hover:bg-gray-100 transition-all text-sm md:text-base"
+                                className="w-full bg-gray-50 text-gray-500 py-4 md:py-5 rounded-2xl font-black hover:bg-gray-100 transition-all text-sm md:text-base grayscale opacity-60 hover:grayscale-0 hover:opacity-100"
                             >
-                                Cancel
+                                Continue Working
                             </button>
                         </div>
                     </div>

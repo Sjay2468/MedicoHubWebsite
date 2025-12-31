@@ -19,8 +19,6 @@ export interface IResource extends Document {
     uploadedBy: string;
     year?: string;
     quizData?: any; // For Quiz type resources
-    weekNumber?: string | number;
-    deadline?: string;
     createdAt: Date;
     updatedAt: Date;
 }
@@ -43,9 +41,7 @@ const ResourceSchema: Schema = new Schema({
     extractedText: { type: String, select: false }, // Hidden by default
 
     uploadedBy: { type: String },
-    quizData: { type: Schema.Types.Mixed },
-    weekNumber: { type: Schema.Types.Mixed },
-    deadline: { type: String }
+    quizData: { type: Schema.Types.Mixed }
 }, { timestamps: true });
 
 export const Resource = mongoose.model<IResource>('Resource', ResourceSchema);

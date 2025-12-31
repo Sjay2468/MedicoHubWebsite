@@ -533,8 +533,9 @@ export const Learning: React.FC<LearningProps> = ({
     };
 
     const filteredResources = resources.filter(res => {
-        // Exclude MCAMP content from general library if it is strictly exclusive (unless user is enrolled)
-        if (res.isMcampExclusive && !user.mcamp?.isEnrolled) return false;
+        // Exclude MCAMP content from general library for non-members
+        const isMcamp = !!(user.mcamp?.isEnrolled || user.mcamp?.cohortId);
+        if (res.isMcampExclusive && !isMcamp) return false;
 
         const matchesSearch = res.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
             res.subject.toLowerCase().includes(searchQuery.toLowerCase());
