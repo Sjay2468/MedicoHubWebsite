@@ -2,8 +2,7 @@ import * as React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AppRoute } from '../types';
 import { ChevronRight, Check, Plus, X, Building2, ChevronDown } from 'lucide-react';
-import { doc, getDoc } from 'firebase/firestore';
-import { db } from '../services/firebase';
+import { api } from '../services/api';
 
 interface OnboardingProps {
   updateUser: (data: any) => void;
@@ -149,13 +148,12 @@ export const Onboarding: React.FC<OnboardingProps> = ({ updateUser }) => {
   React.useEffect(() => {
     const fetchYears = async () => {
       try {
-        const docRef = doc(db, 'settings', 'config');
-        const snap = await getDoc(docRef);
-        if (snap.exists() && snap.data().academicYears && Array.isArray(snap.data().academicYears)) {
-          setYears(snap.data().academicYears);
+        const data = await api.settings.get();
+        if (data && data.academicYears) {
+          setYears(data.academicYears);
         }
       } catch (error) {
-        console.error("Failed to fetch academic years", error);
+        console.error("Failed to fetch academic years from MongoDB:", error);
       }
     };
     fetchYears();

@@ -1,7 +1,5 @@
 import { useState, useEffect } from 'react';
 import { api } from '../services/api';
-import { db } from '../firebase';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { Plus, Save, Calendar, CheckSquare, Users, Trophy, BookOpen, Lock, Unlock, Search, X, CheckCircle, ChevronDown, ChevronRight, Trash2, Edit, ArrowLeft, Clock, Upload, Loader, Star, Megaphone, Tag, Copy, AlertCircle, GraduationCap } from 'lucide-react';
 import { createPortal } from 'react-dom';
 
@@ -292,20 +290,18 @@ const ScheduleManager = () => {
     const fetchData = async () => {
         setLoading(true);
         try {
-            const [currDoc, allRes] = await Promise.all([
-                getDoc(doc(db, 'mcamp', 'curriculum')),
+            const [curData, allRes] = await Promise.all([
+                api.curriculum.get(),
                 api.resources.getAll()
             ]);
 
             const validResIds = new Set(Array.isArray(allRes) ? allRes.map((r: any) => r.id || r._id) : []);
             setResources(Array.isArray(allRes) ? allRes.filter((r: any) => r.isMcampExclusive) : []);
 
-            let loadedWeeks = [];
-            if (currDoc.exists()) {
-                const data = currDoc.data();
-                loadedWeeks = data.weeks || [];
-                if (data.targetYear) setTargetYear(data.targetYear);
-            } else {
+            let loadedWeeks = curData.weeks || [];
+            if (curData.targetYear) setTargetYear(curData.targetYear);
+
+            if (loadedWeeks.length === 0) {
                 loadedWeeks = Array.from({ length: 13 }, (_, i) => ({
                     id: i + 1,
                     title: `Week ${i + 1}`,
@@ -361,7 +357,7 @@ const ScheduleManager = () => {
     const saveChanges = async () => {
         setIsSaving(true);
         try {
-            await updateDoc(doc(db, 'mcamp', 'curriculum'), { weeks, targetYear });
+            await api.curriculum.update({ weeks, targetYear });
             setHasUnsavedChanges(false);
             // Simple confirmation
             setTimeout(() => alert("Schedule saved successfully!"), 100);
@@ -949,7 +945,10 @@ const QuizManager = () => {
             const all = await api.resources.getAll();
             const quizList = all.filter((r: any) => r.type === 'Quiz' && (r.isMcampExclusive || r.tags?.includes('MCAMP'))).map((q: any) => ({
                 ...q,
-                questions: q.quizData || q.questions || []
+                questions: (q.quizData || q.questions || []).map((qq: any, idx: number) => ({
+                    ...qq,
+                    id: qq.id || `q-${idx}`
+                }))
             }));
             setQuizzes(quizList);
         } catch (e) {
@@ -1532,7 +1531,13 @@ const GradingView = () => {
             // Filter only quizzes (and MCAMP ones primarily)
             const quizMap = Array.isArray(allResources)
                 ? allResources.filter((r: any) => r.type === 'Quiz' || r.isMcampExclusive)
-                    .map((q: any) => ({ ...q, questions: q.quizData || q.questions || [] }))
+                    .map((q: any) => ({
+                        ...q,
+                        questions: (q.quizData || q.questions || []).map((qq: any, idx: number) => ({
+                            ...qq,
+                            id: qq.id || `q-${idx}`
+                        }))
+                    }))
                 : [];
             setResources(quizMap);
 
@@ -1569,14 +1574,11 @@ const GradingView = () => {
     };
 
     const handleSaveGrade = async (sub: any, grades: Record<string, boolean>, score: number) => {
-        // Update User Doc
         try {
-            const userRef = doc(db, 'users', sub.userId);
-            const snap = await getDoc(userRef);
+            const userData = await api.users.get(sub.userId);
 
-            if (snap.exists()) {
-                const data = snap.data();
-                const attempts = data.quizAttempts || {};
+            if (userData) {
+                const attempts = userData.quizAttempts || {};
 
                 if (attempts[sub.quizId]) {
                     attempts[sub.quizId] = {
@@ -1584,18 +1586,17 @@ const GradingView = () => {
                         status: 'completed',
                         score: score,
                         corrections: grades, // Save per-question grading
-                        gradedAt: Date.now()
+                        gradedAt: new Date().toISOString()
                     };
 
-                    await updateDoc(userRef, { quizAttempts: attempts });
+                    await api.users.update(sub.userId, { quizAttempts: attempts });
 
                     // Send Notification
-                    await api.notifications.sendToUser(sub.userId, {
+                    await api.notifications.broadcast({
                         title: 'Quiz Graded',
                         message: `Your attempt for "${sub.quizTitle}" has been graded. Check your dashboard to view the results.`,
                         type: 'grade',
-                        icon: 'CheckCircle',
-                        data: { quizId: sub.quizId }
+                        target: sub.userId
                     });
 
                     // Update local list state
@@ -1606,12 +1607,12 @@ const GradingView = () => {
                     ));
 
                     setSelectedSubmission(null);
-                    alert("Grade saved and student notified!");
+                    alert("Grade saved and student notified via MongoDB!");
                 }
             }
         } catch (error) {
-            console.error("Grading failed", error);
-            alert("Failed to save grade. Check console.");
+            console.error("Grading failed with MongoDB:", error);
+            alert("Failed to save grade to MongoDB. Check console.");
         }
     };
 

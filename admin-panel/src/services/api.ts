@@ -1,5 +1,4 @@
-import { auth, db } from '../firebase';
-import { collection, getDocs, addDoc, doc, deleteDoc, updateDoc, query, orderBy, limit, getDoc, setDoc } from 'firebase/firestore';
+import { auth } from '../firebase';
 
 // Robust URL Handling: Ensure we have the correct base for v1 and v3
 const getRootUrl = () => {
@@ -104,80 +103,57 @@ export const api = {
     },
     users: {
         getAll: async () => {
-            try {
-                const response = await fetch(`${BASE_URL}/users?limit=200`, {
-                    headers: await getAuthHeaders()
-                });
+            const response = await fetch(`${BASE_URL}/users?limit=200`, {
+                headers: await getAuthHeaders()
+            });
 
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    throw new Error(`Backend fetch failed: ${response.status} ${errorText}`);
-                }
-
-                const data = await response.json();
-                return Array.isArray(data) ? data : (data.users || []);
-            } catch (err) {
-                console.error("Firestore fallback for users:", err);
-                const ref = collection(db, 'users');
-                const q = query(ref, orderBy('createdAt', 'desc'), limit(100));
-                const snap = await getDocs(q);
-                return snap.docs.map(d => ({ id: d.id, uid: d.id, ...d.data() }));
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`Backend fetch failed: ${response.status} ${errorText}`);
             }
+
+            const data = await response.json();
+            return Array.isArray(data) ? data : (data.users || []);
         },
         getUpgradeRequests: async () => {
-            try {
-                const response = await fetch(`${BASE_URL}/users?filter=requests&limit=50`, {
-                    headers: await getAuthHeaders()
-                });
-                return handleResponse(response);
-            } catch (err) {
-                // Fallback: manually filter from a bigger set or just fetch direct
-                const ref = collection(db, 'users');
-                const q = query(ref, orderBy('createdAt', 'desc'), limit(200));
-                const snap = await getDocs(q);
-                return snap.docs.map(d => ({ id: d.id, uid: d.id, ...d.data() }))
-                    .filter((u: any) => !!u.requestedYear);
-            }
+            const response = await fetch(`${BASE_URL}/users?filter=requests&limit=50`, {
+                headers: await getAuthHeaders()
+            });
+            return handleResponse(response);
         },
         getRecent: async (count = 5) => {
-            try {
-                const response = await fetch(`${BASE_URL}/users?limit=${count}`, {
-                    headers: await getAuthHeaders()
-                });
-                if (!response.ok) throw new Error("Backend failed");
-                const data = await response.json();
-                return Array.isArray(data) ? data : (data.users || []);
-            } catch (err) {
-                const ref = collection(db, 'users');
-                const q = query(ref, orderBy('createdAt', 'desc'), limit(count));
-                const snap = await getDocs(q);
-                return snap.docs.map(d => ({ id: d.id, uid: d.id, ...d.data() }));
-            }
+            const response = await fetch(`${BASE_URL}/users?limit=${count}`, {
+                headers: await getAuthHeaders()
+            });
+            if (!response.ok) throw new Error("Backend failed");
+            const data = await response.json();
+            return Array.isArray(data) ? data : (data.users || []);
+        },
+        get: async (uid: string) => {
+            const res = await fetch(`${BASE_URL}/users/${uid}/profile`, {
+                headers: await getAuthHeaders()
+            });
+            if (!res.ok) throw new Error("Failed to fetch user from MongoDB via Admin API");
+            const data = await res.json();
+            return data.user;
         },
         update: async (uid: string, data: any) => {
-            const ref = doc(db, 'users', uid);
-            await updateDoc(ref, {
-                ...data,
-                updatedAt: new Date().toISOString()
+            const res = await fetch(`${BASE_URL}/users/${uid}/profile`, {
+                method: 'PATCH',
+                headers: await getAuthHeaders(),
+                body: JSON.stringify(data)
             });
-            return { uid, ...data };
+            if (!res.ok) throw new Error("Failed to update user in MongoDB via Admin API");
+            return res.json();
         },
         delete: async (uid: string) => {
-            try {
-                const response = await fetch(`${BASE_URL}/users/${uid}`, {
-                    method: 'DELETE',
-                    headers: await getAuthHeaders()
-                });
+            const response = await fetch(`${BASE_URL}/users/${uid}`, {
+                method: 'DELETE',
+                headers: await getAuthHeaders()
+            });
 
-                if (!response.ok) throw new Error("Failed to delete user via backend");
-
-                await deleteDoc(doc(db, 'users', uid));
-                return { success: true };
-            } catch (err) {
-                console.error("Delete fallback:", err);
-                await deleteDoc(doc(db, 'users', uid));
-                return { success: true };
-            }
+            if (!response.ok) throw new Error("Failed to delete user via backend");
+            return { success: true };
         }
     },
     products: {
@@ -299,15 +275,11 @@ export const api = {
     },
     stats: {
         getCounts: async () => {
-            const usersRef = collection(db, 'users');
-            const resRef = collection(db, 'resources');
-            const prodRef = collection(db, 'products');
-            const [users, localRes, products] = await Promise.all([
-                getDocs(usersRef),
-                getDocs(resRef),
-                getDocs(prodRef)
-            ]);
-            return { users: users.size, resources: localRes.size, products: products.size };
+            const res = await fetch(`${BASE_URL}/analytics/admin/counts`, {
+                headers: await getAuthHeaders()
+            });
+            if (!res.ok) throw new Error("Failed to fetch counts from MongoDB");
+            return res.json();
         },
         getGlobal: async (days = 30) => {
             const res = await fetch(`${BASE_URL}/analytics/admin/global?days=${days}`, {
@@ -318,33 +290,36 @@ export const api = {
     },
     settings: {
         get: async () => {
-            const ref = doc(db, 'settings', 'config');
-            const snap = await getDoc(ref);
-            return snap.exists() ? snap.data() : { maintenanceMode: false, allowSignups: true, announcement: '' };
+            const res = await fetch(`${BASE_URL}/settings`, {
+                headers: await getAuthHeaders()
+            });
+            if (!res.ok) throw new Error("Failed to fetch settings from MongoDB");
+            return res.json();
         },
         update: async (data: any) => {
-            const ref = doc(db, 'settings', 'config');
-            await setDoc(ref, data, { merge: true });
-            return data;
+            const res = await fetch(`${BASE_URL}/settings`, {
+                method: 'PATCH',
+                headers: await getAuthHeaders(),
+                body: JSON.stringify(data)
+            });
+            if (!res.ok) throw new Error("Failed to update settings in MongoDB");
+            return res.json();
         }
     },
     notifications: {
         broadcast: async (data: any) => {
-            const ref = collection(db, 'notifications');
-            await addDoc(ref, {
-                target: 'all',
-                ...data,
-                createdAt: new Date().toISOString(),
-                readBy: []
+            const res = await fetch(`${BASE_URL}/notifications/broadcast`, {
+                method: 'POST',
+                headers: await getAuthHeaders(),
+                body: JSON.stringify(data)
             });
+            if (!res.ok) throw new Error("Broadcast failed in MongoDB");
+            return res.json();
         },
         sendToUser: async (userId: string, data: any) => {
-            const ref = collection(db, 'notifications');
-            await addDoc(ref, {
+            return api.notifications.broadcast({
                 target: userId,
-                ...data,
-                createdAt: new Date().toISOString(),
-                read: false
+                ...data
             });
         }
     },
@@ -361,6 +336,26 @@ export const api = {
             });
             const data = await handleResponse(response);
             return data.url;
+        }
+    },
+    curriculum: {
+        get: async () => {
+            const res = await fetch(`${BASE_URL}/curriculum`, {
+                headers: await getAuthHeaders()
+            });
+            if (!res.ok) throw new Error("Failed to fetch curriculum");
+            const data = await res.json();
+            return data;
+        },
+        update: async (data: any) => {
+            const res = await fetch(`${BASE_URL}/curriculum`, {
+                method: 'POST',
+                headers: await getAuthHeaders(),
+                body: JSON.stringify(data)
+            });
+            if (!res.ok) throw new Error("Failed to update curriculum");
+            const result = await res.json();
+            return result;
         }
     }
 };

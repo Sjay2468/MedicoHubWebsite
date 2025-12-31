@@ -1,5 +1,4 @@
-import { auth, db } from './firebase';
-import { collection, getDocs, addDoc, doc, deleteDoc, updateDoc, query, orderBy, getDoc, setDoc } from 'firebase/firestore';
+import { auth } from './firebase';
 import { ResourceProgress } from '../types';
 
 // Robust URL Handling: Ensure we have the correct base for v1 and v3
@@ -106,95 +105,153 @@ export const api = {
         logSession: async (sessionData: any) => {
             // Log to Backend V3 for aggregation
             try {
-                fetch(`${V3_URL}/analytics/activity`, {
+                const res = await fetch(`${V1_URL}/analytics/activity`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(sessionData)
-                }).catch(() => { });
-            } catch (e) { }
+                });
+                if (!res.ok) console.warn("Log activity to V1 failed");
+            } catch (e) {
+                console.error("Failed to log activity", e);
+            }
 
-            // Legacy Firestore logging for safety
-            const ref = collection(db, 'analytics_sessions');
-            await addDoc(ref, { ...sessionData, createdAt: new Date().toISOString() });
-
-            if (sessionData.userId) {
+            // Also update the User's direct analytics in MongoDB via the API
+            if (sessionData.userId && sessionData.durationSeconds) {
                 try {
-                    const userRef = doc(db, 'users', sessionData.userId);
-                    const userSnap = await getDoc(userRef);
-
-                    if (userSnap.exists()) {
-                        const userData = userSnap.data();
+                    const userData = await api.users.get(sessionData.userId);
+                    if (userData) {
                         const currentAnalytics = userData.analytics || {
                             totalHours: 0,
-                            topicsMastered: 0,
-                            currentStreak: 0,
-                            monthlyActivity: [],
-                            yearlyActivity: []
+                            streakDays: 0,
+                            monthlyActivity: []
                         };
 
                         const addedHours = sessionData.durationSeconds / 3600;
                         const newTotal = (currentAnalytics.totalHours || 0) + addedHours;
-                        const today = new Date();
-                        const dateKey = today.toLocaleString('default', { month: 'short', day: 'numeric' });
-                        let monthly = [...(currentAnalytics.monthlyActivity || [])];
-                        const dayIndex = monthly.findIndex((m: any) => m.date === dateKey);
-                        if (dayIndex >= 0) {
-                            monthly[dayIndex].hours += addedHours;
-                        } else {
-                            monthly.push({ date: dateKey, hours: addedHours });
-                            if (monthly.length > 30) monthly.shift();
-                        }
 
-                        const monthName = today.toLocaleString('default', { month: 'short' });
-                        let yearly = [...(currentAnalytics.yearlyActivity || [])];
-                        const monthIndex = yearly.findIndex((y: any) => y.month === monthName);
-                        if (monthIndex >= 0) {
-                            yearly[monthIndex].hours += addedHours;
-                        } else {
-                            yearly.push({ month: monthName, hours: addedHours });
-                        }
-
-                        let newStreak = currentAnalytics.currentStreak || 0;
-                        const lastDate = currentAnalytics.lastStudyDate ? new Date(currentAnalytics.lastStudyDate) : null;
-                        const isSameDay = lastDate && lastDate.toDateString() === today.toDateString();
-
-                        if (!isSameDay) {
-                            const yesterday = new Date(today);
-                            yesterday.setDate(today.getDate() - 1);
-                            const isConsecutive = lastDate && lastDate.toDateString() === yesterday.toDateString();
-                            newStreak = isConsecutive ? newStreak + 1 : 1;
-                        }
-
-                        await updateDoc(userRef, {
+                        // We'll let the backend handle the complex aggregation logic 
+                        // if we want to be clean, but for now we'll send the incremental update
+                        await api.users.update(sessionData.userId, {
                             analytics: {
                                 ...currentAnalytics,
                                 totalHours: newTotal,
-                                monthlyActivity: monthly,
-                                yearlyActivity: yearly,
-                                currentStreak: newStreak,
                                 lastStudyDate: new Date().toISOString()
                             }
                         });
                     }
                 } catch (err) {
-                    console.error("Aggregation failed:", err);
+                    console.error("Local analytics update failed:", err);
                 }
             }
             return { success: true };
         },
         getUserProgress: async (userId: string) => {
-            const ref = collection(db, 'users', userId, 'resource_progress');
-            const snapshot = await getDocs(ref);
-            return snapshot.docs.map(d => ({ resourceId: d.id, ...d.data() })) as ResourceProgress[];
+            try {
+                const userData = await api.users.get(userId);
+                if (userData && userData.resourceProgress) {
+                    return Object.entries(userData.resourceProgress).map(([id, data]: [string, any]) => ({
+                        resourceId: id,
+                        ...data
+                    })) as ResourceProgress[];
+                }
+                return [] as ResourceProgress[];
+            } catch (e) {
+                console.error("Failed to fetch user progress from MongoDB", e);
+                return [] as ResourceProgress[];
+            }
         },
         updateResourceProgress: async (userId: string, resourceId: string, progressData: Partial<ResourceProgress>) => {
-            const ref = doc(db, 'users', userId, 'resource_progress', resourceId);
-            await setDoc(ref, {
-                ...progressData,
-                resourceId,
-                userId,
-                lastUpdated: new Date().toISOString()
-            }, { merge: true });
+            // Push to MongoDB via general profile update or specific progress endpoint
+            try {
+                const userData = await api.users.get(userId);
+                const progress = userData.resourceProgress || {};
+                progress[resourceId] = {
+                    ...progress[resourceId],
+                    ...progressData,
+                    lastUpdated: new Date().toISOString()
+                };
+                await api.users.update(userId, { resourceProgress: progress });
+            } catch (e) {
+                console.error("Failed to update resource progress in MongoDB", e);
+            }
+        },
+    }, users: {
+        get: async (uid: string) => {
+            const token = await auth.currentUser?.getIdToken();
+            const res = await fetch(`${V1_URL}/users/${uid}/profile`, {
+                headers: { 'Authorization': token ? `Bearer ${token}` : '' }
+            });
+            if (!res.ok) throw new Error("Failed to fetch user profile from MongoDB");
+            const data = await res.json();
+            return data.user;
+        },
+        update: async (uid: string, data: any) => {
+            const token = await auth.currentUser?.getIdToken();
+            const res = await fetch(`${V1_URL}/users/${uid}/profile`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': token ? `Bearer ${token}` : ''
+                },
+                body: JSON.stringify(data)
+            });
+            if (!res.ok) throw new Error("Failed to update user profile in MongoDB");
+            return res.json();
+        },
+        delete: async (uid: string) => {
+            const token = await auth.currentUser?.getIdToken();
+            const res = await fetch(`${V1_URL}/users/${uid}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': token ? `Bearer ${token}` : '' }
+            });
+            if (!res.ok) throw new Error("Failed to delete user profile from MongoDB");
+            return res.json();
+        }
+    },
+    notifications: {
+        get: async () => {
+            const token = await auth.currentUser?.getIdToken();
+            const res = await fetch(`${V1_URL}/notifications`, {
+                headers: { 'Authorization': token ? `Bearer ${token}` : '' }
+            });
+            if (!res.ok) throw new Error("Failed to fetch notifications from MongoDB");
+            return res.json();
+        },
+        markAsRead: async (id: string) => {
+            const token = await auth.currentUser?.getIdToken();
+            const res = await fetch(`${V1_URL}/notifications/${id}/read`, {
+                method: 'PATCH',
+                headers: { 'Authorization': token ? `Bearer ${token}` : '' }
+            });
+            if (!res.ok) throw new Error("Failed to mark notification as read in MongoDB");
+            return res.json();
+        },
+        broadcast: async (data: any) => {
+            const token = await auth.currentUser?.getIdToken();
+            const res = await fetch(`${V1_URL}/notifications/broadcast`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': token ? `Bearer ${token}` : ''
+                },
+                body: JSON.stringify(data)
+            });
+            if (!res.ok) throw new Error("Broadcast failed in MongoDB");
+            return res.json();
+        }
+    },
+    settings: {
+        get: async () => {
+            const res = await fetch(`${V1_URL}/settings`);
+            if (!res.ok) throw new Error("Failed to fetch settings from MongoDB");
+            return res.json();
+        }
+    },
+    curriculum: {
+        get: async () => {
+            const res = await fetch(`${V1_URL}/curriculum`);
+            if (!res.ok) throw new Error("Failed to fetch curriculum from MongoDB");
+            return res.json();
         }
     }
 };

@@ -31,41 +31,21 @@ router.get('/', verifyAuth, verifyAdmin, async (req: Request, res: Response) => 
         const limitVal = parseInt(req.query.limit as string) || 100;
         const filter = req.query.filter as string; // 'requests'
 
-        let queryBase: any = admin.firestore().collection('users');
-
-        let snapshot;
+        let users;
         if (filter === 'requests') {
-            // Firestore inequality filter on 'requestedYear'
-            // To avoid complex index requirements, we fetch and limit without orderBy(createdAt) 
-            // if an inequality is present, or we order by the inequality field first.
-            snapshot = await queryBase
-                .where('requestedYear', '!=', null)
-                .limit(limitVal)
-                .get();
+            // Find users who have a requestedYear set
+            users = await User.find({ requestedYear: { $ne: null } })
+                .sort({ createdAt: -1 })
+                .limit(limitVal);
         } else {
-            snapshot = await queryBase
-                .orderBy('createdAt', 'desc')
-                .limit(limitVal)
-                .get();
-        }
-
-        let users = snapshot.docs.map((doc: any) => ({
-            id: doc.id,
-            ...doc.data()
-        }));
-
-        // In-memory sort for requests since we can't reliably orderBy(createdAt) without an index
-        if (filter === 'requests') {
-            users.sort((a: any, b: any) => {
-                const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-                const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-                return dateB - dateA;
-            });
+            users = await User.find()
+                .sort({ createdAt: -1 })
+                .limit(limitVal);
         }
 
         res.json(users);
     } catch (error) {
-        console.error("Error fetching users:", error);
+        console.error("Error fetching users from MongoDB:", error);
         res.status(500).json({ error: "Internal Server Error" });
     }
 });
@@ -161,11 +141,40 @@ router.patch('/:uid/subscription', verifyAuth, verifyAdmin, async (req: Request,
     }
 });
 
+// DELETE /api/v1/users/:uid
+// Permanently delete a user (Auth + MongoDB)
+router.delete('/:uid', verifyAuth, async (req: Request, res: Response) => {
+    const { uid } = req.params;
+
+    // Security: Only allow user to delete themselves OR an admin
+    if (req.user.uid !== uid && req.user.role !== 'admin') {
+        return res.status(403).json({ error: "Access denied. You can only delete your own account." });
+    }
+
+    try {
+        // 1. Delete from Firebase Auth (Optional: Usually handled by client before calling this, 
+        // but for admin deletion it's necessary here)
+        try {
+            await auth.deleteUser(uid);
+        } catch (e: any) {
+            console.warn("Auth deletion failed (might be already deleted):", e.message);
+        }
+
+        // 2. Delete from MongoDB
+        await User.findOneAndDelete({ uid });
+
+        res.json({ success: true, message: "User permanently deleted" });
+    } catch (error) {
+        console.error("Error deleting user from MongoDB:", error);
+        res.status(500).json({ error: "Failed to delete user" });
+    }
+});
+
 /**
  * @swagger
- * /api/v1/users/{uid}:
- *   delete:
- *     summary: Permanently delete a user (Auth + DB)
+ * /api/v1/users/{uid}/profile:
+ *   get:
+ *     summary: Get user profile from MongoDB
  *     tags: [Users]
  *     security:
  *       - bearerAuth: []
@@ -173,29 +182,18 @@ router.patch('/:uid/subscription', verifyAuth, verifyAdmin, async (req: Request,
  *       - in: path
  *         name: uid
  *         required: true
- *         schema:
- *           type: string
  *     responses:
  *       200:
- *         description: User deleted
+ *         description: User profile
  */
-router.delete('/:uid', verifyAuth, verifyAdmin, async (req: Request, res: Response) => {
+router.get('/:uid/profile', verifyAuth, async (req: Request, res: Response) => {
     const { uid } = req.params;
-
     try {
-        // 1. Delete from Firebase Auth
-        await auth.deleteUser(uid);
-
-        // 2. Delete from Firestore
-        await admin.firestore().collection('users').doc(uid).delete();
-
-        // 3. Delete from MongoDB
-        await User.findOneAndDelete({ uid });
-
-        res.json({ success: true, message: "User permanently deleted" });
+        const user = await User.findOne({ uid });
+        if (!user) return res.status(404).json({ error: "User not found in MongoDB" });
+        res.json({ success: true, user });
     } catch (error) {
-        console.error("Error deleting user:", error);
-        res.status(500).json({ error: "Failed to delete user" });
+        res.status(500).json({ error: "Internal Server Error" });
     }
 });
 
@@ -232,7 +230,7 @@ router.delete('/:uid', verifyAuth, verifyAdmin, async (req: Request, res: Respon
  */
 router.patch('/:uid/profile', verifyAuth, async (req: Request, res: Response) => {
     const { uid } = req.params;
-    const { photoURL, name, academicYear } = req.body;
+    const items = req.body;
 
     // Security check: Only allow user to edit their own profile OR admin
     // @ts-ignore
@@ -242,27 +240,43 @@ router.patch('/:uid/profile', verifyAuth, async (req: Request, res: Response) =>
 
     try {
         const updates: any = {};
-        if (photoURL) updates.photoURL = photoURL;
-        if (name) updates.name = name;
-        if (academicYear) updates.academicYear = academicYear;
 
-        // If photoURL is updated, also update Firebase Auth Profile
-        if (photoURL || name) {
+        // Map common fields
+        const allowedFields = [
+            'name', 'firstName', 'surname', 'email', 'phoneNumber',
+            'institution', 'schoolName', 'photoURL', 'academicYear',
+            'requestedYear', 'weakness', 'currentCourses', 'isSubscribed',
+            'mcamp', 'analytics', 'resourceProgress'
+        ];
+
+        allowedFields.forEach(field => {
+            if (items[field] !== undefined) {
+                updates[field] = items[field];
+            }
+        });
+
+        // Handle 'year' alias from frontend
+        if (items.year !== undefined && updates.academicYear === undefined) {
+            updates.academicYear = items.year;
+        }
+
+        // If photoURL or name is updated, also update Firebase Auth Profile (Sync for Auth only)
+        if (updates.photoURL || updates.name) {
             await auth.updateUser(uid, {
-                photoURL: photoURL || undefined,
-                displayName: name || undefined
+                photoURL: updates.photoURL || undefined,
+                displayName: updates.name || undefined
             });
         }
 
-        const updatedUser = await User.findOneAndUpdate(
+        const user = await User.findOneAndUpdate(
             { uid },
             { $set: updates },
-            { new: true }
+            { new: true, upsert: true }
         );
 
         res.json({ success: true, user: updatedUser });
     } catch (error) {
-        console.error("Error updating profile:", error);
+        console.error("Error updating profile in MongoDB:", error);
         res.status(500).json({ error: "Failed to update profile" });
     }
 });

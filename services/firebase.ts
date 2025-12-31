@@ -16,9 +16,10 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
-export const db = initializeFirestore(app, {
-    experimentalForceLongPolling: true
-});
+// Firestore removed
+// export const db = initializeFirestore(app, {
+//     experimentalForceLongPolling: true
+// });
 
 // Analytics check
 export const analytics = isSupported().then(yes => yes ? getAnalytics(app) : null);

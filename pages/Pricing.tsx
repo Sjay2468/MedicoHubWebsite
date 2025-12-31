@@ -3,15 +3,14 @@ import { Check, Lock, Star } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AppRoute, User } from '../types';
 import { usePaystackPayment } from 'react-paystack';
-import { doc, updateDoc } from 'firebase/firestore';
-import { db } from '../services/firebase';
 import { StatusModal, ModalType } from '../components/StatusModal';
 
 interface PricingProps {
   user?: User | null;
+  onUpdateUser?: (data: Partial<User>) => Promise<void>;
 }
 
-export const Pricing: React.FC<PricingProps> = ({ user }) => {
+export const Pricing: React.FC<PricingProps> = ({ user, onUpdateUser }) => {
   const navigate = useNavigate();
   const [isAnnual, setIsAnnual] = React.useState(false);
   const [modalConfig, setModalConfig] = React.useState<{ isOpen: boolean; title: string; message: string; type: ModalType }>({
@@ -37,9 +36,9 @@ export const Pricing: React.FC<PricingProps> = ({ user }) => {
   const initializePayment = usePaystackPayment(config);
 
   const onSuccess = async (reference: any) => {
-    if (user) {
+    if (user && onUpdateUser) {
       try {
-        await updateDoc(doc(db, 'users', user.uid), {
+        await onUpdateUser({
           isSubscribed: true,
           subscriptionPlan: isAnnual ? 'annual' : 'monthly',
           subscriptionDate: new Date().toISOString()

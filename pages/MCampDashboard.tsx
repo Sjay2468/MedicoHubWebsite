@@ -3,12 +3,10 @@ import * as React from 'react';
 import { User, AppRoute, QuizSession } from '../types';
 import { DashboardLayout } from '../components/DashboardLayout';
 import { useNavigate } from 'react-router-dom';
-import { Lock, PlayCircle, FileText, CheckCircle, Clock, Trophy, AlertCircle, Zap, Check, ChevronRight, ChevronDown, Calendar, Users, MessageCircle, CheckCircle2, Star } from 'lucide-react';
 import { api } from '../services/api';
+import { Lock, PlayCircle, FileText, CheckCircle, Clock, Trophy, AlertCircle, Zap, Check, ChevronRight, ChevronDown, Calendar, Users, MessageCircle, CheckCircle2, Star } from 'lucide-react';
 import { QuizEngine, QuizIntro } from '../components/QuizEngine';
 import { useSettings } from '../context/SettingsContext';
-import { doc, getDoc, onSnapshot } from 'firebase/firestore';
-import { db } from '../services/firebase';
 
 interface MCampDashboardProps {
     onLogout?: () => void;
@@ -64,17 +62,6 @@ export const MCampDashboard: React.FC<MCampDashboardProps> = ({
 
     // Sync local user state with prop
     React.useEffect(() => { setLocalUser(user); }, [user]);
-
-    // Real-time listener for user updates (specifically for grading results)
-    React.useEffect(() => {
-        if (!user?.uid) return;
-        const unsub = onSnapshot(doc(db, 'users', user.uid), (doc) => {
-            if (doc.exists()) {
-                setLocalUser({ ...user, ...doc.data() });
-            }
-        });
-        return () => unsub();
-    }, [user?.uid]);
 
     // Data State
     const [weeks, setWeeks] = React.useState<any[]>([]);
@@ -143,19 +130,15 @@ export const MCampDashboard: React.FC<MCampDashboardProps> = ({
                 setResourcesLoading(false);
             }
 
-            // 2. Curriculum (Real-time)
+            // 2. Curriculum
             try {
-                unsubscribeCurriculum = onSnapshot(doc(db, 'mcamp', 'curriculum'), (snap) => {
-                    if (snap.exists()) {
-                        const data = snap.data();
-                        setWeeks(data.weeks || []);
-                        if (data.targetYear) setTargetYear(data.targetYear);
-                    }
-                }, (error) => {
-                    console.error("Failed curriculum snapshot", error);
-                });
+                const data = await api.curriculum.get();
+                if (data && data.weeks) {
+                    setWeeks(data.weeks || []);
+                    if (data.targetYear) setTargetYear(data.targetYear);
+                }
             } catch (e) {
-                console.error("Failed curriculum setup", e);
+                console.error("Failed to fetch curriculum from MongoDB:", e);
             }
         };
         fetchData();
@@ -182,7 +165,10 @@ export const MCampDashboard: React.FC<MCampDashboardProps> = ({
                 setActiveQuiz({
                     ...found,
                     id: found.id || found._id,
-                    questions: found.quizData || found.questions || [],
+                    questions: (found.quizData || found.questions || []).map((q: any, idx: number) => ({
+                        ...q,
+                        id: q.id || `q-${idx}` // Ensure ID exists for mapping
+                    })),
                     isExpired
                 });
             } else {
@@ -197,7 +183,8 @@ export const MCampDashboard: React.FC<MCampDashboardProps> = ({
                 ...(user.quizAttempts || {}),
                 [activeQuiz.id]: {
                     status: 'pending_grading' as const,
-                    submittedAt: new Date().toISOString()
+                    submittedAt: new Date().toISOString(),
+                    answers // <--- Capture the student's answers here!
                 }
             };
             onUpdateUser({ quizAttempts: newAttempts });

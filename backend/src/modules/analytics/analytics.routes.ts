@@ -35,6 +35,25 @@ router.get('/admin/global', verifyAuth, verifyAdmin, async (req: Request, res: R
     }
 });
 
+router.get('/admin/counts', verifyAuth, verifyAdmin, async (req: Request, res: Response) => {
+    try {
+        const { User } = await import('../../models/User');
+        const { Resource } = await import('../../models/Resource');
+        const { Product } = await import('../../models/Product');
+
+        const [users, resources, products] = await Promise.all([
+            User.countDocuments(),
+            Resource.countDocuments(),
+            Product.countDocuments()
+        ]);
+
+        res.json({ users, resources, products });
+    } catch (error) {
+        console.error("Error fetching counts:", error);
+        res.status(500).json({ error: "Failed to fetch counts from MongoDB" });
+    }
+});
+
 /**
  * @swagger
  * /api/v1/analytics/activity:

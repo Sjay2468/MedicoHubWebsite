@@ -1,50 +1,73 @@
-
-import { db } from '../../config/firebase';
-import { admin } from '../../config/firebase'; // Ensure we export admin from config
-import { ActivitySession } from '../../types/firestore-v3';
-import { FieldValue } from 'firebase-admin/firestore';
+import { User } from '../../models/User';
+import { ActivityLog } from '../../models/ActivityLog';
 
 export class ActivityService {
     /**
      * Log a user study session and update their aggregate stats (The Dashboard Graphs).
      */
-    static async logSession(uid: string, sessionData: ActivitySession) {
-        const batch = db.batch();
-
-        // 1. Save Raw Log (for deep auditing later)
-        const sessionRef = db.collection('users').doc(uid).collection('activity_sessions').doc();
-        batch.set(sessionRef, {
-            ...sessionData,
-            createdAt: new Date().toISOString()
-        });
-
-        // 2. Update Aggregates (The "Live" Dashboard Numbers)
-        const userRef = db.collection('users').doc(uid);
+    static async logSession(uid: string, sessionData: any) {
         const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-        const currentMonth = new Date().toLocaleString('default', { month: 'short' }); // "Jan", "Feb"
 
-        // Calculate hours from this session
-        const hoursToAdd = sessionData.durationSeconds / 3600;
-
-        // Atomically increment totals
-        batch.update(userRef, {
-            'analytics.totalSecondsStudied': FieldValue.increment(sessionData.durationSeconds),
-            'analytics.lastActive': new Date().toISOString()
+        // 1. Create ActivityLog in MongoDB
+        await ActivityLog.create({
+            userId: uid,
+            resourceId: sessionData.resourceId,
+            resourceType: sessionData.resourceType, // Ensure this exists in sessionData
+            startTime: sessionData.startTime || new Date(),
+            endTime: new Date(),
+            durationSeconds: sessionData.durationSeconds || 0,
+            interactions: sessionData.interactions || {}
         });
 
-        // Note: For complex nested array updates (monthlyActivity), usually we'd read-modify-write
-        // or use a subcollection for 'daily_stats' and aggregate on read. 
-        // For simplicity in V3, we will use a dedicated subcollection for daily stats 
-        // and let the frontend query that for the graph.
+        // 2. Update User Aggregates
+        // We'll calculate the hours to add
+        const hoursToAdd = (sessionData.durationSeconds || 0) / 3600;
 
-        const dailyStatRef = userRef.collection('stats_daily').doc(today);
-        batch.set(dailyStatRef, {
-            date: today,
-            seconds: FieldValue.increment(sessionData.durationSeconds),
-            resourceIds: FieldValue.arrayUnion(sessionData.resourceId)
-        }, { merge: true });
+        // Determine if streak should update
+        // (Simple logic: if lastStudyDate != today, increment streak. If lastStudyDate < yesterday, reset streak)
+        // This requires a read-before-write or a clever pipeline update. 
+        // For now, simpler implementation:
 
-        await batch.commit();
+        const user = await User.findOne({ uid });
+        if (user) {
+            const currentAnalytics = user.analytics || {
+                totalSecondsStudied: 0,
+                totalHours: 0,
+                pointsEarned: 0,
+                streakDays: 0,
+                currentStreak: 0,
+                lastActive: new Date(),
+                lastStudyDate: '',
+                monthlyActivity: [],
+                yearlyActivity: new Map()
+            };
+
+            // Update Totals
+            currentAnalytics.totalSecondsStudied = (currentAnalytics.totalSecondsStudied || 0) + (sessionData.durationSeconds || 0);
+            currentAnalytics.totalHours = (currentAnalytics.totalHours || 0) + hoursToAdd;
+            currentAnalytics.lastActive = new Date();
+
+            // Streak Logic
+            if (currentAnalytics.lastStudyDate !== today) {
+                const yesterday = new Date();
+                yesterday.setDate(yesterday.getDate() - 1);
+                const yesterdayStr = yesterday.toISOString().split('T')[0];
+
+                if (currentAnalytics.lastStudyDate === yesterdayStr) {
+                    // Contiguous day
+                    currentAnalytics.currentStreak = (currentAnalytics.currentStreak || 0) + 1;
+                } else {
+                    // Broken streak (or first day)
+                    currentAnalytics.currentStreak = 1;
+                }
+                currentAnalytics.lastStudyDate = today;
+            }
+
+            // Save
+            user.analytics = currentAnalytics;
+            await user.save();
+        }
+
         return { success: true };
     }
 }

@@ -11,8 +11,7 @@ import {
     sendEmailVerification,
     sendPasswordResetEmail
 } from 'firebase/auth';
-import { doc, setDoc, getDoc, deleteDoc } from 'firebase/firestore';
-import { auth, db } from '../services/firebase';
+import { auth } from '../services/firebase';
 
 /**
  * AUTH CONTEXT:
@@ -66,26 +65,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         try {
             // 2. Add their name to their profile
             await updateProfile(userCredential.user, { displayName: name });
-
-            // 3. Create a "User Document" in our database to store their stats and preferences
-            await setDoc(doc(db, 'users', userCredential.user.uid), {
-                uid: userCredential.user.uid,
-                name,
-                email,
-                createdAt: new Date().toISOString(),
-                isSubscribed: false,
-                role: 'student',
-                analytics: {
-                    totalHours: 0,
-                    topicsMastered: 0,
-                    currentStreak: 0,
-                    lastStudyDate: new Date().toISOString(),
-                    monthlyActivity: [],
-                    yearlyActivity: []
-                }
-            });
+            // MongoDB profile will be auto-created on the first API call to GET /profile
         } catch (error) {
-            console.error("Error creating user profile in Firestore:", error);
+            console.error("Error setting up user profile name:", error);
         }
     };
 
@@ -103,24 +85,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (!auth.currentUser) return;
 
         try {
-            // 1. Delete Firestore Document
-            // Note: This might fail if security rules don't permit direct deletion by the client
+            const uid = auth.currentUser.uid;
+
+            // 1. Delete from MongoDB via our API
             try {
-                await deleteDoc(doc(db, 'users', auth.currentUser.uid));
+                const { api } = await import('../services/api');
+                await api.users.delete(uid);
             } catch (fsError) {
-                console.warn("Firestore user document deletion failed (likely permissions):", fsError);
-                // We continue so the Auth account can still be deleted
+                console.warn("MongoDB user document deletion failed:", fsError);
             }
 
             // 2. Delete Auth User
             await auth.currentUser.delete();
         } catch (error: any) {
             console.error("Error deleting account:", error);
-            if (error.code === 'auth/requires-recent-login') {
-                // Let the UI handle this specific error if needed
-            } else if (error.code === 'auth/operation-not-allowed') {
-                // Let the UI handle this
-            }
             throw error;
         }
     };
@@ -138,38 +116,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const googleSignIn = async () => {
         const provider = new GoogleAuthProvider();
         const result = await signInWithPopup(auth, provider);
-        const user = result.user;
-        let isNewUser = false;
-
-        try {
-            // Check if user exists, if not create doc
-            const userDoc = await getDoc(doc(db, 'users', user.uid));
-            if (!userDoc.exists()) {
-                isNewUser = true;
-                await setDoc(doc(db, 'users', user.uid), {
-                    uid: user.uid,
-                    name: user.displayName,
-                    email: user.email,
-                    createdAt: new Date().toISOString(),
-                    isSubscribed: false,
-                    role: 'student',
-                    photoURL: user.photoURL,
-                    analytics: {
-                        totalHours: 0,
-                        topicsMastered: 0,
-                        currentStreak: 0,
-                        lastStudyDate: new Date().toISOString(),
-                        monthlyActivity: [],
-                        yearlyActivity: []
-                    }
-                });
-            }
-        } catch (error) {
-            console.error("Error fetching/creating user profile in Firestore:", error);
-            // Non-blocking error
-        }
-
-        return isNewUser;
+        // MongoDB profile will be auto-created on the first API call to GET /profile
+        return result.user !== null;
     };
 
     const value = {

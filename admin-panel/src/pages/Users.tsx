@@ -137,8 +137,8 @@ export const UsersPage = () => {
         try {
             // Update year to requestedYear and remove requestedYear field
             await api.users.update(selectedUser.id, {
-                year: selectedUser.requestedYear,
-                requestedYear: deleteField()
+                academicYear: selectedUser.requestedYear,
+                requestedYear: null
             });
             // Update local state
             setUsers(prev => prev.map(u => u.id === selectedUser.id ? { ...u, year: u.requestedYear, requestedYear: undefined } : u));

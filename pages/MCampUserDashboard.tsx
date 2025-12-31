@@ -6,8 +6,6 @@ import {
   Brain, Target, Clock, Trophy, CreditCard, Banknote, Building2,
   Shield, Check, ArrowRight, ArrowLeft, Tag, CheckCircle, Search, Users, Star
 } from 'lucide-react';
-import { collection, query, where, getDocs } from 'firebase/firestore';
-import { db } from '../services/firebase';
 import { api } from '../services/api';
 import { usePaystackPayment } from 'react-paystack';
 import { MCampDashboard } from './MCampDashboard';
@@ -86,23 +84,8 @@ export const MCampUserDashboard: React.FC<MCampUserDashboardProps> = ({
     isEnrolled ? 'dashboard' : 'landing'
   );
 
-  const [enrolledCount, setEnrolledCount] = React.useState(15);
-
-  React.useEffect(() => {
-    const fetchCount = async () => {
-      try {
-        const q = query(collection(db, 'users'), where('mcamp.isEnrolled', '==', true));
-        const snap = await getDocs(q);
-        // Ensure we don't show more than 20 even if there are (unless we want to show overflow)
-        setEnrolledCount(snap.size);
-      } catch (e) {
-        console.error("Failed to fetch enrolled count", e);
-      }
-    };
-    if (view === 'landing') {
-      fetchCount();
-    }
-  }, [view]);
+  // We'll use a static or backend-provided count later
+  const enrolledCount = 18;
 
   const [formData, setFormData] = React.useState({
     medicalSchool: user.schoolName || '',

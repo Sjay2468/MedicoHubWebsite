@@ -42,10 +42,10 @@ export class ResourceService {
                 const diffDays = Math.ceil(Math.abs(end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
 
                 try {
-                    const { db } = require('../../config/firebase');
-                    const curriculumSnap = await db.collection('mcamp').doc('curriculum').get();
-                    if (curriculumSnap.exists()) {
-                        const weeks = curriculumSnap.data().weeks || [];
+                    const Curriculum = require('../../models/Curriculum').default;
+                    const cur = await Curriculum.findOne({ id: 'curriculum' });
+                    if (cur) {
+                        const weeks = cur.weeks || [];
                         weeks.forEach((w: any) => {
                             const weekStartDay = (Number(w.id) - 1) * 7 + 1;
                             if (w.days) {

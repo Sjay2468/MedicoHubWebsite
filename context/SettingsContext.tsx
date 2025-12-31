@@ -1,7 +1,6 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { db } from '../services/firebase';
-import { doc, onSnapshot } from 'firebase/firestore';
+import { api } from '../services/api';
 
 interface Settings {
     maintenanceMode: boolean;
@@ -29,14 +28,20 @@ export const SettingsProvider = ({ children }: { children: React.ReactNode }) =>
     const [settings, setSettings] = useState<Settings>(defaultSettings);
 
     useEffect(() => {
-        const unsub = onSnapshot(doc(db, 'settings', 'config'), (snapshot) => {
-            if (snapshot.exists()) {
-                setSettings(prev => ({ ...prev, ...snapshot.data() } as Settings));
+        const fetchSettings = async () => {
+            try {
+                const data = await api.settings.get();
+                if (data) {
+                    setSettings(prev => ({ ...prev, ...data }));
+                }
+            } catch (error) {
+                console.error("Failed to fetch settings from MongoDB:", error);
             }
-        }, (error) => {
-            console.error("Settings Listener Error:", error);
-        });
-        return () => unsub();
+        };
+
+        fetchSettings();
+        const interval = setInterval(fetchSettings, 300000); // Check every 5 mins
+        return () => clearInterval(interval);
     }, []);
 
     return (

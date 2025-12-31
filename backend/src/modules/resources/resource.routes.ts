@@ -52,16 +52,16 @@ router.get('/admin/all', verifyAdmin, async (req, res) => {
 // Fetches resources filtered by the authenticated user's profile tags
 router.get('/', verifyAuth, async (req, res) => {
     try {
-        const { db } = require('../../config/firebase');
+        const User = require('../../models/User').default;
         if (!req.user) return res.status(401).json({ error: "Unauthorized" });
 
-        const userSnapshot = await db.collection('users').doc(req.user.uid).get();
-        const userProfile = userSnapshot.data() || {};
+        const userProfile = await User.findOne({ uid: req.user.uid });
+        if (!userProfile) return res.status(404).json({ error: "User profile not found in MongoDB" });
 
         const resources = await ResourceService.getResourcesForUser(userProfile);
         res.json(resources);
     } catch (error: any) {
-        console.error("Error fetching resources:", error);
+        console.error("Error fetching resources from MongoDB:", error);
         res.status(500).json({ error: error.message || "Internal Server Error" });
     }
 });

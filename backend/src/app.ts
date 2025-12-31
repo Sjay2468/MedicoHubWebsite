@@ -145,6 +145,9 @@ app.get('/', (req: Request, res: Response) => {
 import userRoutes from './modules/user/user.routes';
 import analyticsRoutes from './modules/analytics/analytics.routes';
 import resourceRoutesV3 from './modules/resources/resource.routes';
+import curriculumRoutes from './modules/resources/curriculum.routes';
+import notificationRoutes from './modules/user/notification.routes';
+import settingsRoutes from './modules/user/settings.routes';
 import analyticsRoutesV3 from './modules/analytics/analytics.v3.routes';
 import productRoutes from './modules/products/product.routes';
 import uploadRoutes from './modules/upload/upload.routes';
@@ -153,6 +156,9 @@ import deliveryRoutes from './modules/delivery/delivery.routes';
 import orderRoutes from './modules/orders/order.routes';
 
 app.use('/api/v1/users', userRoutes);
+app.use('/api/v1/curriculum', curriculumRoutes);
+app.use('/api/v1/notifications', notificationRoutes);
+app.use('/api/v1/settings', settingsRoutes);
 app.use('/api/v1/analytics', analyticsRoutes);
 app.use('/api/v3/resources', resourceRoutesV3);
 app.use('/api/v3/analytics', analyticsRoutesV3);

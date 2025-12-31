@@ -17,7 +17,8 @@ import { initializeFirestore } from "firebase/firestore";
 
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
-export const db = initializeFirestore(app, {
-    experimentalForceLongPolling: true
-});
+// Firestore removed
+// export const db = initializeFirestore(app, {
+//     experimentalForceLongPolling: true
+// });
 export const storage = getStorage(app);

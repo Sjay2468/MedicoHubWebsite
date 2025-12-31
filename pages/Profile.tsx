@@ -4,8 +4,7 @@ import { DashboardLayout } from '../components/DashboardLayout';
 import {
     AlertCircle, AlertTriangle, BookOpen, Building2, Calendar, Camera, Check, ChevronDown, ChevronRight, Edit2, GraduationCap, Lock, LogOut, Mail, MapPin, Phone, Plus, Save, Trash2, User as UserIcon, X, Zap, Star
 } from 'lucide-react';
-import { doc, getDoc, addDoc, collection, serverTimestamp } from 'firebase/firestore';
-import { db } from '../services/firebase';
+import { api } from '../services/api';
 import { StatusModal, ModalType } from '../components/StatusModal';
 import { useAuth } from '../context/AuthContext';
 
@@ -125,13 +124,12 @@ export const Profile: React.FC<ProfileProps> = ({
     React.useEffect(() => {
         const fetchYears = async () => {
             try {
-                const docRef = doc(db, 'settings', 'config');
-                const snap = await getDoc(docRef);
-                if (snap.exists() && snap.data().academicYears && Array.isArray(snap.data().academicYears)) {
-                    setYears(snap.data().academicYears);
+                const data = await api.settings.get();
+                if (data && data.academicYears && Array.isArray(data.academicYears)) {
+                    setYears(data.academicYears);
                 }
             } catch (error) {
-                console.error("Failed to fetch academic years", error);
+                console.error("Failed to fetch academic years from MongoDB:", error);
             }
         };
         fetchYears();
@@ -184,21 +182,21 @@ export const Profile: React.FC<ProfileProps> = ({
 
         // Check for Year Upgrade/Change
         if (formData.year !== user.year) {
-            // Send Alert to Admin
+            // Send Alert to Admin via MongoDB API
             try {
-                addDoc(collection(db, 'notifications'), {
+                // If we have an admin specifically, we can target them, or just broadcast to 'admin' category
+                // Our new API has broadcast which takes target.
+                api.notifications.broadcast({
                     title: 'User Profile Upgrade Request',
                     message: `${fullName} (${user.email}) requested to change their year from ${user.year || 'None'} to ${formData.year}.`,
                     type: 'alert',
                     category: 'system',
                     target: 'admin',
                     userId: user.uid || user.id,
-                    read: false,
-                    createdAt: serverTimestamp(),
                     icon: 'AlertTriangle'
-                });
+                } as any);
             } catch (error) {
-                console.error("Failed to send admin alert", error);
+                console.error("Failed to send admin alert to MongoDB:", error);
             }
         }
 

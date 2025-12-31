@@ -6,7 +6,11 @@ export interface IUser extends Document {
     email: string;
     role: 'student' | 'admin';
     academicYear: 'Year 1' | 'Year 2' | 'Clinical' | 'Final Year' | 'General';
-    institution: string;
+    requestedYear?: string;
+    institution?: string;
+    schoolName?: string;
+    firstName?: string;
+    surname?: string;
     photoURL?: string;
 
     isSubscribed: boolean;
@@ -16,18 +20,32 @@ export interface IUser extends Document {
         endDate: Date;
     }[];
 
+    weakness: string[];
+    currentCourses: string[];
+
     mcamp?: {
         isEnrolled: boolean;
         cohortId: string;
         uniqueId: string;
         enrollmentDate: Date;
+        medicalSchool?: string;
+        level?: string;
+        phoneNumber?: string;
     };
+
+    quizAttempts?: Map<string, any>;
+    resourceProgress?: Map<string, any>;
 
     analytics?: {
         totalSecondsStudied: number;
+        totalHours?: number;
         pointsEarned: number;
         streakDays: number;
+        currentStreak?: number;
         lastActive: Date;
+        lastStudyDate?: string;
+        monthlyActivity?: number[];
+        yearlyActivity?: Map<string, number>;
     };
 
     createdAt: Date;
@@ -40,9 +58,15 @@ const UserSchema: Schema = new Schema({
     email: { type: String, required: true, unique: true },
     role: { type: String, enum: ['student', 'admin'], default: 'student' },
     academicYear: { type: String, default: 'General' },
+    requestedYear: { type: String },
     institution: { type: String },
+    schoolName: { type: String },
+    firstName: { type: String },
+    surname: { type: String },
 
-    // photoURL: { type: String }, // Actually let's just add it
+    weakness: { type: [String], default: [] },
+    currentCourses: { type: [String], default: [] },
+
     photoURL: { type: String },
     isSubscribed: { type: Boolean, default: false },
     subscriptions: [{
@@ -55,14 +79,34 @@ const UserSchema: Schema = new Schema({
         isEnrolled: { type: Boolean, default: false },
         cohortId: String,
         uniqueId: String,
-        enrollmentDate: Date
+        enrollmentDate: Date,
+        medicalSchool: String,
+        level: String,
+        phoneNumber: String
+    },
+
+    quizAttempts: {
+        type: Map,
+        of: Schema.Types.Mixed,
+        default: {}
+    },
+
+    resourceProgress: {
+        type: Map,
+        of: Schema.Types.Mixed,
+        default: {}
     },
 
     analytics: {
         totalSecondsStudied: { type: Number, default: 0 },
+        totalHours: { type: Number, default: 0 },
         pointsEarned: { type: Number, default: 0 },
         streakDays: { type: Number, default: 0 },
-        lastActive: Date
+        currentStreak: { type: Number, default: 0 },
+        lastActive: Date,
+        lastStudyDate: String,
+        monthlyActivity: [Number],
+        yearlyActivity: { type: Map, of: Number }
     }
 }, { timestamps: true });
 

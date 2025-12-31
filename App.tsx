@@ -23,8 +23,7 @@ import { User, AppRoute, Notification } from './types';
 import { Stethoscope } from 'lucide-react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { SettingsProvider, useSettings } from './context/SettingsContext';
-import { doc, getDoc, updateDoc, collection, query, where, onSnapshot } from 'firebase/firestore';
-import { db } from './services/firebase';
+import { api } from './services/api';
 import { StatusModal, ModalType } from './components/StatusModal';
 
 const ScrollToTop = () => {
@@ -98,53 +97,38 @@ const AppContent: React.FC = () => {
       if (firebaseUser) {
         setAppLoading(true);
         try {
-          unsubscribe = onSnapshot(doc(db, 'users', firebaseUser.uid), async (userDoc) => {
-            if (userDoc.exists()) {
-              const userData = userDoc.data() as User;
+          // Fetch from MongoDB via our API instead of Firestore Snapshot
+          const userData = await api.users.get(firebaseUser.uid);
 
-              // Logic to update streak only once per session/day could go here, 
-              // but for simplicity we'll just Load the data.
-              // The streak update logic was modifying DB on load, which might cause loops if not careful with snapshot.
-              // We will skip the auto-write for streak inside the snapshot listener to avoid infinite loops.
+          if (userData) {
+            setUser({ ...userData, emailVerified: firebaseUser.emailVerified });
+            const localNotifs = generateNotifications(userData);
 
-              setUser({ ...userData, emailVerified: firebaseUser.emailVerified });
-
-              // Merge real-time notifications? 
-              // Actually generateNotifications creates STATIC/Local ones. 
-              // We should keep them but maybe re-generate if user data changes (e.g. course added).
-              const localNotifs = generateNotifications(userData);
-
-              // We need to merge these with the "broadcasts" fetched in another effect
-              // The other effect updates 'notifications' state directly. 
-              // This might cause a conflict if we overwrite plain 'setNotifications'.
-              // Strategy: We will just update the user state here. 
-              // The broadcast effect depends on [user] so it will re-run and re-merge everything.
-
-              // However, we need to initialize notifications at least once
-              setNotifications(prev => {
-                // Primitive merge: keep existing broadcasts, replace locals
-                const broadcasts = prev.filter(n => n.isBroadcast || n.id.startsWith('email-verified'));
-                // Dedup based on ID
-                const existingIds = new Set(broadcasts.map(n => n.id));
-                const newLocals = localNotifs.filter(n => !existingIds.has(n.id));
-                return [...broadcasts, ...newLocals];
-              });
-
-            } else {
-              // Fallback
-              setUser({
-                name: firebaseUser.displayName || 'Student',
-                email: firebaseUser.email || '',
-                isSubscribed: false,
-              } as User);
-            }
-            setAppLoading(false);
-          }, (error) => {
-            console.error("Error listening to user data:", error);
-            setAppLoading(false);
-          });
+            setNotifications(prev => {
+              const broadcasts = prev.filter(n => n.isBroadcast || n.id.startsWith('email-verified'));
+              const existingIds = new Set(broadcasts.map(n => n.id));
+              const newLocals = localNotifs.filter(n => !existingIds.has(n.id));
+              return [...broadcasts, ...newLocals];
+            });
+          } else {
+            // Fallback for new users or if not in MongoDB yet
+            setUser({
+              uid: firebaseUser.uid,
+              name: firebaseUser.displayName || 'Student',
+              email: firebaseUser.email || '',
+              isSubscribed: false,
+            } as any as User);
+          }
         } catch (error) {
-          console.error("Error setting up listener:", error);
+          console.error("Error fetching user data from MongoDB:", error);
+          // Still set basic info if API fails
+          setUser({
+            uid: firebaseUser.uid,
+            name: firebaseUser.displayName || 'Student',
+            email: firebaseUser.email || '',
+            isSubscribed: false,
+          } as any as User);
+        } finally {
           setAppLoading(false);
         }
       } else {
@@ -178,7 +162,8 @@ const AppContent: React.FC = () => {
 
       if (diffInDays >= limit) {
         try {
-          await updateDoc(doc(db, 'users', firebaseUser!.uid), {
+          // Update MongoDB via API
+          await api.users.update(firebaseUser!.uid, {
             isSubscribed: false,
             subscriptionPlan: null,
             subscriptionDate: null
@@ -225,6 +210,26 @@ const AppContent: React.FC = () => {
     }
   }, [firebaseUser]);
 
+  // Fetch MongoDB Notifications
+  React.useEffect(() => {
+    if (firebaseUser) {
+      const fetchNotifications = async () => {
+        try {
+          const data = await api.notifications.get();
+          if (Array.isArray(data)) {
+            setNotifications(data);
+          }
+        } catch (error) {
+          console.error("Failed to fetch notifications from MongoDB:", error);
+        }
+      };
+
+      fetchNotifications();
+      const interval = setInterval(fetchNotifications, 60000); // Poll every minute
+      return () => clearInterval(interval);
+    }
+  }, [firebaseUser]);
+
 
   // Helper function
   const generateNotifications = (u: User) => {
@@ -266,69 +271,18 @@ const AppContent: React.FC = () => {
     return newNotifs;
   };
 
-  // FETCH BROADCASTS
-  React.useEffect(() => {
-    if (!user) return;
-
-    const targets = ['all'];
-    if (user.year) targets.push(user.year);
-    if (user.uid) targets.push(user.uid); // Listen for personal notifications
-
-    const q = query(
-      collection(db, 'notifications'),
-      where('target', 'in', targets)
-    );
-
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const broadcasts = snapshot.docs.map(doc => {
-        const data = doc.data();
-        let dateStr = 'Just Now';
-        let rawDate = Date.now();
-
-        if (data.createdAt) {
-          const d = new Date(data.createdAt);
-          dateStr = d.toLocaleDateString();
-          rawDate = d.getTime();
-        }
-
-        return {
-          id: doc.id,
-          title: data.title,
-          message: data.message,
-          type: data.type || 'info',
-          date: dateStr,
-          rawDate: rawDate,
-          read: data.read || false,
-          isBroadcast: true
-        } as Notification & { isBroadcast?: boolean; rawDate?: number };
-      });
-
-      // Merge with local static ones
-      setNotifications(prev => {
-        const locals = prev.filter(n => !n.isBroadcast);
-        const all = [...locals, ...broadcasts];
-        // Sort by date desc (newest first)
-        return all.sort((a, b) => {
-          const timeA = (a as any).rawDate || Date.parse(a.date) || 0;
-          const timeB = (b as any).rawDate || Date.parse(b.date) || 0;
-          return timeB - timeA;
-        });
-      });
-    });
-
-    return () => unsubscribe();
-  }, [user?.year, user?.uid]); // Re-run if user changes reference
-
 
   const handleUpdateUser = async (data: Partial<User>) => {
     if (user && firebaseUser) {
+      // Optimistic update
       const updatedUser = { ...user, ...data };
       setUser(updatedUser);
-      // Update Firestore
+
       try {
-        await updateDoc(doc(db, 'users', firebaseUser.uid), data);
+        // Hit MongoDB Backend API
+        await api.users.update(firebaseUser.uid, data);
       } catch (e) {
-        console.error("Error updating user profile", e);
+        console.error("Error updating user profile in MongoDB:", e);
       }
     }
   };
@@ -464,7 +418,7 @@ const AppContent: React.FC = () => {
       <Routes>
         <Route path={AppRoute.HOME} element={<LandingPage />} />
         <Route path={AppRoute.ABOUT} element={<About />} />
-        <Route path={AppRoute.PRICING} element={<Pricing user={user} />} />
+        <Route path={AppRoute.PRICING} element={<Pricing user={user} onUpdateUser={handleUpdateUser} />} />
         <Route path={AppRoute.MCAMP} element={<MCamp user={user} onLogout={handleLogout} />} />
 
         <Route
