@@ -40,6 +40,7 @@ export interface ResourceDocument {
     url: string;
     thumbnailUrl: string;
     hasAiAccess: boolean;
+    cohortId?: string;
 
     createdAt: string;
 }
