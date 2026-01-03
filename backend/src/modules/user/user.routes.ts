@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { User } from '../../models/User';
 import { verifyAuth, verifyAdmin } from '../../middleware/auth.middleware';
 import { auth, admin } from '../../config/firebase';
+import { EmailService } from '../../services/email.service';
 
 const router = Router();
 
@@ -280,6 +281,9 @@ router.patch('/:uid/profile', verifyAuth, async (req: Request, res: Response) =>
 
         console.log(`[User Update] UID: ${uid}, Fields:`, Object.keys(updates));
 
+        // Fetch old state to detect transitions
+        const oldUser = await User.findOne({ uid });
+
         // If photoURL or name is updated, also update Firebase Auth Profile (Sync for Auth only)
         if (updates.photoURL || updates.name) {
             await auth.updateUser(uid, {
@@ -293,6 +297,22 @@ router.patch('/:uid/profile', verifyAuth, async (req: Request, res: Response) =>
             { $set: updates },
             { new: true, upsert: true }
         );
+
+        // --- EMAIL TRIGGERS ---
+        if (user) {
+            // 1. Welcome Email: Send if name was just set and they didn't have one before
+            // Or if it's a completely new user document (oldUser is null)
+            if (!oldUser || (!oldUser.name && updates.name)) {
+                EmailService.sendWelcomeEmail(user).catch(e => console.error("Welcome email failed", e));
+            }
+
+            // 2. MCAMP Welcome: Send if mcamp.isEnrolled transitioned from false/undefined to true
+            const wasEnrolled = oldUser?.mcamp?.isEnrolled;
+            const isEnrolled = user.mcamp?.isEnrolled;
+            if (isEnrolled && !wasEnrolled) {
+                EmailService.sendMcampWelcomeEmail(user, user.mcamp?.uniqueId || 'PENDING').catch(e => console.error("MCAMP email failed", e));
+            }
+        }
 
         // Explicitly map for frontend compatibility
         const userData = user ? user.toObject() : null;
