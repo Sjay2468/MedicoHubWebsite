@@ -32,7 +32,10 @@ export interface IUser extends Document {
         medicalSchool?: string;
         level?: string;
         phoneNumber?: string;
+        isSuspended?: boolean;
+        suspensionDate?: string | Date | null;
     };
+    status?: 'active' | 'suspended';
 
     quizAttempts?: Map<string, any>;
     resourceProgress?: Map<string, any>;
@@ -64,6 +67,7 @@ const UserSchema: Schema = new Schema({
     schoolName: { type: String },
     firstName: { type: String },
     surname: { type: String },
+    status: { type: String, enum: ['active', 'suspended'], default: 'active' },
 
     weakness: { type: [String], default: [] },
     currentCourses: { type: [String], default: [] },
@@ -83,7 +87,9 @@ const UserSchema: Schema = new Schema({
         enrollmentDate: Date,
         medicalSchool: String,
         level: String,
-        phoneNumber: String
+        phoneNumber: String,
+        isSuspended: { type: Boolean, default: false },
+        suspensionDate: Date
     },
 
     quizAttempts: {

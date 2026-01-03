@@ -248,8 +248,10 @@ router.patch('/:uid/profile', verifyAuth, async (req: Request, res: Response) =>
             'name', 'firstName', 'surname', 'email', 'phoneNumber',
             'institution', 'schoolName', 'photoURL', 'academicYear',
             'requestedYear', 'weakness', 'currentCourses', 'isSubscribed',
-            'mcamp', 'analytics', 'resourceProgress'
+            'mcamp', 'analytics', 'resourceProgress', 'status', 'uid'
         ];
+
+        console.log(`[User Update] UID: ${uid}, Fields:`, Object.keys(items));
 
         allowedFields.forEach(field => {
             if (items[field] !== undefined) {

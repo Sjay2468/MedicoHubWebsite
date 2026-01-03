@@ -789,14 +789,22 @@ const LeaderboardView = () => {
                                                 <button
                                                     onClick={async () => {
                                                         if (window.confirm(`Are you sure you want to ${user.mcamp?.isSuspended ? 'ACTIVATE' : 'SUSPEND'} this user?`)) {
-                                                            await api.users.update(user.uid || user.id, {
-                                                                mcamp: {
-                                                                    ...user.mcamp,
-                                                                    isSuspended: !user.mcamp?.isSuspended,
-                                                                    suspensionDate: !user.mcamp?.isSuspended ? new Date().toISOString() : null
-                                                                }
-                                                            });
-                                                            loadData();
+                                                            try {
+                                                                const isSuspending = !user.mcamp?.isSuspended;
+                                                                await api.users.update(user.uid || user.id, {
+                                                                    status: isSuspending ? 'suspended' : 'active',
+                                                                    mcamp: {
+                                                                        ...user.mcamp,
+                                                                        isSuspended: isSuspending,
+                                                                        suspensionDate: isSuspending ? new Date().toISOString() : null
+                                                                    }
+                                                                });
+                                                                alert(`User successfully ${isSuspending ? 'suspended' : 'activated'}`);
+                                                                loadData();
+                                                            } catch (err: any) {
+                                                                console.error("Suspension toggle failed:", err);
+                                                                alert("Failed to update user status: " + (err.message || "Unknown error"));
+                                                            }
                                                         }
                                                     }}
                                                     className={`text-xs px-3 py-1.5 rounded-lg font-bold transition-colors ${user.mcamp?.isSuspended ? 'bg-green-100 text-green-600 hover:bg-green-200' : 'bg-red-50 text-red-500 hover:bg-red-100'}`}
