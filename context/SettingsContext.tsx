@@ -10,6 +10,7 @@ interface Settings {
     mcampEnrollment: boolean;
     proDiscountEnabled: boolean;
     proDiscountPercentage: number;
+    targetYear?: string;
 }
 
 const defaultSettings: Settings = {
@@ -19,7 +20,8 @@ const defaultSettings: Settings = {
     mcampLive: false,
     mcampEnrollment: true,
     proDiscountEnabled: true,
-    proDiscountPercentage: 10
+    proDiscountPercentage: 10,
+    targetYear: 'Year 2'
 };
 
 const SettingsContext = createContext<Settings>(defaultSettings);

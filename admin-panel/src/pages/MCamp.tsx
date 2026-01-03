@@ -566,7 +566,7 @@ const HelperResourcePicker = ({ allResources, initialSelected, onSave }: any) =>
                 />
             </div>
             <div className="space-y-2 max-h-[400px] overflow-y-auto">
-                {allResources.filter((r: any) => r.title.toLowerCase().includes(search.toLowerCase())).map((res: any) => (
+                {allResources.filter((r: any) => (r.title || '').toLowerCase().includes(search.toLowerCase())).map((res: any) => (
                     <div
                         key={res.id || res._id}
                         onClick={() => {
@@ -1901,5 +1901,6 @@ const GradingConfirmModal = ({ isOpen, onClose, onConfirm, score, mcampId }: any
         document.body
     );
 };
+
 
 

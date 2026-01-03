@@ -108,8 +108,33 @@ export const MCampUserDashboard: React.FC<MCampUserDashboardProps> = ({
   const BASE_PRICE = 30000;
   const finalPrice = BASE_PRICE - discount;
 
-  // Determine eligibility based on year string
-  const isEligible = user.year === 'Year 2' || user.year === '200L' || user.year?.toLowerCase().includes('200l') || user.year?.toLowerCase().includes('preclinical');
+  // Determine eligibility based on target year from settings
+  const targetLevel = React.useMemo(() => {
+    // This will be fetched from backend curriculum settings
+    return mcampEnrollment?.targetYear || 'Year 2';
+  }, [mcampEnrollment]);
+
+  const isEligible = React.useMemo(() => {
+    if (!user.year) return false;
+    const userYear = user.year.toLowerCase();
+    const target = targetLevel.toLowerCase();
+
+    // Match various formats: "Year 2", "200L", "year 2", "preclinical", etc.
+    if (target.includes('1') || target.includes('100')) {
+      return userYear.includes('1') || userYear.includes('100') || userYear.includes('preclinical');
+    } else if (target.includes('2') || target.includes('200')) {
+      return userYear.includes('2') || userYear.includes('200') || userYear.includes('preclinical');
+    } else if (target.includes('3') || target.includes('300')) {
+      return userYear.includes('3') || userYear.includes('300') || userYear.includes('clinical');
+    } else if (target.includes('4') || target.includes('400')) {
+      return userYear.includes('4') || userYear.includes('400') || userYear.includes('clinical');
+    } else if (target.includes('5') || target.includes('500')) {
+      return userYear.includes('5') || userYear.includes('500');
+    } else if (target.includes('6') || target.includes('600')) {
+      return userYear.includes('6') || userYear.includes('600');
+    }
+    return false;
+  }, [user.year, targetLevel]);
 
   const filteredSchools = NIGERIAN_MEDICAL_SCHOOLS.filter(
     s => s.toLowerCase().includes(formData.medicalSchool.toLowerCase())
@@ -305,7 +330,7 @@ export const MCampUserDashboard: React.FC<MCampUserDashboardProps> = ({
                     : 'bg-gray-600 text-gray-400 cursor-not-allowed opacity-70'
                     }`}
                 >
-                  {!mcampEnrollment ? 'Enrollment Closed' : (isEligible ? 'Enroll Now' : 'Available for 200L Only')}
+                  {!mcampEnrollment ? 'Enrollment Closed' : (isEligible ? 'Enroll Now' : `Available for ${targetLevel} Only`)}
                 </button>
 
                 {!mcampEnrollment && (
@@ -316,7 +341,7 @@ export const MCampUserDashboard: React.FC<MCampUserDashboardProps> = ({
 
                 {mcampEnrollment && !isEligible && (
                   <p className="text-red-400 text-sm font-bold bg-red-950/40 px-6 py-2.5 rounded-xl border border-red-500/20 animate-fade-in-up">
-                    Ineligible: Your profile indicates {user.year || 'a different level'}.
+                    Ineligible: This cohort is for {targetLevel} students. Your profile indicates {user.year || 'a different level'}.
                   </p>
                 )}
               </div>
