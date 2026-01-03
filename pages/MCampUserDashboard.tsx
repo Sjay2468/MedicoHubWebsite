@@ -97,6 +97,7 @@ export const MCampUserDashboard: React.FC<MCampUserDashboardProps> = ({
   const [selectedPayment, setSelectedPayment] = React.useState('');
 
   const [targetYear, setTargetYear] = React.useState<string>('Year 2');
+  const [activeCohortId, setActiveCohortId] = React.useState<string>('');
 
   // School Dropdown
   const [isSchoolDropdownOpen, setIsSchoolDropdownOpen] = React.useState(false);
@@ -114,6 +115,9 @@ export const MCampUserDashboard: React.FC<MCampUserDashboardProps> = ({
         if (curriculum?.targetYear) {
           setTargetYear(curriculum.targetYear);
         }
+        if (curriculum?.activeCohortId) {
+          setActiveCohortId(curriculum.activeCohortId);
+        }
       } catch (err) {
         console.error("Failed to fetch target year:", err);
       }
@@ -123,6 +127,15 @@ export const MCampUserDashboard: React.FC<MCampUserDashboardProps> = ({
 
   const BASE_PRICE = 30000;
   const finalPrice = BASE_PRICE - discount;
+
+  // SESSION-BASED ENROLLMENT CHECK
+  // A user is only "Enrolled" in the ACTIVE context if their cohortId matches the Active Cohort ID
+  const isActiveSessionEnrolled = React.useMemo(() => {
+    if (!isEnrolled) return false;
+    // If no activeCohortId is set by admin yet, fallback to year-based check for legacy
+    if (!activeCohortId) return isEnrolled;
+    return user.mcamp?.cohortId === activeCohortId;
+  }, [isEnrolled, user.mcamp?.cohortId, activeCohortId]);
 
   // Determine eligibility based on targetYear from curriculum
   const isEligible = React.useMemo(() => {
@@ -134,10 +147,24 @@ export const MCampUserDashboard: React.FC<MCampUserDashboardProps> = ({
   // Restrict Dashboard access to active cohort only
   const isCorrectCohort = React.useMemo(() => {
     if (!isEnrolled) return true;
+
+    // If we have an active session, strictly check the Cohort ID
+    if (activeCohortId) {
+      return user.mcamp?.cohortId === activeCohortId;
+    }
+
+    // Fallback: Check if user's cohort year matches current target year
     const userCohort = (user.mcamp?.cohortYear || user.year || user.academicYear || '').toString().toLowerCase();
     const targetY = targetYear.toLowerCase();
     return userCohort === targetY || userCohort.includes(targetY) || targetY.includes(userCohort);
-  }, [isEnrolled, user.mcamp?.cohortYear, user.year, user.academicYear, targetYear]);
+  }, [isEnrolled, user.mcamp?.cohortId, user.mcamp?.cohortYear, user.year, user.academicYear, targetYear, activeCohortId]);
+
+  // Override view based on session enrollment
+  React.useEffect(() => {
+    if (isActiveSessionEnrolled) {
+      setView('dashboard');
+    }
+  }, [isActiveSessionEnrolled]);
 
   const filteredSchools = NIGERIAN_MEDICAL_SCHOOLS.filter(
     s => s.toLowerCase().includes(formData.medicalSchool.toLowerCase())
@@ -246,9 +273,12 @@ export const MCampUserDashboard: React.FC<MCampUserDashboardProps> = ({
     setTimeout(() => {
       const generatedId = Math.floor(1000 + Math.random() * 9000).toString();
 
+      // Use provided ActiveCohortId or generate one based on year group
+      const currentSessionId = activeCohortId || `cohort-${targetYear.replace(/\s+/g, '-').toLowerCase()}-${new Date().getFullYear()}`;
+
       const enrollmentData = {
         isEnrolled: true,
-        cohortId: `cohort-${targetYear.replace(/\s+/g, '-').toLowerCase()}`,
+        cohortId: currentSessionId,
         cohortYear: targetYear,
         uniqueId: generatedId,
         startDate: new Date().toISOString()

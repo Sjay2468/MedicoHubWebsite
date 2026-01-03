@@ -43,7 +43,7 @@ export class ResourceService {
                 const userCohortYear = (mcamp.cohortYear || userProfile.year || userProfile.academicYear || '').toString().toLowerCase();
 
                 if (isSuspended && suspensionDate && startDate) {
-                    // Calculate cutoff day
+                    // Calculate cutoff day for suspended users
                     const start = new Date(startDate);
                     const end = new Date(suspensionDate);
                     const diffDays = Math.ceil(Math.abs(end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
@@ -61,23 +61,28 @@ export class ResourceService {
                         }
                     });
                 } else {
-                    // Not suspended: Filter MCAMP content by COHORT
+                    // Not suspended: Filter MCAMP content by specific COHORT ID
+                    const userCohortId = mcamp.cohortId || `cohort-${userCohortYear.replace(/\s+/g, '-').toLowerCase()}`;
+
                     allResources.forEach(res => {
                         const tags = (res.tags || []).map(t => t.toLowerCase());
                         const resYear = (res.year || '').toLowerCase();
+                        const resCohortId = res.cohortId; // If we add this to Resource model eventually
 
                         if (res.isMcampExclusive || tags.includes('mcamp')) {
-                            // Only allow if the resource year matches the user's cohort year
-                            // This ensures they only see their OWN cohort's resources
-                            if (resYear === userCohortYear || userCohortYear.includes(resYear) || resYear.includes(userCohortYear)) {
+                            // Logic: Match by Cohort ID (Primary) or Year (Secondary fallback for existing resources)
+                            const matchesCohort = resCohortId === userCohortId;
+                            const matchesYear = resYear === userCohortYear || userCohortYear.includes(resYear) || resYear.includes(userCohortYear);
+
+                            if (matchesCohort || matchesYear) {
                                 allowedMcampIds.add(res.id);
                             }
                         }
                     });
                 }
             } catch (err) {
-                console.error("Failed to fetch curriculum for cohort filter:", err);
-                // Fallback: allow all MCAMP resources if curriculum fetch fails
+                console.error("Failed to fetch curriculum for session filter:", err);
+                // Fallback logic
                 allResources.forEach(res => {
                     const tags = (res.tags || []).map(t => t.toLowerCase());
                     if (res.isMcampExclusive || tags.includes('mcamp')) {
