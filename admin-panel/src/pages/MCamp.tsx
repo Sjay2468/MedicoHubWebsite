@@ -553,6 +553,9 @@ const HelperResourcePicker = ({ allResources, initialSelected, onSave }: any) =>
     const [selected, setSelected] = useState<string[]>(initialSelected || []);
     const [search, setSearch] = useState('');
 
+    // Robust safety check to prevent crashes if allResources is undefined/null or contains non-objects
+    const validResources = Array.isArray(allResources) ? allResources : [];
+
     return (
         <div className="space-y-4">
             <div className="relative">
@@ -566,27 +569,29 @@ const HelperResourcePicker = ({ allResources, initialSelected, onSave }: any) =>
                 />
             </div>
             <div className="space-y-2 max-h-[400px] overflow-y-auto">
-                {allResources.filter((r: any) => (r.title || '').toLowerCase().includes(search.toLowerCase())).map((res: any) => (
-                    <div
-                        key={res.id || res._id}
-                        onClick={() => {
-                            const id = res.id || res._id;
-                            setSelected(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
-                        }}
-                        className={`p-3 rounded-xl border cursor-pointer flex items-center justify-between transition-all ${selected.includes(res.id || res._id) ? 'bg-blue-50 border-brand-blue' : 'bg-white border-gray-100 hover:border-gray-300'}`}
-                    >
-                        <div className="flex items-center gap-3">
-                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold ${res.type === 'Quiz' ? 'bg-purple-100 text-purple-600' : 'bg-red-100 text-red-600'}`}>
-                                {res.type === 'Quiz' ? 'Q' : 'V'}
+                {validResources
+                    .filter((r: any) => r && typeof r === 'object' && (r.title || '').toLowerCase().includes(search.toLowerCase()))
+                    .map((res: any) => (
+                        <div
+                            key={res.id || res._id}
+                            onClick={() => {
+                                const id = res.id || res._id;
+                                setSelected(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+                            }}
+                            className={`p-3 rounded-xl border cursor-pointer flex items-center justify-between transition-all ${selected.includes(res.id || res._id) ? 'bg-blue-50 border-brand-blue' : 'bg-white border-gray-100 hover:border-gray-300'}`}
+                        >
+                            <div className="flex items-center gap-3">
+                                <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold ${res.type === 'Quiz' ? 'bg-purple-100 text-purple-600' : 'bg-red-100 text-red-600'}`}>
+                                    {res.type === 'Quiz' ? 'Q' : 'V'}
+                                </div>
+                                <div>
+                                    <p className="font-bold text-sm text-gray-800">{res.title}</p>
+                                    <p className="text-[10px] text-gray-500 uppercase">{res.subject}</p>
+                                </div>
                             </div>
-                            <div>
-                                <p className="font-bold text-sm text-gray-800">{res.title}</p>
-                                <p className="text-[10px] text-gray-500 uppercase">{res.subject}</p>
-                            </div>
+                            {selected.includes(res.id || res._id) && <CheckCircle className="text-brand-blue" size={20} />}
                         </div>
-                        {selected.includes(res.id || res._id) && <CheckCircle className="text-brand-blue" size={20} />}
-                    </div>
-                ))}
+                    ))}
             </div>
             <button onClick={() => onSave(selected)} className="w-full py-3 bg-brand-blue text-white rounded-xl font-bold hover:bg-blue-600 transition-colors shadow-lg shadow-brand-blue/20">
                 Save Assignments
