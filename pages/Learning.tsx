@@ -698,28 +698,35 @@ export const Learning: React.FC<LearningProps> = ({
                                                                 }}
                                                             />
                                                         ) : isPlaying ? (
-                                                            activeResource.isYoutube ? (
-                                                                <iframe
-                                                                    id="yt-player"
-                                                                    width="100%"
-                                                                    height="100%"
-                                                                    src={`https://www.youtube.com/embed/${getYouTubeId(activeResource.url || '')}?autoplay=1&modestbranding=1&rel=0&iv_load_policy=3&controls=1&disablekb=0&showinfo=0&enablejsapi=1&origin=${window.location.origin}`}
-                                                                    title={activeResource.title}
-                                                                    frameBorder="0"
-                                                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                                                    allowFullScreen="true"
-                                                                    className="absolute inset-0 w-full h-full"
-                                                                ></iframe>
-                                                            ) : (
-                                                                <video
-                                                                    controls
-                                                                    autoPlay
-                                                                    className="w-full h-full"
-                                                                    src={activeResource.url}
-                                                                >
-                                                                    Your browser does not support the video tag.
-                                                                </video>
-                                                            )
+                                                            (() => {
+                                                                // Robust YouTube detection: check flag OR URL content
+                                                                const isYouTubeVideo = activeResource.isYoutube ||
+                                                                    (activeResource.url || '').includes('youtube') ||
+                                                                    (activeResource.url || '').includes('youtu.be');
+
+                                                                return isYouTubeVideo ? (
+                                                                    <iframe
+                                                                        id="yt-player"
+                                                                        width="100%"
+                                                                        height="100%"
+                                                                        src={`https://www.youtube.com/embed/${getYouTubeId(activeResource.url || '')}?autoplay=1&modestbranding=1&rel=0&iv_load_policy=3&controls=1&disablekb=0&showinfo=0&enablejsapi=1&origin=${window.location.origin}`}
+                                                                        title={activeResource.title}
+                                                                        frameBorder="0"
+                                                                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                                                        allowFullScreen={true}
+                                                                        className="absolute inset-0 w-full h-full"
+                                                                    ></iframe>
+                                                                ) : (
+                                                                    <video
+                                                                        controls
+                                                                        autoPlay
+                                                                        className="w-full h-full"
+                                                                        src={activeResource.url}
+                                                                    >
+                                                                        Your browser does not support the video tag.
+                                                                    </video>
+                                                                );
+                                                            })()
                                                         ) : (
                                                             <>
                                                                 {activeResource.thumbnailUrl && (
@@ -733,19 +740,19 @@ export const Learning: React.FC<LearningProps> = ({
                                                                     <button onClick={() => setIsPlaying(true)} className="transform transition-transform duration-300 hover:scale-110">
                                                                         <PlayCircle size={80} className="opacity-80 hover:opacity-100 text-brand-blue" />
                                                                     </button>
-                                                                    {!activeResource.isYoutube && (
+                                                                    {!((activeResource.url || '').includes('youtube') || (activeResource.url || '').includes('youtu.be')) && (
                                                                         <p className="bg-black/50 backdrop-blur px-4 py-2 rounded-full text-xs font-bold tracking-widest uppercase border border-white/20">
                                                                             {activeResource.embedCode ? 'External Stream' : 'Secure Internal Stream'}
                                                                         </p>
                                                                     )}
                                                                 </div>
 
-                                                                {activeResource.isYoutube && (
+                                                                {((activeResource.url || '').includes('youtube') || (activeResource.url || '').includes('youtu.be')) && (
                                                                     <div className="absolute bottom-4 right-4 bg-red-600 text-white px-3 py-1.5 rounded-lg text-[10px] font-extrabold uppercase shadow-lg flex items-center gap-1.5">
                                                                         <Video size={12} /> YouTube View
                                                                     </div>
                                                                 )}
-                                                                {!activeResource.isYoutube && (
+                                                                {!((activeResource.url || '').includes('youtube') || (activeResource.url || '').includes('youtu.be')) && (
                                                                     <div className="absolute bottom-4 right-4 bg-brand-blue text-white px-3 py-1.5 rounded-lg text-[10px] font-extrabold uppercase shadow-lg flex items-center gap-1.5">
                                                                         <Star size={12} fill="currentColor" /> {activeResource.embedCode ? 'Embedded Content' : 'Admin Uploaded'}
                                                                     </div>

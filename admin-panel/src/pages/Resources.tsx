@@ -265,7 +265,7 @@ export const ResourcesPage = () => {
                 thumbnailUrl: formData.thumbnailUrl,
                 courseId: 'general',
                 moduleId: 'general',
-                isYoutube: (downloadUrl || '').includes('youtube') || (downloadUrl || '').includes('youtu.be')
+                isYoutube: (downloadUrl || formData.url || '').includes('youtube') || (downloadUrl || formData.url || '').includes('youtu.be')
             };
 
             if (formData.type === 'Quiz') {
