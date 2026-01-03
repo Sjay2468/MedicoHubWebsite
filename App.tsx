@@ -111,23 +111,25 @@ const AppContent: React.FC = () => {
               return [...broadcasts, ...newLocals];
             });
           } else {
-            // Fallback for new users or if not in MongoDB yet
-            setUser({
+            // Fallback for new users or if not in MongoDB yet (only if current state is empty)
+            setUser(prev => prev || ({
               uid: firebaseUser.uid,
               name: firebaseUser.displayName || 'Student',
               email: firebaseUser.email || '',
               isSubscribed: false,
-            } as any as User);
+              academicYear: 'General'
+            } as any as User));
           }
         } catch (error) {
           console.error("Error fetching user data from MongoDB:", error);
-          // Still set basic info if API fails
-          setUser({
+          // If we already have a user in state, don't overwrite with a broken fallback
+          setUser(prev => prev || ({
             uid: firebaseUser.uid,
             name: firebaseUser.displayName || 'Student',
             email: firebaseUser.email || '',
             isSubscribed: false,
-          } as any as User);
+            academicYear: 'General'
+          } as any as User));
         } finally {
           setAppLoading(false);
         }

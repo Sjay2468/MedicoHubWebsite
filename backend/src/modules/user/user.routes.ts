@@ -243,26 +243,33 @@ router.patch('/:uid/profile', verifyAuth, async (req: Request, res: Response) =>
     try {
         const updates: any = {};
 
-        // Map common fields
-        const allowedFields = [
-            'name', 'firstName', 'surname', 'email', 'phoneNumber',
-            'institution', 'schoolName', 'photoURL', 'academicYear',
-            'requestedYear', 'weakness', 'currentCourses', 'isSubscribed',
-            'mcamp', 'analytics', 'resourceProgress', 'status', 'uid'
-        ];
+        // Map common fields with dot-notation for deep updates
+        Object.keys(items).forEach(key => {
+            const val = items[key];
+            if (val === undefined) return;
 
-        console.log(`[User Update] UID: ${uid}, Fields:`, Object.keys(items));
-
-        allowedFields.forEach(field => {
-            if (items[field] !== undefined) {
-                updates[field] = items[field];
+            // Handle nested objects with dot-notation to prevent overwriting whole structures
+            if (key === 'mcamp' && typeof val === 'object' && val !== null) {
+                Object.keys(val).forEach(subKey => {
+                    updates[`mcamp.${subKey}`] = val[subKey];
+                });
+            } else if (key === 'analytics' && typeof val === 'object' && val !== null) {
+                Object.keys(val).forEach(subKey => {
+                    updates[`analytics.${subKey}`] = val[subKey];
+                });
+            } else if (key === 'resourceProgress' && typeof val === 'object' && val !== null) {
+                Object.keys(val).forEach(subKey => {
+                    updates[`resourceProgress.${subKey}`] = val[subKey];
+                });
+            } else if (key === 'year') {
+                // Ensure field mapping preservation
+                updates.academicYear = val;
+            } else {
+                updates[key] = val;
             }
         });
 
-        // Handle 'year' alias from frontend
-        if (items.year !== undefined && updates.academicYear === undefined) {
-            updates.academicYear = items.year;
-        }
+        console.log(`[User Update] UID: ${uid}, Fields:`, Object.keys(updates));
 
         // If photoURL or name is updated, also update Firebase Auth Profile (Sync for Auth only)
         if (updates.photoURL || updates.name) {

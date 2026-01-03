@@ -21,10 +21,10 @@ router.get('/', async (req, res) => {
 // POST /api/v1/curriculum (Admin only)
 router.post('/', verifyAdmin, async (req, res) => {
     try {
-        const { weeks, targetYear } = req.body;
+        const { weeks, targetYear, activeCohortId } = req.body;
         const result = await Curriculum.findOneAndUpdate(
             { id: 'curriculum' },
-            { weeks, targetYear, updatedAt: new Date() },
+            { weeks, targetYear, activeCohortId, updatedAt: new Date() },
             { upsert: true, new: true }
         );
         res.json(result);
