@@ -178,10 +178,17 @@ export const MCampUserDashboard: React.FC<MCampUserDashboardProps> = ({
 
   // Override view based on session enrollment
   React.useEffect(() => {
+    // If user is enrolled in the ACTIVE session, force dashboard
     if (isActiveSessionEnrolled) {
       setView('dashboard');
     }
-  }, [isActiveSessionEnrolled]);
+    // If there is an active session but user is NOT enrolled in it, check if we should reset to landing
+    else if (activeCohortId && !isActiveSessionEnrolled) {
+      // If they are currently on the dashboard but it's not their cohort anymore, 
+      // we reset to landing so they can see the new registration flow.
+      setView('landing');
+    }
+  }, [isActiveSessionEnrolled, activeCohortId]);
 
   const filteredSchools = NIGERIAN_MEDICAL_SCHOOLS.filter(
     s => s.toLowerCase().includes(formData.medicalSchool.toLowerCase())
@@ -347,7 +354,13 @@ export const MCampUserDashboard: React.FC<MCampUserDashboardProps> = ({
                 The MCAMP program for your academic year ({user.mcamp?.cohortYear || user.year}) has concluded.
                 You can still access all your cohort's lecture recordings and materials in the <b>Learning Library</b>.
               </p>
-              <div className="flex justify-center gap-4">
+              <div className="flex flex-col sm:flex-row justify-center gap-4">
+                <button
+                  onClick={() => setView('landing')}
+                  className="px-8 py-3 bg-brand-yellow text-brand-dark font-bold rounded-xl hover:bg-white transition-all shadow-lg shadow-brand-yellow/20 flex items-center justify-center gap-2"
+                >
+                  <Plus size={20} /> Join Next Cohort
+                </button>
                 <button
                   onClick={() => window.location.href = '/learning'}
                   className="px-8 py-3 bg-brand-dark text-white font-bold rounded-xl hover:bg-black transition-colors"
