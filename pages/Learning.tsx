@@ -525,8 +525,8 @@ export const Learning: React.FC<LearningProps> = ({
     };
 
     const filteredResources = resources.filter(res => {
-        // Exclude MCAMP content from general library view (stays on MCAMP dashboard)
-        if (res.isMcampExclusive) return false;
+        // Exclude only MCAMP-specific Quizzes from general library view (stays on MCAMP dashboard)
+        if (res.isMcampExclusive && res.type === 'Quiz') return false;
 
         const matchesSearch = res.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
             res.subject.toLowerCase().includes(searchQuery.toLowerCase());
