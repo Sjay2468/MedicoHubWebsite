@@ -256,7 +256,7 @@ export const ResourcesPage = () => {
                 title: formData.title,
                 type: formData.type,
                 subject: formData.subject,
-                tags: [formData.year].filter(Boolean),
+                tags: [...(formData.tags ? String(formData.tags).split(',').map(t => t.trim()).filter(Boolean) : []), formData.year, (formData.isMcamp ? 'MCAMP' : '')].filter(Boolean),
                 year: formData.year,
                 isPro: formData.isPro,
                 isMcampExclusive: formData.isMcamp,
@@ -267,6 +267,12 @@ export const ResourcesPage = () => {
                 moduleId: 'general',
                 isYoutube: (downloadUrl || formData.url || '').includes('youtube') || (downloadUrl || formData.url || '').includes('youtu.be')
             };
+
+            if (payload.isMcampExclusive && !payload.year) {
+                alert("A Target Year MUST be selected for MCAMP resources to be visible to students.");
+                setIsLoading(false);
+                return;
+            }
 
             if (formData.type === 'Quiz') {
                 payload.quizData = questions;

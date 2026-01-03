@@ -261,9 +261,13 @@ router.patch('/:uid/profile', verifyAuth, async (req: Request, res: Response) =>
                 Object.keys(val).forEach(subKey => {
                     updates[`resourceProgress.${subKey}`] = val[subKey];
                 });
-            } else if (key === 'year') {
-                // Ensure field mapping preservation
-                updates.academicYear = val;
+            } else if (key === 'year' || key === 'academicYear') {
+                // Ensure field mapping preservation and prevent accidental wipes
+                if (val && val !== '') {
+                    updates.academicYear = val;
+                } else {
+                    console.warn(`[User Update] Attempted to clear academicYear for UID: ${uid}. Blocking.`);
+                }
             } else {
                 updates[key] = val;
             }

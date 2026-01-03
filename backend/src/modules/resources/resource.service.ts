@@ -73,6 +73,16 @@ export class ResourceService {
                     // Not suspended: Filter MCAMP content by specific COHORT ID
                     const userCohortId = mcamp.cohortId || `cohort-${userCohortYear.replace(/\s+/g, '-').toLowerCase()}`;
 
+                    // Whitelist curriculum resources regardless of tags if assigned to a week
+                    const curriculumWeeks = cur?.weeks || [];
+                    curriculumWeeks.forEach((w: any) => {
+                        if (w.days) {
+                            Object.values(w.days).forEach((ids: any) => {
+                                (ids || []).forEach((id: string) => allowedMcampIds.add(id));
+                            });
+                        }
+                    });
+
                     allResources.forEach(res => {
                         const tags = (res.tags || []).map(t => t.toLowerCase());
                         const resYear = (res.year || '').toLowerCase();

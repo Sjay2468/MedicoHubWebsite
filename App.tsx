@@ -112,24 +112,30 @@ const AppContent: React.FC = () => {
             });
           } else {
             // Fallback for new users or if not in MongoDB yet (only if current state is empty)
-            setUser(prev => prev || ({
+            setUser(prev => {
+              if (prev && (prev.year || prev.academicYear)) return prev;
+              return {
+                uid: firebaseUser.uid,
+                name: firebaseUser.displayName || 'Student',
+                email: firebaseUser.email || '',
+                isSubscribed: false,
+                academicYear: 'General'
+              } as any as User;
+            });
+          }
+        } catch (error) {
+          console.error("Error fetching user data from MongoDB:", error);
+          // If we already have a user in state, don't overwrite with a broken fallback
+          setUser(prev => {
+            if (prev && (prev.year || prev.academicYear)) return prev;
+            return {
               uid: firebaseUser.uid,
               name: firebaseUser.displayName || 'Student',
               email: firebaseUser.email || '',
               isSubscribed: false,
               academicYear: 'General'
-            } as any as User));
-          }
-        } catch (error) {
-          console.error("Error fetching user data from MongoDB:", error);
-          // If we already have a user in state, don't overwrite with a broken fallback
-          setUser(prev => prev || ({
-            uid: firebaseUser.uid,
-            name: firebaseUser.displayName || 'Student',
-            email: firebaseUser.email || '',
-            isSubscribed: false,
-            academicYear: 'General'
-          } as any as User));
+            } as any as User;
+          });
         } finally {
           setAppLoading(false);
         }
