@@ -4,7 +4,7 @@ import { User, Notification } from '../types';
 import { DashboardLayout } from '../components/DashboardLayout';
 import {
   Brain, Target, Clock, Trophy, CreditCard, Banknote, Building2,
-  Shield, Check, ArrowRight, ArrowLeft, Tag, CheckCircle, Search, Users, Star
+  Shield, Check, ArrowRight, ArrowLeft, Tag, CheckCircle, Search, Users, Star, MessageCircle
 } from 'lucide-react';
 import { api } from '../services/api';
 import { usePaystackPayment } from 'react-paystack';
@@ -153,7 +153,7 @@ export const MCampUserDashboard: React.FC<MCampUserDashboardProps> = ({
       return user.mcamp?.cohortId === activeCohortId;
     }
 
-    // Fallback: Check if user's cohort year matches current target year
+    // Fallback: Check if user's cohort year matches current target year (only if no activeCohortId set by admin)
     const userCohort = (user.mcamp?.cohortYear || user.year || user.academicYear || '').toString().toLowerCase();
     const targetY = targetYear.toLowerCase();
     return userCohort === targetY || userCohort.includes(targetY) || targetY.includes(userCohort);
@@ -273,8 +273,14 @@ export const MCampUserDashboard: React.FC<MCampUserDashboardProps> = ({
     setTimeout(() => {
       const generatedId = Math.floor(1000 + Math.random() * 9000).toString();
 
-      // Use provided ActiveCohortId or generate one based on year group
-      const currentSessionId = activeCohortId || `cohort-${targetYear.replace(/\s+/g, '-').toLowerCase()}-${new Date().getFullYear()}`;
+      // Use provided ActiveCohortId - DO NOT use fallback session generation
+      const currentSessionId = activeCohortId;
+
+      if (!currentSessionId) {
+        setIsSubmitting(false);
+        alert("Enrollment Error: Session ID is missing. Please contact Admin.");
+        return;
+      }
 
       const enrollmentData = {
         isEnrolled: true,
@@ -330,6 +336,50 @@ export const MCampUserDashboard: React.FC<MCampUserDashboardProps> = ({
                   className="px-8 py-3 bg-brand-dark text-white font-bold rounded-xl hover:bg-black transition-colors"
                 >
                   Go to Library
+                </button>
+              </div>
+            </div>
+          </div>
+        </DashboardLayout>
+      );
+    }
+
+    // STRICT SUSPENSION CHECK
+    if (user.mcamp?.isSuspended) {
+      return (
+        <DashboardLayout
+          user={user}
+          onLogout={onLogout}
+          showSearch={false}
+          notifications={notifications}
+          onMarkAllRead={onMarkAllRead}
+          onClearNotification={onClearNotification}
+          onClearAll={onClearAll}
+          onDeleteAccount={onDeleteAccount}
+        >
+          <div className="max-w-4xl mx-auto py-12 text-center">
+            <div className="bg-white p-12 rounded-[3rem] shadow-xl border border-red-50 shadow-red-500/5">
+              <div className="w-24 h-24 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-6 animate-pulse">
+                <Shield size={48} />
+              </div>
+              <h1 className="text-3xl font-extrabold text-brand-dark mb-4">Subscription Suspended</h1>
+              <p className="text-gray-500 mb-8 max-w-lg mx-auto">
+                Your access to the MCAMP Dashboard has been restricted.
+                This usually happens due to a pending verification or administrative action.
+              </p>
+              <div className="flex flex-col sm:flex-row justify-center gap-4">
+                <a
+                  href="https://wa.me/2347088262583"
+                  target="_blank"
+                  className="px-8 py-3 bg-brand-dark text-white font-bold rounded-xl hover:bg-black transition-colors flex items-center justify-center gap-2"
+                >
+                  <MessageCircle size={20} /> Resolve Restriction
+                </a>
+                <button
+                  onClick={() => window.location.href = '/learning'}
+                  className="px-8 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition-colors"
+                >
+                  View Archive
                 </button>
               </div>
             </div>
@@ -394,13 +444,13 @@ export const MCampUserDashboard: React.FC<MCampUserDashboardProps> = ({
               <div className="flex flex-col items-center gap-4">
                 <button
                   onClick={handleEnrollClick}
-                  disabled={!isEligible || !mcampEnrollment}
-                  className={`px-12 py-4 rounded-full font-extrabold text-lg transition-all shadow-xl shadow-brand-yellow/20 ${isEligible && mcampEnrollment
+                  disabled={!isEligible || !mcampEnrollment || !activeCohortId}
+                  className={`px-12 py-4 rounded-full font-extrabold text-lg transition-all shadow-xl shadow-brand-yellow/20 ${isEligible && mcampEnrollment && activeCohortId
                     ? 'bg-brand-yellow text-brand-dark hover:bg-white hover:scale-105'
                     : 'bg-gray-600 text-gray-400 cursor-not-allowed opacity-70'
                     }`}
                 >
-                  {!mcampEnrollment ? 'Enrollment Closed' : (isEligible ? 'Enroll Now' : `Optimized for ${targetYear}`)}
+                  {!mcampEnrollment ? 'Enrollment Closed' : (!activeCohortId ? 'Session Pending' : (isEligible ? 'Enroll Now' : `Optimized for ${targetYear}`))}
                 </button>
 
                 {!mcampEnrollment && (
@@ -623,8 +673,8 @@ export const MCampUserDashboard: React.FC<MCampUserDashboardProps> = ({
               <div className="pt-4">
                 <button
                   type="submit"
-                  disabled={isSubmitting}
-                  className="w-full bg-brand-dark text-white py-4 rounded-xl font-bold hover:bg-black transition-all shadow-xl shadow-brand-dark/20 flex items-center justify-center gap-2"
+                  disabled={isSubmitting || !activeCohortId}
+                  className="w-full bg-brand-dark text-white py-4 rounded-xl font-bold hover:bg-black transition-all shadow-xl shadow-brand-dark/20 flex items-center justify-center gap-2 disabled:opacity-50"
                 >
                   {isSubmitting ? 'Finalizing...' : 'Complete Enrollment'}
                   {!isSubmitting && <ArrowRight size={20} />}

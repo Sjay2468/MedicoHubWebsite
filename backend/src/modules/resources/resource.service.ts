@@ -47,6 +47,7 @@ export class ResourceService {
                     const start = new Date(startDate);
                     const end = new Date(suspensionDate);
                     const diffDays = Math.ceil(Math.abs(end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+                    const cutoffTime = end.getTime();
 
                     const weeks = cur?.weeks || [];
                     weeks.forEach((w: any) => {
@@ -55,7 +56,15 @@ export class ResourceService {
                             Object.entries(w.days).forEach(([dayId, ids]: [string, any]) => {
                                 const actualDay = weekStartDay + (Number(dayId) - 1);
                                 if (actualDay <= diffDays) {
-                                    (ids || []).forEach((id: string) => allowedMcampIds.add(id));
+                                    (ids || []).forEach((id: string) => {
+                                        // NEW: Check if this specific resource was created BEFORE suspension
+                                        const res = allResources.find(r => r.id === id);
+                                        const resCreatedAt = res?.createdAt ? new Date(res.createdAt).getTime() : 0;
+
+                                        if (resCreatedAt <= cutoffTime) {
+                                            allowedMcampIds.add(id);
+                                        }
+                                    });
                                 }
                             });
                         }

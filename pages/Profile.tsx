@@ -418,7 +418,7 @@ export const Profile: React.FC<ProfileProps> = ({
                                         <h4 className="text-3xl font-black text-brand-yellow font-mono tracking-tighter">MC-{user.mcamp?.uniqueId || user.mcampId}</h4>
                                         <div className="flex items-center gap-2 mt-3">
                                             <span className="px-2 py-0.5 bg-green-500/20 text-green-400 rounded text-[10px] font-extrabold uppercase tracking-wide border border-green-500/30">Active Member</span>
-                                            <span className="text-xs text-gray-400 font-bold">Cohort: {user.mcamp?.cohortId || 'A-2025'}</span>
+                                            <span className="text-xs text-gray-400 font-bold">Cohort: {user.mcamp?.cohortId || 'Not Set'}</span>
                                         </div>
                                     </div>
                                     <div className="w-16 h-16 bg-white/10 rounded-xl flex items-center justify-center backdrop-blur-sm border border-white/10">

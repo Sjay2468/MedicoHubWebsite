@@ -357,6 +357,11 @@ const ScheduleManager = () => {
     };
 
     const saveChanges = async () => {
+        if (!activeCohortId.trim()) {
+            alert("Error: Session ID is mandatory. Please provide a Session ID (e.g., batch-v3-XYZ) before saving.");
+            return;
+        }
+
         setIsSaving(true);
         try {
             await api.curriculum.update({ weeks, targetYear, activeCohortId });
