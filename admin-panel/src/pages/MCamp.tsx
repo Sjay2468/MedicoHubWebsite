@@ -282,6 +282,7 @@ const ScheduleManager = () => {
     const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [targetYear, setTargetYear] = useState<string>('Year 2');
+    const [activeCohortId, setActiveCohortId] = useState<string>('');
 
     useEffect(() => {
         fetchData();
@@ -300,6 +301,7 @@ const ScheduleManager = () => {
 
             let loadedWeeks = curData.weeks || [];
             if (curData.targetYear) setTargetYear(curData.targetYear);
+            if (curData.activeCohortId) setActiveCohortId(curData.activeCohortId);
 
             if (loadedWeeks.length === 0) {
                 loadedWeeks = Array.from({ length: 13 }, (_, i) => ({
@@ -357,7 +359,7 @@ const ScheduleManager = () => {
     const saveChanges = async () => {
         setIsSaving(true);
         try {
-            await api.curriculum.update({ weeks, targetYear });
+            await api.curriculum.update({ weeks, targetYear, activeCohortId });
             setHasUnsavedChanges(false);
             // Simple confirmation
             setTimeout(() => alert("Schedule saved successfully!"), 100);
@@ -428,6 +430,34 @@ const ScheduleManager = () => {
                             <option value="Year 5">Year 5 (500L)</option>
                             <option value="Year 6">Year 6 (600L)</option>
                         </select>
+                    </div>
+
+                    <div className="flex items-center gap-2 border-r border-gray-200 pr-4">
+                        <Tag size={16} className="text-purple-500" />
+                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Session ID:</span>
+                        <div className="flex items-center gap-1">
+                            <input
+                                type="text"
+                                placeholder="e.g. batch-a-2026"
+                                value={activeCohortId}
+                                onChange={(e) => {
+                                    setActiveCohortId(e.target.value);
+                                    setHasUnsavedChanges(true);
+                                }}
+                                className="bg-transparent font-mono font-bold text-xs focus:outline-none text-brand-dark w-32"
+                            />
+                            <button
+                                onClick={() => {
+                                    const random = Math.random().toString(36).substring(2, 7).toUpperCase();
+                                    setActiveCohortId(`cohort-v3-${random}`);
+                                    setHasUnsavedChanges(true);
+                                }}
+                                className="text-gray-400 hover:text-brand-blue"
+                                title="Generate New Session ID"
+                            >
+                                <Plus size={14} />
+                            </button>
+                        </div>
                     </div>
 
                     <div className="flex items-center gap-3">
