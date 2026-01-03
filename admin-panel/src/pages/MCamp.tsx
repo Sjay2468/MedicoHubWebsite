@@ -397,7 +397,7 @@ const ScheduleManager = () => {
 
     // Get resources for currently selected day
     const currentDayResources = selectedDay
-        ? (weeks.find(w => w.id === selectedDay.weekId)?.days[selectedDay.dayId] || [])
+        ? (weeks.find(w => w.id === selectedDay.weekId)?.days?.[selectedDay.dayId] || [])
         : [];
 
     if (loading) return <div className="p-12 text-center text-gray-500">Loading schedule...</div>;
