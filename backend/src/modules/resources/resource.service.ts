@@ -85,8 +85,8 @@ export class ResourceService {
             }
 
             // Standard Year Matching Logic for General Resources
-            const isGeneral = !resYear || resYear === 'general' || resYear === '' || resTags.includes('general');
-            if (isGeneral) return true;
+            const isGeneralRes = !resYear || resYear === 'general' || resYear === '' || resTags.includes('general');
+            if (isGeneralRes || userYear === 'general') return true;
 
             const getLevel = (s: string) => {
                 const n = s.match(/\d+/);

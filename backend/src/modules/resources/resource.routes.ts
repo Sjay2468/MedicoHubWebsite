@@ -52,11 +52,20 @@ router.get('/admin/all', verifyAdmin, async (req, res) => {
 // Fetches resources filtered by the authenticated user's profile tags
 router.get('/', verifyAuth, async (req, res) => {
     try {
-        const User = require('../../models/User').default;
+        const { User } = require('../../models/User');
         if (!req.user) return res.status(401).json({ error: "Unauthorized" });
 
-        const userProfile = await User.findOne({ uid: req.user.uid });
-        if (!userProfile) return res.status(404).json({ error: "User profile not found in MongoDB" });
+        let userProfile = await User.findOne({ uid: req.user.uid });
+
+        // Robustness: If profile not found, use a skeleton profile to show general resources
+        if (!userProfile) {
+            userProfile = {
+                uid: req.user.uid,
+                academicYear: 'General',
+                year: 'General',
+                mcamp: { isEnrolled: false }
+            };
+        }
 
         const resources = await ResourceService.getResourcesForUser(userProfile);
         res.json(resources);

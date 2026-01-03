@@ -25,13 +25,6 @@ import 'react-pdf/dist/Page/TextLayer.css';
 // Configure worker for React-PDF
 pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
 
-// Fallback resources for demo purposes until backend is populated
-const fallbackResources: Resource[] = [
-    { id: '1', title: 'Cardiology: Valve Disorders', type: 'Video', subject: 'Cardiology', dateAdded: 'Today', isPro: true, isYoutube: true, canDownload: false },
-    { id: '2', title: 'Krebs Cycle Mnemonics', type: 'PDF', subject: 'Biochemistry', dateAdded: 'Yesterday', isPro: false, url: '/sample.pdf', downloadUrl: '#', canDownload: false },
-    { id: '3', title: 'Upper Limb Anatomy Quiz', type: 'Quiz', subject: 'Anatomy', dateAdded: '2 days ago', isPro: true, canDownload: false },
-    { id: 'm1', title: 'Anatomy Deep Dive: Upper Limb', type: 'Video', subject: 'Anatomy', dateAdded: 'Today', isPro: true, isYoutube: true, canDownload: false }, // MCAMP
-];
 
 const getThumbnailStyle = (index: number) => {
     const styles = [
@@ -483,15 +476,14 @@ export const Learning: React.FC<LearningProps> = ({
             try {
                 setIsLoading(true);
                 const data = await api.resources.getAll();
-                // If backend returns empty (no data yet), use fallback
-                if (data && data.length > 0) {
+                if (data && Array.isArray(data)) {
                     setResources(data);
                 } else {
-                    setResources(fallbackResources);
+                    setResources([]);
                 }
             } catch (err) {
                 console.error("Failed to fetch resources:", err);
-                setResources(fallbackResources);
+                setResources([]);
             } finally {
                 setIsLoading(false);
             }
