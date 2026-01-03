@@ -4,7 +4,7 @@ import { User, Notification } from '../types';
 import { DashboardLayout } from '../components/DashboardLayout';
 import {
   Brain, Target, Clock, Trophy, CreditCard, Banknote, Building2,
-  Shield, Check, ArrowRight, ArrowLeft, Tag, CheckCircle, Search, Users, Star, MessageCircle
+  Shield, Check, ArrowRight, ArrowLeft, Tag, CheckCircle, Search, Users, Star, MessageCircle, Plus
 } from 'lucide-react';
 import { api } from '../services/api';
 import { usePaystackPayment } from 'react-paystack';
