@@ -10,7 +10,6 @@ interface Settings {
     mcampEnrollment: boolean;
     proDiscountEnabled: boolean;
     proDiscountPercentage: number;
-    mcampTargetLevel: string;
 }
 
 const defaultSettings: Settings = {
@@ -19,7 +18,6 @@ const defaultSettings: Settings = {
     announcement: '',
     mcampLive: false,
     mcampEnrollment: true,
-    mcampTargetLevel: '200L',
     proDiscountEnabled: true,
     proDiscountPercentage: 10
 };

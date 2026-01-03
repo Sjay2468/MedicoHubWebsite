@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
-import { Save, Lock, Globe, Bell, Shield, User, AlertTriangle, Video, BookOpen, Send, Tag, Target } from 'lucide-react';
+import { Save, Lock, Globe, Bell, Shield, User, AlertTriangle, Video, BookOpen, Send, Tag } from 'lucide-react';
 import { updatePassword, updateProfile } from 'firebase/auth';
 
 export const SettingsPage = () => {
@@ -18,7 +18,6 @@ export const SettingsPage = () => {
         announcement: '',
         mcampLive: false,
         mcampEnrollment: true,
-        mcampTargetLevel: '200L',
         academicYears: ['Year 2', 'Year 3', 'Year 4'],
         proDiscountEnabled: true,
         proDiscountPercentage: 10
@@ -230,20 +229,6 @@ export const SettingsPage = () => {
                             <button type="button" onClick={() => setConfig({ ...config, mcampEnrollment: !config.mcampEnrollment })} className={`relative w-14 h-8 rounded-full transition-colors duration-300 ${config.mcampEnrollment ? 'bg-brand-blue' : 'bg-gray-300'}`}>
                                 <div className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full shadow-sm transition-transform duration-300 ${config.mcampEnrollment ? 'translate-x-6' : ''}`} />
                             </button>
-                        </div>
-
-                        <div className="flex items-start justify-between p-4 bg-blue-50/50 rounded-xl border border-blue-100">
-                            <div className="space-y-1">
-                                <h3 className="font-bold text-brand-dark flex items-center gap-2"><Target size={18} className="text-brand-blue" /> MCAMP Target Level</h3>
-                                <p className="text-sm text-gray-500 max-w-md">The academic level required for enrollment (e.g. 200L, 300L).</p>
-                            </div>
-                            <input
-                                type="text"
-                                value={config.mcampTargetLevel}
-                                onChange={(e) => setConfig({ ...config, mcampTargetLevel: e.target.value })}
-                                className="px-4 py-2 w-32 bg-white border border-gray-200 rounded-lg font-bold text-center focus:outline-none focus:border-brand-blue"
-                                placeholder="200L"
-                            />
                         </div>
                     </div>
 

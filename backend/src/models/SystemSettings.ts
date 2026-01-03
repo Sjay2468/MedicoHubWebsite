@@ -8,7 +8,6 @@ export interface ISystemSettings extends Document {
     mcampEnrollment: boolean;
     proDiscountEnabled: boolean;
     proDiscountPercentage: number;
-    mcampTargetLevel: string;
     updatedAt: Date;
 }
 
@@ -19,7 +18,6 @@ const SystemSettingsSchema: Schema = new Schema({
     announcement: { type: String, default: '' },
     mcampLive: { type: Boolean, default: false },
     mcampEnrollment: { type: Boolean, default: true },
-    mcampTargetLevel: { type: String, default: '200L' },
     proDiscountEnabled: { type: Boolean, default: true },
     proDiscountPercentage: { type: Number, default: 10 },
     academicYears: { type: [String], default: ['Year 1', 'Year 2', 'Clinical', 'Final Year', 'General'] },

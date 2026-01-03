@@ -76,7 +76,7 @@ export const MCampUserDashboard: React.FC<MCampUserDashboardProps> = ({
   onClearAll,
   onDeleteAccount
 }) => {
-  const { mcampEnrollment, mcampTargetLevel } = useSettings();
+  const { mcampEnrollment } = useSettings();
   // Check new V3 Schema property or fallback to legacy check
   const isEnrolled = user.mcamp?.isEnrolled || !!user.mcampId;
 
@@ -108,10 +108,8 @@ export const MCampUserDashboard: React.FC<MCampUserDashboardProps> = ({
   const BASE_PRICE = 30000;
   const finalPrice = BASE_PRICE - discount;
 
-  // Determine eligibility based on dynamic target level
-  const target = mcampTargetLevel || '200L';
-  const isEligible = user.year?.toLowerCase().includes(target.toLowerCase()) ||
-    (target === '200L' && (user.year === 'Year 2' || user.year?.toLowerCase().includes('preclinical')));
+  // Determine eligibility based on year string
+  const isEligible = user.year === 'Year 2' || user.year === '200L' || user.year?.toLowerCase().includes('200l') || user.year?.toLowerCase().includes('preclinical');
 
   const filteredSchools = NIGERIAN_MEDICAL_SCHOOLS.filter(
     s => s.toLowerCase().includes(formData.medicalSchool.toLowerCase())
@@ -307,7 +305,7 @@ export const MCampUserDashboard: React.FC<MCampUserDashboardProps> = ({
                     : 'bg-gray-600 text-gray-400 cursor-not-allowed opacity-70'
                     }`}
                 >
-                  {!mcampEnrollment ? 'Enrollment Closed' : (isEligible ? 'Enroll Now' : `Available for ${target} Only`)}
+                  {!mcampEnrollment ? 'Enrollment Closed' : (isEligible ? 'Enroll Now' : 'Available for 200L Only')}
                 </button>
 
                 {!mcampEnrollment && (
