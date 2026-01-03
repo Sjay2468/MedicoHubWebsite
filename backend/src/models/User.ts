@@ -34,6 +34,7 @@ export interface IUser extends Document {
         phoneNumber?: string;
         isSuspended?: boolean;
         suspensionDate?: string | Date | null;
+        cohortYear?: string;
     };
     status?: 'active' | 'suspended';
 
@@ -89,7 +90,8 @@ const UserSchema: Schema = new Schema({
         level: String,
         phoneNumber: String,
         isSuspended: { type: Boolean, default: false },
-        suspensionDate: Date
+        suspensionDate: Date,
+        cohortYear: String
     },
 
     quizAttempts: {

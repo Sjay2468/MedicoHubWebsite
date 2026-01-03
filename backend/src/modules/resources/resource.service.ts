@@ -35,34 +35,49 @@ export class ResourceService {
 
         // 1. Resolve MCAMP Allowed Resource IDs if member
         if (isMcampMember) {
-            if (isSuspended && suspensionDate && startDate) {
-                // Calculate cutoff day
-                const start = new Date(startDate);
-                const end = new Date(suspensionDate);
-                const diffDays = Math.ceil(Math.abs(end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+            try {
+                const Curriculum = require('../../models/Curriculum').default;
+                const cur = await Curriculum.findOne({ id: 'curriculum' });
+                const currentTargetYear = cur?.targetYear || 'Year 2';
+                // User's cohort year (fallback to their academic year for legacy users)
+                const userCohortYear = (mcamp.cohortYear || userProfile.year || userProfile.academicYear || '').toString().toLowerCase();
 
-                try {
-                    const Curriculum = require('../../models/Curriculum').default;
-                    const cur = await Curriculum.findOne({ id: 'curriculum' });
-                    if (cur) {
-                        const weeks = cur.weeks || [];
-                        weeks.forEach((w: any) => {
-                            const weekStartDay = (Number(w.id) - 1) * 7 + 1;
-                            if (w.days) {
-                                Object.entries(w.days).forEach(([dayId, ids]: [string, any]) => {
-                                    const actualDay = weekStartDay + (Number(dayId) - 1);
-                                    if (actualDay <= diffDays) {
-                                        (ids || []).forEach((id: string) => allowedMcampIds.add(id));
-                                    }
-                                });
+                if (isSuspended && suspensionDate && startDate) {
+                    // Calculate cutoff day
+                    const start = new Date(startDate);
+                    const end = new Date(suspensionDate);
+                    const diffDays = Math.ceil(Math.abs(end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+
+                    const weeks = cur?.weeks || [];
+                    weeks.forEach((w: any) => {
+                        const weekStartDay = (Number(w.id) - 1) * 7 + 1;
+                        if (w.days) {
+                            Object.entries(w.days).forEach(([dayId, ids]: [string, any]) => {
+                                const actualDay = weekStartDay + (Number(dayId) - 1);
+                                if (actualDay <= diffDays) {
+                                    (ids || []).forEach((id: string) => allowedMcampIds.add(id));
+                                }
+                            });
+                        }
+                    });
+                } else {
+                    // Not suspended: Filter MCAMP content by COHORT
+                    allResources.forEach(res => {
+                        const tags = (res.tags || []).map(t => t.toLowerCase());
+                        const resYear = (res.year || '').toLowerCase();
+
+                        if (res.isMcampExclusive || tags.includes('mcamp')) {
+                            // Only allow if the resource year matches the user's cohort year
+                            // This ensures they only see their OWN cohort's resources
+                            if (resYear === userCohortYear || userCohortYear.includes(resYear) || resYear.includes(userCohortYear)) {
+                                allowedMcampIds.add(res.id);
                             }
-                        });
-                    }
-                } catch (err) {
-                    console.error("Failed to fetch curriculum for suspension filter:", err);
+                        }
+                    });
                 }
-            } else {
-                // Not suspended: Permanent lifetime access to all MCAMP content
+            } catch (err) {
+                console.error("Failed to fetch curriculum for cohort filter:", err);
+                // Fallback: allow all MCAMP resources if curriculum fetch fails
                 allResources.forEach(res => {
                     const tags = (res.tags || []).map(t => t.toLowerCase());
                     if (res.isMcampExclusive || tags.includes('mcamp')) {

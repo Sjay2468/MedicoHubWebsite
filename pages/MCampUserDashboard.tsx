@@ -96,6 +96,8 @@ export const MCampUserDashboard: React.FC<MCampUserDashboardProps> = ({
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [selectedPayment, setSelectedPayment] = React.useState('');
 
+  const [targetYear, setTargetYear] = React.useState<string>('Year 2');
+
   // School Dropdown
   const [isSchoolDropdownOpen, setIsSchoolDropdownOpen] = React.useState(false);
   const schoolDropdownRef = React.useRef<HTMLDivElement>(null);
@@ -105,11 +107,37 @@ export const MCampUserDashboard: React.FC<MCampUserDashboardProps> = ({
   const [discount, setDiscount] = React.useState(0);
   const [couponMessage, setCouponMessage] = React.useState<{ type: 'success' | 'error', text: string } | null>(null);
 
+  React.useEffect(() => {
+    const fetchTargetYear = async () => {
+      try {
+        const curriculum = await api.curriculum.get();
+        if (curriculum?.targetYear) {
+          setTargetYear(curriculum.targetYear);
+        }
+      } catch (err) {
+        console.error("Failed to fetch target year:", err);
+      }
+    };
+    fetchTargetYear();
+  }, []);
+
   const BASE_PRICE = 30000;
   const finalPrice = BASE_PRICE - discount;
 
-  // Determine eligibility based on year string
-  const isEligible = user.year === 'Year 2' || user.year === '200L' || user.year?.toLowerCase().includes('200l') || user.year?.toLowerCase().includes('preclinical');
+  // Determine eligibility based on targetYear from curriculum
+  const isEligible = React.useMemo(() => {
+    const userY = (user.year || user.academicYear || '').toLowerCase();
+    const targetY = targetYear.toLowerCase();
+    return userY === targetY || userY.includes(targetY) || targetY.includes(userY);
+  }, [user.year, user.academicYear, targetYear]);
+
+  // Restrict Dashboard access to active cohort only
+  const isCorrectCohort = React.useMemo(() => {
+    if (!isEnrolled) return true;
+    const userCohort = (user.mcamp?.cohortYear || user.year || user.academicYear || '').toString().toLowerCase();
+    const targetY = targetYear.toLowerCase();
+    return userCohort === targetY || userCohort.includes(targetY) || targetY.includes(userCohort);
+  }, [isEnrolled, user.mcamp?.cohortYear, user.year, user.academicYear, targetYear]);
 
   const filteredSchools = NIGERIAN_MEDICAL_SCHOOLS.filter(
     s => s.toLowerCase().includes(formData.medicalSchool.toLowerCase())
@@ -220,7 +248,8 @@ export const MCampUserDashboard: React.FC<MCampUserDashboardProps> = ({
 
       const enrollmentData = {
         isEnrolled: true,
-        cohortId: 'batch-a-2025',
+        cohortId: `cohort-${targetYear.replace(/\s+/g, '-').toLowerCase()}`,
+        cohortYear: targetYear,
         uniqueId: generatedId,
         startDate: new Date().toISOString()
       };
@@ -243,6 +272,42 @@ export const MCampUserDashboard: React.FC<MCampUserDashboardProps> = ({
 
   // If already enrolled (or just finished enrollment), show the Dashboard Logic
   if (view === 'dashboard') {
+    if (!isCorrectCohort) {
+      return (
+        <DashboardLayout
+          user={user}
+          onLogout={onLogout}
+          showSearch={false}
+          notifications={notifications}
+          onMarkAllRead={onMarkAllRead}
+          onClearNotification={onClearNotification}
+          onClearAll={onClearAll}
+          onDeleteAccount={onDeleteAccount}
+        >
+          <div className="max-w-4xl mx-auto py-12 text-center">
+            <div className="bg-white p-12 rounded-[3rem] shadow-xl border border-gray-100">
+              <div className="w-24 h-24 bg-amber-50 text-amber-500 rounded-full flex items-center justify-center mx-auto mb-6">
+                <Clock size={48} />
+              </div>
+              <h1 className="text-3xl font-extrabold text-brand-dark mb-4">Cohort Concluded</h1>
+              <p className="text-gray-500 mb-8 max-w-lg mx-auto">
+                The MCAMP program for your academic year ({user.mcamp?.cohortYear || user.year}) has concluded.
+                You can still access all your cohort's lecture recordings and materials in the <b>Learning Library</b>.
+              </p>
+              <div className="flex justify-center gap-4">
+                <button
+                  onClick={() => window.location.href = '/learning'}
+                  className="px-8 py-3 bg-brand-dark text-white font-bold rounded-xl hover:bg-black transition-colors"
+                >
+                  Go to Library
+                </button>
+              </div>
+            </div>
+          </div>
+        </DashboardLayout>
+      );
+    }
+
     return <MCampDashboard
       user={user}
       onLogout={onLogout}
@@ -305,7 +370,7 @@ export const MCampUserDashboard: React.FC<MCampUserDashboardProps> = ({
                     : 'bg-gray-600 text-gray-400 cursor-not-allowed opacity-70'
                     }`}
                 >
-                  {!mcampEnrollment ? 'Enrollment Closed' : (isEligible ? 'Enroll Now' : 'Available for 200L Only')}
+                  {!mcampEnrollment ? 'Enrollment Closed' : (isEligible ? 'Enroll Now' : `Optimized for ${targetYear}`)}
                 </button>
 
                 {!mcampEnrollment && (
@@ -316,7 +381,7 @@ export const MCampUserDashboard: React.FC<MCampUserDashboardProps> = ({
 
                 {mcampEnrollment && !isEligible && (
                   <p className="text-red-400 text-sm font-bold bg-red-950/40 px-6 py-2.5 rounded-xl border border-red-500/20 animate-fade-in-up">
-                    Ineligible: Your profile indicates {user.year || 'a different level'}.
+                    Ineligible: Your profile indicates {user.year || 'a different level'}. This cohort is for {targetYear}.
                   </p>
                 )}
               </div>
