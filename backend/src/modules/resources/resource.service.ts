@@ -55,13 +55,7 @@ export class ResourceService {
                             Object.entries(w.days).forEach(([dayId, ids]: [string, any]) => {
                                 const actualDay = weekStartDay + (Number(dayId) - 1);
                                 if (actualDay <= diffDays) {
-                                    (ids || []).forEach((id: string) => {
-                                        const res = allResources.find(r => r.id === id);
-                                        const cutoff = new Date(suspensionDate);
-                                        if (res && new Date(res.createdAt) <= cutoff) {
-                                            allowedMcampIds.add(id);
-                                        }
-                                    });
+                                    (ids || []).forEach((id: string) => allowedMcampIds.add(id));
                                 }
                             });
                         }
