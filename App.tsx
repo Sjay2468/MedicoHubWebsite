@@ -102,14 +102,14 @@ const AppContent: React.FC = () => {
 
           if (userData) {
             // Ensure year is mapped from academicYear if missing (for frontend compatibility)
-            const mappedUser = {
+            const mappedUser: User = {
               ...userData,
-              year: userData.year || userData.academicYear,
-              academicYear: userData.academicYear || userData.year,
+              year: userData.year || userData.academicYear || '',
+              academicYear: userData.academicYear || userData.year || '',
               emailVerified: firebaseUser.emailVerified
             };
             setUser(mappedUser);
-            const localNotifs = generateNotifications(userData);
+            const localNotifs = generateNotifications(mappedUser);
 
             setNotifications(prev => {
               const broadcasts = prev.filter(n => n.isBroadcast || n.id.startsWith('email-verified'));
@@ -291,13 +291,25 @@ const AppContent: React.FC = () => {
 
   const handleUpdateUser = async (data: Partial<User>) => {
     if (user && firebaseUser) {
-      // Optimistic update
-      const updatedUser = { ...user, ...data };
+      // Optimistic update - ensure year and academicYear are SYNCED
+      const updatedUser = {
+        ...user,
+        ...data,
+        // Cross-sync year and academicYear locally
+        year: data.year || data.academicYear || user.year || user.academicYear || '',
+        academicYear: data.academicYear || data.year || user.academicYear || user.year || ''
+      };
       setUser(updatedUser);
 
       try {
+        // Prepare data for backend - send both to be safe
+        const payload = {
+          ...data,
+          year: data.year || data.academicYear,
+          academicYear: data.academicYear || data.year
+        };
         // Hit MongoDB Backend API
-        await api.users.update(firebaseUser.uid, data);
+        await api.users.update(firebaseUser.uid, payload);
       } catch (e) {
         console.error("Error updating user profile in MongoDB:", e);
       }
@@ -423,6 +435,12 @@ const AppContent: React.FC = () => {
     onDeleteAccount: handleDeleteAccount
   };
 
+  const isOnboarded = (u: User | null) => {
+    // A user is considered onboarded if they have a year set that isn't empty
+    // We treat 'General' as the default/starting state that REQUIRES completion.
+    return !!u && !!u.year && u.year !== 'General' && u.year !== '';
+  };
+
   return (
     <MainLayout user={user}>
       <StatusModal
@@ -442,7 +460,7 @@ const AppContent: React.FC = () => {
           path={AppRoute.LOGIN}
           element={
             user ? (
-              !user.year ? <Navigate to={AppRoute.ONBOARDING} /> : <Navigate to={AppRoute.DASHBOARD} />
+              !isOnboarded(user) ? <Navigate to={AppRoute.ONBOARDING} /> : <Navigate to={AppRoute.DASHBOARD} />
             ) : <Login onLogin={noop} />
           }
         />
@@ -451,7 +469,7 @@ const AppContent: React.FC = () => {
           path={AppRoute.SIGNUP}
           element={
             user ? (
-              !user.year ? <Navigate to={AppRoute.ONBOARDING} /> : <Navigate to={AppRoute.DASHBOARD} />
+              !isOnboarded(user) ? <Navigate to={AppRoute.ONBOARDING} /> : <Navigate to={AppRoute.DASHBOARD} />
             ) : <Signup onSignup={noop} />
           }
         />
@@ -477,7 +495,7 @@ const AppContent: React.FC = () => {
           path={AppRoute.DASHBOARD}
           element={
             user ? (
-              !user.year ? <Navigate to={AppRoute.ONBOARDING} /> : <Dashboard user={user} {...commonProps} />
+              !isOnboarded(user) ? <Navigate to={AppRoute.ONBOARDING} /> : <Dashboard user={user} {...commonProps} />
             ) : <Navigate to={AppRoute.LOGIN} />
           }
         />
@@ -486,7 +504,7 @@ const AppContent: React.FC = () => {
           path={AppRoute.PROFILE}
           element={
             user ? (
-              !user.year ? <Navigate to={AppRoute.ONBOARDING} /> : <Profile user={user} onUpdate={handleUpdateUser} {...commonProps} />
+              !isOnboarded(user) ? <Navigate to={AppRoute.ONBOARDING} /> : <Profile user={user} onUpdate={handleUpdateUser} {...commonProps} />
             ) : <Navigate to={AppRoute.LOGIN} />
           }
         />
@@ -495,7 +513,7 @@ const AppContent: React.FC = () => {
           path={AppRoute.LEARNING}
           element={
             user ? (
-              !user.year ? <Navigate to={AppRoute.ONBOARDING} /> : <Learning user={user} {...commonProps} />
+              !isOnboarded(user) ? <Navigate to={AppRoute.ONBOARDING} /> : <Learning user={user} {...commonProps} />
             ) : <Navigate to={AppRoute.LOGIN} />
           }
         />
@@ -505,7 +523,7 @@ const AppContent: React.FC = () => {
           path={`${AppRoute.LEARNING}/:resourceId`}
           element={
             user ? (
-              !user.year ? <Navigate to={AppRoute.ONBOARDING} /> : <Learning user={user} {...commonProps} />
+              !isOnboarded(user) ? <Navigate to={AppRoute.ONBOARDING} /> : <Learning user={user} {...commonProps} />
             ) : <Navigate to={AppRoute.LOGIN} />
           }
         />
@@ -514,7 +532,7 @@ const AppContent: React.FC = () => {
           path={AppRoute.MCAMP_DASHBOARD}
           element={
             user ? (
-              !user.year ? <Navigate to={AppRoute.ONBOARDING} /> : <MCampUserDashboard user={user} onUpdateUser={handleUpdateUser} {...commonProps} />
+              !isOnboarded(user) ? <Navigate to={AppRoute.ONBOARDING} /> : <MCampUserDashboard user={user} onUpdateUser={handleUpdateUser} {...commonProps} />
             ) : <Navigate to={AppRoute.LOGIN} />
           }
         />

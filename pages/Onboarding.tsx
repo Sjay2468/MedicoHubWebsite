@@ -59,7 +59,7 @@ export const Onboarding: React.FC<OnboardingProps> = ({ updateUser }) => {
   const navigate = useNavigate();
   const [step, setStep] = React.useState(1);
   const [formData, setFormData] = React.useState({
-    year: '',
+    academicYear: '',
     schoolName: '',
     weakness: [] as string[],
     currentCourses: [] as string[]
@@ -150,7 +150,8 @@ export const Onboarding: React.FC<OnboardingProps> = ({ updateUser }) => {
       try {
         const data = await api.settings.get();
         if (data && data.academicYears) {
-          setYears(data.academicYears);
+          // Filter out 'General' as it's a default/invalid year for a completed profile
+          setYears(data.academicYears.filter((y: string) => y !== 'General'));
         }
       } catch (error) {
         console.error("Failed to fetch academic years from MongoDB:", error);
@@ -251,14 +252,14 @@ export const Onboarding: React.FC<OnboardingProps> = ({ updateUser }) => {
                   {years.map((year) => (
                     <button
                       key={year}
-                      onClick={() => setFormData({ ...formData, year })}
-                      className={`flex items-center justify-between px-4 py-3 border rounded-xl text-sm font-medium transition-all ${formData.year === year
+                      onClick={() => setFormData({ ...formData, academicYear: year })}
+                      className={`flex items-center justify-between px-4 py-3 border rounded-xl text-sm font-medium transition-all ${formData.academicYear === year
                         ? 'border-brand-blue bg-blue-50 text-brand-blue ring-1 ring-brand-blue'
                         : 'border-gray-200 text-gray-700 hover:bg-gray-50'
                         }`}
                     >
                       {year}
-                      {formData.year === year && <Check size={16} />}
+                      {formData.academicYear === year && <Check size={16} />}
                     </button>
                   ))}
                 </div>

@@ -269,10 +269,12 @@ router.patch('/:uid/profile', verifyAuth, async (req: Request, res: Response) =>
                 });
             } else if (key === 'year' || key === 'academicYear') {
                 // Ensure field mapping preservation and prevent accidental wipes
-                if (val && val !== '') {
+                if (val && val !== '' && val !== 'General') {
                     updates.academicYear = val;
-                } else {
-                    console.warn(`[User Update] Attempted to clear academicYear for UID: ${uid}. Blocking.`);
+                } else if (val === 'General') {
+                    // Allow set to General if specifically requested (rare), 
+                    // but we usually want to block this for onboarded users.
+                    updates.academicYear = 'General';
                 }
             } else {
                 updates[key] = val;
