@@ -72,7 +72,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
 }) => {
     const { announcement } = useSettings();
     const monthlyData = React.useMemo(() => {
-        if (!user.analytics?.monthlyActivity || user.analytics.monthlyActivity.length === 0) {
+        const activity = user.analytics?.monthlyActivity;
+        if (!activity || !Array.isArray(activity) || activity.length === 0) {
             // Return empty or zero-state data
             const today = new Date();
             return [{
@@ -81,7 +82,16 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 hours: 0
             }];
         }
-        return user.analytics.monthlyActivity;
+
+        // Ensure it's in the format Recharts expects (objects with date/hours)
+        if (typeof activity[0] === 'number') {
+            return (activity as unknown as number[]).map((h, i) => ({
+                date: `Day ${i + 1}`,
+                hours: h
+            }));
+        }
+
+        return activity;
     }, [user.analytics]);
 
     const [allResources, setAllResources] = React.useState<Resource[]>([]);
@@ -115,18 +125,23 @@ export const Dashboard: React.FC<DashboardProps> = ({
     // Logic to prepare the graph data for the Year view
     const yearlyData = React.useMemo(() => {
         const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const activity = user.analytics?.yearlyActivity;
 
         // If no stats yet, just show 0 for every month
-        if (!user.analytics?.yearlyActivity) {
+        if (!activity) {
             return months.map(month => ({ month, hours: 0 }));
         }
 
         return months.map(month => {
-            const found = user.analytics!.yearlyActivity.find(y => y.month === month);
-            return {
-                month,
-                hours: found ? found.hours : 0
-            };
+            let hours = 0;
+            if (Array.isArray(activity)) {
+                const found = activity.find(y => y.month === month);
+                hours = found ? found.hours : 0;
+            } else if (typeof activity === 'object') {
+                // Handle Map/Object case
+                hours = (activity as any)[month] || 0;
+            }
+            return { month, hours };
         });
     }, [user.analytics]);
 
