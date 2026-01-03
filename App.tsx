@@ -126,8 +126,8 @@ const AppContent: React.FC = () => {
                 name: firebaseUser.displayName || 'Student',
                 email: firebaseUser.email || '',
                 isSubscribed: false,
-                year: 'General',
-                academicYear: 'General'
+                year: '',
+                academicYear: ''
               } as any as User;
             });
           }
@@ -141,8 +141,8 @@ const AppContent: React.FC = () => {
               name: firebaseUser.displayName || 'Student',
               email: firebaseUser.email || '',
               isSubscribed: false,
-              year: 'General',
-              academicYear: 'General'
+              year: '',
+              academicYear: ''
             } as any as User;
           });
         } finally {
@@ -476,25 +476,27 @@ const AppContent: React.FC = () => {
         <Route
           path={AppRoute.DASHBOARD}
           element={
-            user ? <Dashboard user={user} {...commonProps} /> : <Navigate to={AppRoute.LOGIN} />
+            user ? (
+              !user.year ? <Navigate to={AppRoute.ONBOARDING} /> : <Dashboard user={user} {...commonProps} />
+            ) : <Navigate to={AppRoute.LOGIN} />
           }
         />
 
         <Route
           path={AppRoute.PROFILE}
           element={
-            user ? <Profile
-              user={user}
-              onUpdate={handleUpdateUser}
-              {...commonProps}
-            /> : <Navigate to={AppRoute.LOGIN} />
+            user ? (
+              !user.year ? <Navigate to={AppRoute.ONBOARDING} /> : <Profile user={user} onUpdate={handleUpdateUser} {...commonProps} />
+            ) : <Navigate to={AppRoute.LOGIN} />
           }
         />
 
         <Route
           path={AppRoute.LEARNING}
           element={
-            user ? <Learning user={user} {...commonProps} /> : <Navigate to={AppRoute.LOGIN} />
+            user ? (
+              !user.year ? <Navigate to={AppRoute.ONBOARDING} /> : <Learning user={user} {...commonProps} />
+            ) : <Navigate to={AppRoute.LOGIN} />
           }
         />
 
@@ -502,14 +504,18 @@ const AppContent: React.FC = () => {
         <Route
           path={`${AppRoute.LEARNING}/:resourceId`}
           element={
-            user ? <Learning user={user} {...commonProps} /> : <Navigate to={AppRoute.LOGIN} />
+            user ? (
+              !user.year ? <Navigate to={AppRoute.ONBOARDING} /> : <Learning user={user} {...commonProps} />
+            ) : <Navigate to={AppRoute.LOGIN} />
           }
         />
 
         <Route
           path={AppRoute.MCAMP_DASHBOARD}
           element={
-            user ? <MCampUserDashboard user={user} onUpdateUser={handleUpdateUser} {...commonProps} /> : <Navigate to={AppRoute.LOGIN} />
+            user ? (
+              !user.year ? <Navigate to={AppRoute.ONBOARDING} /> : <MCampUserDashboard user={user} onUpdateUser={handleUpdateUser} {...commonProps} />
+            ) : <Navigate to={AppRoute.LOGIN} />
           }
         />
 
