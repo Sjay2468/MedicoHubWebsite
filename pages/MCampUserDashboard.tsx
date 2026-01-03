@@ -139,9 +139,26 @@ export const MCampUserDashboard: React.FC<MCampUserDashboardProps> = ({
 
   // Determine eligibility based on targetYear from curriculum
   const isEligible = React.useMemo(() => {
-    const userY = (user.year || user.academicYear || '').toLowerCase();
+    const userY = (user.year || user.academicYear || '').toString().toLowerCase();
     const targetY = targetYear.toLowerCase();
-    return userY === targetY || userY.includes(targetY) || targetY.includes(userY);
+
+    // Normalize: extract first digit or match strings
+    const getLevel = (s: string) => {
+      const n = s.match(/\d+/);
+      if (!n) return s;
+      const val = n[0];
+      // Normalize 100/200/300 to 1/2/3
+      if (val.length >= 3) return val[0];
+      return val;
+    };
+
+    const userLvl = getLevel(userY);
+    const targetLvl = getLevel(targetY);
+
+    return userY === targetY ||
+      userY.includes(targetY) ||
+      targetY.includes(userY) ||
+      (userLvl && targetLvl && userLvl === targetLvl);
   }, [user.year, user.academicYear, targetYear]);
 
   // Restrict Dashboard access to active cohort only

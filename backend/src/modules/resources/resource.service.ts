@@ -90,8 +90,22 @@ export class ResourceService {
 
                         if (res.isMcampExclusive || tags.includes('mcamp')) {
                             // Logic: Match by Cohort ID (Primary) or Year (Secondary fallback for existing resources)
+                            // Robust Level Normalization (e.g. 200 -> 2, Year 2 -> 2)
+                            const normalizeLvl = (s: string) => {
+                                const n = s.match(/\d+/);
+                                if (!n) return s.toLowerCase();
+                                const val = n[0];
+                                return val.length >= 3 ? val[0] : val;
+                            };
+
+                            const userLvl = normalizeLvl(userCohortYear);
+                            const resLvl = normalizeLvl(resYear);
+
                             const matchesCohort = resCohortId === userCohortId;
-                            const matchesYear = resYear === userCohortYear || userCohortYear.includes(resYear) || resYear.includes(userCohortYear);
+                            const matchesYear = resYear === userCohortYear ||
+                                userCohortYear.includes(resYear) ||
+                                resYear.includes(userCohortYear) ||
+                                (userLvl && resLvl && userLvl === resLvl);
 
                             if (matchesCohort || matchesYear) {
                                 allowedMcampIds.add(res.id);
@@ -129,16 +143,23 @@ export class ResourceService {
 
             const getLevel = (s: string) => {
                 const n = s.match(/\d+/);
-                return n ? n[0] : s;
+                if (!n) return s.toLowerCase();
+                const val = n[0];
+                if (val.length >= 3) return val[0];
+                return val;
             };
+
             const userLvl = getLevel(userYear);
             const resLvl = getLevel(resYear);
 
-            return resYear === userYear ||
+            const yearMatches = resYear === userYear ||
                 userYear.includes(resYear) ||
                 resYear.includes(userYear) ||
-                userLvl === resLvl ||
-                resTags.includes(userYear) ||
+                (userLvl && resLvl && userLvl === resLvl);
+
+            if (yearMatches) return true;
+
+            return resTags.includes(userYear) ||
                 resTags.some(tag => userYear.includes(tag) || tag.includes(userYear));
         });
     }

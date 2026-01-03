@@ -191,7 +191,12 @@ router.get('/:uid/profile', verifyAuth, async (req: Request, res: Response) => {
     try {
         const user = await User.findOne({ uid });
         if (!user) return res.status(404).json({ error: "User not found in MongoDB" });
-        res.json({ success: true, user });
+
+        // Explicitly map for frontend compatibility
+        const userData = user.toObject();
+        userData.year = userData.academicYear || userData.year;
+
+        res.json({ success: true, user: userData });
     } catch (error) {
         res.status(500).json({ error: "Internal Server Error" });
     }
@@ -289,7 +294,13 @@ router.patch('/:uid/profile', verifyAuth, async (req: Request, res: Response) =>
             { new: true, upsert: true }
         );
 
-        res.json({ success: true, user });
+        // Explicitly map for frontend compatibility
+        const userData = user ? user.toObject() : null;
+        if (userData) {
+            userData.year = userData.academicYear || userData.year;
+        }
+
+        res.json({ success: true, user: userData });
     } catch (error) {
         console.error("Error updating profile in MongoDB:", error);
         res.status(500).json({ error: "Failed to update profile" });

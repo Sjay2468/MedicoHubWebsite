@@ -101,7 +101,14 @@ const AppContent: React.FC = () => {
           const userData = await api.users.get(firebaseUser.uid);
 
           if (userData) {
-            setUser({ ...userData, emailVerified: firebaseUser.emailVerified });
+            // Ensure year is mapped from academicYear if missing (for frontend compatibility)
+            const mappedUser = {
+              ...userData,
+              year: userData.year || userData.academicYear,
+              academicYear: userData.academicYear || userData.year,
+              emailVerified: firebaseUser.emailVerified
+            };
+            setUser(mappedUser);
             const localNotifs = generateNotifications(userData);
 
             setNotifications(prev => {
@@ -119,6 +126,7 @@ const AppContent: React.FC = () => {
                 name: firebaseUser.displayName || 'Student',
                 email: firebaseUser.email || '',
                 isSubscribed: false,
+                year: 'General',
                 academicYear: 'General'
               } as any as User;
             });
@@ -133,6 +141,7 @@ const AppContent: React.FC = () => {
               name: firebaseUser.displayName || 'Student',
               email: firebaseUser.email || '',
               isSubscribed: false,
+              year: 'General',
               academicYear: 'General'
             } as any as User;
           });

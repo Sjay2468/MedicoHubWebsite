@@ -122,13 +122,25 @@ const UserSchema: Schema = new Schema({
     toJSON: {
         virtuals: true,
         transform: function (doc: any, ret: any) {
-            // Map academicYear to year for frontend compatibility
-            if (ret.academicYear) {
-                ret.year = ret.academicYear;
-            }
+            if (ret.academicYear) ret.year = ret.academicYear;
+            return ret;
+        }
+    },
+    toObject: {
+        virtuals: true,
+        transform: function (doc: any, ret: any) {
+            if (ret.academicYear) ret.year = ret.academicYear;
             return ret;
         }
     }
+});
+
+UserSchema.virtual('year').get(function () {
+    return this.academicYear;
+});
+
+UserSchema.virtual('year').set(function (v: string) {
+    this.academicYear = v;
 });
 
 export const User = mongoose.model<IUser>('User', UserSchema);
