@@ -276,6 +276,10 @@ router.patch('/:uid/profile', verifyAuth, async (req: Request, res: Response) =>
                     // but we usually want to block this for onboarded users.
                     updates.academicYear = 'General';
                 }
+            } else if (key === 'profileImage' || key === 'photoURL') {
+                if (val && val !== '') {
+                    updates.photoURL = val;
+                }
             } else {
                 updates[key] = val;
             }
@@ -299,10 +303,8 @@ router.patch('/:uid/profile', verifyAuth, async (req: Request, res: Response) =>
             {
                 $set: updates,
                 $setOnInsert: {
-                    name: req.user.name || req.user.displayName || 'Student',
                     email: req.user.email || '',
-                    role: 'student',
-                    status: 'active'
+                    role: 'student'
                 }
             },
             { new: true, upsert: true }

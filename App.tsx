@@ -106,6 +106,7 @@ const AppContent: React.FC = () => {
               ...userData,
               year: userData.year || userData.academicYear || '',
               academicYear: userData.academicYear || userData.year || '',
+              profileImage: userData.photoURL || userData.profileImage || '',
               emailVerified: firebaseUser.emailVerified
             };
 

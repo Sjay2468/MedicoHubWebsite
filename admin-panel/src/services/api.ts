@@ -135,8 +135,7 @@ export const api = {
             const res = await fetch(`${BASE_URL}/users/${uid}/profile`, {
                 headers: await getAuthHeaders()
             });
-            if (!res.ok) throw new Error("Failed to fetch user from MongoDB via Admin API");
-            const data = await res.json();
+            const data = await handleResponse(res);
             return data.user;
         },
         update: async (uid: string, data: any) => {
@@ -145,8 +144,7 @@ export const api = {
                 headers: await getAuthHeaders(),
                 body: JSON.stringify(data)
             });
-            if (!res.ok) throw new Error("Failed to update user in MongoDB via Admin API");
-            return res.json();
+            return handleResponse(res);
         },
         delete: async (uid: string) => {
             const response = await fetch(`${BASE_URL}/users/${uid}`, {
