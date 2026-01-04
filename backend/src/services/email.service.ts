@@ -9,7 +9,14 @@ export const EmailService = {
      * Sends a welcome email to a new student.
      */
     sendWelcomeEmail: async (user: any) => {
-        if (!resend || !process.env.RESEND_API_KEY || process.env.RESEND_API_KEY === 're_123') return;
+        console.log(`[EmailService] sendWelcomeEmail called for ${user?.email}`);
+        if (!resend) console.warn("[EmailService] WARN: Resend client is NULL");
+        if (!process.env.RESEND_API_KEY) console.warn("[EmailService] WARN: RESEND_API_KEY is missing");
+
+        if (!resend || !process.env.RESEND_API_KEY || process.env.RESEND_API_KEY === 're_123') {
+            console.warn("[EmailService] Aborting send: Missing or invalid credentials");
+            return;
+        }
 
         try {
             await resend.emails.send({
@@ -55,7 +62,11 @@ export const EmailService = {
      * Sends a specialized welcome email for MCAMP cohort enrollment.
      */
     sendMcampWelcomeEmail: async (user: any, uniqueId: string) => {
-        if (!resend || !process.env.RESEND_API_KEY || process.env.RESEND_API_KEY === 're_123') return;
+        console.log(`[EmailService] sendMcampWelcomeEmail called for ${user?.email}`);
+        if (!resend || !process.env.RESEND_API_KEY || process.env.RESEND_API_KEY === 're_123') {
+            console.warn("[EmailService] Aborting MCAMP send: Missing or invalid credentials");
+            return;
+        }
 
         try {
             await resend.emails.send({
@@ -111,7 +122,11 @@ export const EmailService = {
      * Sends a "Thank You" email to the customer after they buy something.
      */
     sendOrderConfirmation: async (order: any) => {
-        if (!resend || !process.env.RESEND_API_KEY || process.env.RESEND_API_KEY === 're_123') return;
+        console.log(`[EmailService] sendOrderConfirmation called for ${order?.customer?.email} (Order: ${order?.orderId})`);
+        if (!resend || !process.env.RESEND_API_KEY || process.env.RESEND_API_KEY === 're_123') {
+            console.warn("[EmailService] Aborting Order Confirmation: Missing or invalid credentials");
+            return;
+        }
 
         try {
             const itemsHtml = order.items.map((item: any) => `
@@ -177,7 +192,11 @@ export const EmailService = {
      * Sends a private alert to the Store Owner whenever a new order comes in.
      */
     sendAdminOrderAlert: async (order: any) => {
-        if (!resend || !process.env.RESEND_API_KEY || process.env.RESEND_API_KEY === 're_123') return;
+        console.log(`[EmailService] sendAdminOrderAlert called for Order: ${order?.orderId}`);
+        if (!resend || !process.env.RESEND_API_KEY || process.env.RESEND_API_KEY === 're_123') {
+            console.warn("[EmailService] Aborting Admin Alert: Missing or invalid credentials");
+            return;
+        }
 
         try {
             await resend.emails.send({
@@ -208,7 +227,11 @@ export const EmailService = {
      * Automatically tells the customer when their order is officially "On the way" or "Delivered".
      */
     sendOrderStatusUpdate: async (order: any) => {
-        if (!resend || !process.env.RESEND_API_KEY || process.env.RESEND_API_KEY === 're_123') return;
+        console.log(`[EmailService] sendOrderStatusUpdate called for ${order?.customer?.email} - Status: ${order?.status}`);
+        if (!resend || !process.env.RESEND_API_KEY || process.env.RESEND_API_KEY === 're_123') {
+            console.warn("[EmailService] Aborting Status Update: Missing or invalid credentials");
+            return;
+        }
 
         let subject = "";
         let headline = "";
@@ -257,7 +280,11 @@ export const EmailService = {
      * Sends a custom password reset email using a Resend template.
      */
     sendPasswordResetEmail: async (email: string, resetLink: string) => {
-        if (!resend || !process.env.RESEND_API_KEY || process.env.RESEND_API_KEY === 're_123') return;
+        console.log(`[EmailService] sendPasswordResetEmail called for ${email}`);
+        if (!resend || !process.env.RESEND_API_KEY || process.env.RESEND_API_KEY === 're_123') {
+            console.warn("[EmailService] Aborting Password Reset: Missing or invalid credentials");
+            return;
+        }
 
         try {
             await resend.emails.send({
@@ -294,7 +321,11 @@ export const EmailService = {
      * Sends a custom email verification link.
      */
     sendVerificationEmail: async (email: string, verifyLink: string) => {
-        if (!resend || !process.env.RESEND_API_KEY || process.env.RESEND_API_KEY === 're_123') return;
+        console.log(`[EmailService] sendVerificationEmail called for ${email}`);
+        if (!resend || !process.env.RESEND_API_KEY || process.env.RESEND_API_KEY === 're_123') {
+            console.warn("[EmailService] Aborting Email Verification: Missing or invalid credentials");
+            return;
+        }
 
         try {
             await resend.emails.send({

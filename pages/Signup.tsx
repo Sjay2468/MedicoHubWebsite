@@ -12,7 +12,7 @@ interface SignupProps {
 export const Signup: React.FC<SignupProps> = () => {
     const navigate = useNavigate();
     const location = useLocation();
-    const { signup, googleSignIn } = useAuth();
+    const { signup, googleSignIn, sendVerificationEmail } = useAuth();
     const { allowSignups } = useSettings();
 
     const [formData, setFormData] = React.useState({
@@ -41,6 +41,8 @@ export const Signup: React.FC<SignupProps> = () => {
 
         try {
             await signup(formData.name, formData.email, formData.password);
+            // Automatically trigger verification email on signup for immediate feedback
+            await sendVerificationEmail();
             handleSuccess();
         } catch (err: any) {
             console.error(err);

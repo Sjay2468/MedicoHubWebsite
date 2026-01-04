@@ -377,7 +377,11 @@ router.patch('/:uid/profile', verifyAuth, async (req: Request, res: Response) =>
         if (user) {
             // 1. Welcome Email: Send if name was just set and they didn't have one before
             // Or if it's a completely new user document (oldUser is null)
-            if (!oldUser || (!oldUser.name && updates.name)) {
+            const isNewUser = !oldUser;
+            const nameJustSet = !oldUser?.name && updates.name;
+            console.log(`[UserUpdate] Email Trigger - isNewUser: ${isNewUser}, nameJustSet: ${nameJustSet}, updates.name: ${updates.name}`);
+
+            if (isNewUser || nameJustSet) {
                 EmailService.sendWelcomeEmail(user).catch(e => console.error("Welcome email failed", e));
             }
 
