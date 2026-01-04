@@ -1,8 +1,7 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { type User, onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth';
+import { type User, onAuthStateChanged, signInWithEmailAndPassword, signOut, sendPasswordResetEmail } from 'firebase/auth';
 import { auth } from '../firebase';
-import { api } from '../services/api';
 
 interface AuthContextType {
     user: User | null;
@@ -54,7 +53,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     const resetPassword = async (email: string) => {
-        await api.auth.resetPassword(email);
+        await sendPasswordResetEmail(auth, email);
     };
 
     return (

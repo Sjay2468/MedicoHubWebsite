@@ -62,16 +62,6 @@ const handleResponse = async (res: Response) => {
 };
 
 export const api = {
-    auth: {
-        resetPassword: async (email: string) => {
-            const res = await fetch(`${BASE_URL}/auth/send-reset`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email })
-            });
-            return handleResponse(res);
-        }
-    },
     resources: {
         getAll: async () => {
             try {
