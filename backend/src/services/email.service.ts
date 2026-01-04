@@ -219,7 +219,7 @@ export const EmailService = {
                     <h3 style="margin: 0 0 16px 0;">✨ Your New Powers:</h3>
                     <div style="display: flex; margin-bottom: 12px; align-items: start;">
                         <span style="color: ${COLORS.success}; margin-right: 12px;">✓</span>
-                        <span>Download <strong>unlimited</strong> study resources</span>
+                        <span>Access to <strong>unlimited</strong> study resources</span>
                     </div>
                      <div style="display: flex; margin-bottom: 12px; align-items: start;">
                         <span style="color: ${COLORS.success}; margin-right: 12px;">✓</span>

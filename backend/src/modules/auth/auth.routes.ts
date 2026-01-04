@@ -22,7 +22,17 @@ router.post('/send-verification', async (req, res) => {
         }
 
         // 1. Generate the link using Firebase Admin SDK
-        const link = await getAuth().generateEmailVerificationLink(email, actionCodeSettings);
+        const firebaseLink = await getAuth().generateEmailVerificationLink(email, actionCodeSettings);
+
+        // 2. Extract oobCode and construct Custom Frontend Link
+        // We parse the generated firebase link to get the 'oobCode'
+        const urlObj = new URL(firebaseLink);
+        const oobCode = urlObj.searchParams.get('oobCode');
+        const mode = urlObj.searchParams.get('mode') || 'verifyEmail';
+
+        // Construct the branded link pointing to our React App
+        // Frontend uses HashRouter, so we use /#/verify-email
+        const link = `https://medicohub.com.ng/#/verify-email?mode=${mode}&oobCode=${oobCode}`;
 
         // 2. Send the branded email using Resend
         await EmailService.sendVerificationEmail(email, link);
@@ -46,7 +56,15 @@ router.post('/send-reset', async (req, res) => {
         }
 
         // 1. Generate the link using Firebase Admin SDK
-        const link = await getAuth().generatePasswordResetLink(email, actionCodeSettings);
+        const firebaseLink = await getAuth().generatePasswordResetLink(email, actionCodeSettings);
+
+        // 2. Extract oobCode and construct Custom Frontend Link
+        const urlObj = new URL(firebaseLink);
+        const oobCode = urlObj.searchParams.get('oobCode');
+        const mode = urlObj.searchParams.get('mode') || 'resetPassword';
+
+        // Construct the branded link pointing to our React App Reset Page
+        const link = `https://medicohub.com.ng/#/reset-password?mode=${mode}&oobCode=${oobCode}`;
 
         // 2. Send the branded email using Resend
         await EmailService.sendPasswordResetEmail(email, link);

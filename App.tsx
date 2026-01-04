@@ -8,6 +8,7 @@ import { Login } from './pages/Login';
 import { Signup } from './pages/Signup';
 import { ForgotPassword } from './pages/ForgotPassword';
 import { VerifyEmail } from './pages/VerifyEmail';
+import { ResetPassword } from './pages/ResetPassword';
 import { Dashboard } from './pages/Dashboard';
 import { Learning } from './pages/Learning';
 import { Profile } from './pages/Profile';
@@ -104,9 +105,17 @@ const AppContent: React.FC = () => {
           if (userData) {
             // Ensure year is mapped from academicYear if missing (for frontend compatibility)
             // CRITICAL: Ensure 'name' is never undefined. Fallback to Firebase displayName if MongoDB name is missing.
+            const resolvedName = userData.name || firebaseUser.displayName || 'Student';
+
+            // SELF-HEALING: If MongoDB name was missing but we have it in Firebase, fix it in the DB now.
+            if (!userData.name && firebaseUser.displayName) {
+              console.log("[App] Self-healing user name in MongoDB...");
+              api.users.update(firebaseUser.uid, { name: firebaseUser.displayName }).catch(e => console.error("Self-heal failed", e));
+            }
+
             const mappedUser: User = {
               ...userData,
-              name: userData.name || firebaseUser.displayName || 'Student',
+              name: resolvedName,
               year: userData.year || userData.academicYear || '',
               academicYear: userData.academicYear || userData.year || '',
               profileImage: userData.photoURL || userData.profileImage || '',
@@ -501,6 +510,7 @@ const AppContent: React.FC = () => {
         />
 
         <Route path="/verify-email" element={<VerifyEmail />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
 
         <Route
           path={AppRoute.ONBOARDING}
