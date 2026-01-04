@@ -89,8 +89,8 @@ export const Profile: React.FC<ProfileProps> = ({
     const [isResetting, setIsResetting] = React.useState(false);
     // Initialize state, parsing the single 'name' string if specific fields don't exist yet
     const [formData, setFormData] = React.useState({
-        firstName: user.firstName || user.name.split(' ')[0] || '',
-        surname: user.surname || user.name.split(' ').slice(1).join(' ') || '',
+        firstName: user.firstName || (user.name ? user.name.split(' ')[0] : '') || '',
+        surname: user.surname || (user.name ? user.name.split(' ').slice(1).join(' ') : '') || '',
         email: user.email || '',
         phoneNumber: user.phoneNumber || '',
         schoolName: user.schoolName || '',

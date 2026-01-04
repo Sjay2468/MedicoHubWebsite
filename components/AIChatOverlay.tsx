@@ -17,7 +17,7 @@ export const AIChatOverlay: React.FC<AIChatOverlayProps> = ({ user, resource, on
     {
       id: 'init',
       role: 'model',
-      text: `Hey ${user.name.split(' ')[0]}! I've been looking over **${resource.title}** for you. It's a really important topic for your ${user.year} studies. 
+      text: `Hey ${(user.name || 'Student').split(' ')[0]}! I've been looking over **${resource.title}** for you. It's a really important topic for your ${user.year} studies. 
 
 How can I help you master this today? I can break down the complex mechanisms, quiz you on the essentials, or find those specific high-yield clinical correlations you need.`,
       timestamp: Date.now()

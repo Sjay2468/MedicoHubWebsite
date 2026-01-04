@@ -103,8 +103,10 @@ const AppContent: React.FC = () => {
 
           if (userData) {
             // Ensure year is mapped from academicYear if missing (for frontend compatibility)
+            // CRITICAL: Ensure 'name' is never undefined. Fallback to Firebase displayName if MongoDB name is missing.
             const mappedUser: User = {
               ...userData,
+              name: userData.name || firebaseUser.displayName || 'Student',
               year: userData.year || userData.academicYear || '',
               academicYear: userData.academicYear || userData.year || '',
               profileImage: userData.photoURL || userData.profileImage || '',
