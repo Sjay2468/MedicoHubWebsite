@@ -710,6 +710,7 @@ const LeaderboardView = () => {
     const [sortBy, setSortBy] = useState<'score' | 'quizzes' | 'name'>('score');
     const [selectedWeek, setSelectedWeek] = useState<string>('all');
     const [searchQuery, setSearchQuery] = useState('');
+    const [sessionFilter, setSessionFilter] = useState<string>('all');
     const [announcementModal, setAnnouncementModal] = useState<{ isOpen: boolean, userId: string | null }>({ isOpen: false, userId: null });
 
     useEffect(() => {
@@ -717,6 +718,7 @@ const LeaderboardView = () => {
     }, []);
 
     const loadData = async () => {
+        // ... (existing loadData logic) ...
         try {
             const [usersData, resourcesData] = await Promise.all([
                 api.users.getAll(),
@@ -741,6 +743,20 @@ const LeaderboardView = () => {
         finally { setLoading(false); }
     };
 
+    // Calculate Unique Sessions available in database
+    const uniqueSessions = useMemo(() => {
+        const sessions = new Set<string>();
+        users.forEach(u => {
+            if (u.mcamp?.uniqueId) sessions.add(u.mcamp.uniqueId);
+            if (u.mcampHistory && Array.isArray(u.mcampHistory)) {
+                u.mcampHistory.forEach((h: any) => {
+                    if (h.uniqueId) sessions.add(h.uniqueId);
+                });
+            }
+        });
+        return Array.from(sessions).sort().reverse(); // Newest first
+    }, [users]);
+
     const generateId = async (uid: string) => {
         const uniqueId = `MC-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
         setUsers(prev => prev.map(u => u.uid === uid || u.id === uid ? { ...u, mcamp: { ...u.mcamp, uniqueId, isEnrolled: true } } : u));
@@ -762,11 +778,23 @@ const LeaderboardView = () => {
         const quizzesTaken = attempts.length;
         const name = u.email || 'Unknown';
         const mcampId = u.mcamp?.uniqueId || '';
+        const historyIds = (u.mcampHistory || []).map((h: any) => h.uniqueId);
 
-        return { ...u, totalScore, quizzesTaken, name, mcampId };
+        return { ...u, totalScore, quizzesTaken, name, mcampId, historyIds };
     })
-        .filter(u => (u.mcamp?.isEnrolled || u.isSubscribed) &&
-            (u.mcampId.toLowerCase().includes(searchQuery.toLowerCase())))
+        .filter(u => {
+            // Base filters: Search query
+            const matchesSearch = u.mcampId.toLowerCase().includes(searchQuery.toLowerCase());
+
+            // Session Filter
+            // If 'all', show anyone currently enrolled or subscribed
+            // If specific session, show anyone who has that session ID in their active mcamp OR history
+            const matchesSession = sessionFilter === 'all'
+                ? (u.mcamp?.isEnrolled || u.isSubscribed)
+                : (u.mcampId === sessionFilter || u.historyIds.includes(sessionFilter));
+
+            return matchesSearch && matchesSession;
+        })
         .sort((a, b) => {
             if (sortBy === 'score') return b.totalScore - a.totalScore;
             if (sortBy === 'quizzes') return b.quizzesTaken - a.quizzesTaken;
@@ -794,6 +822,23 @@ const LeaderboardView = () => {
                         />
                     </div>
 
+                    {/* Session Filter */}
+                    <div className="flex items-center gap-2 bg-white border border-gray-200 px-3 py-2 rounded-xl">
+                        <Users size={16} className="text-gray-400" />
+                        <select
+                            value={sessionFilter}
+                            onChange={(e) => setSessionFilter(e.target.value)}
+                            className="bg-transparent font-bold text-sm focus:outline-none text-brand-dark min-w-[140px]"
+                        >
+                            <option value="all">Active Cohort</option>
+                            <optgroup label="Past Sessions">
+                                {uniqueSessions.map(sid => (
+                                    <option key={sid} value={sid}>{sid}</option>
+                                ))}
+                            </optgroup>
+                        </select>
+                    </div>
+
                     {/* Week Filter */}
                     <div className="flex items-center gap-2 bg-white border border-gray-200 px-3 py-2 rounded-xl">
                         <Calendar size={16} className="text-gray-400" />
@@ -808,144 +853,154 @@ const LeaderboardView = () => {
                             ))}
                         </select>
                     </div>
-
-                    {/* Sort */}
-                    <div className="flex items-center gap-2 bg-white border border-gray-200 px-3 py-2 rounded-xl">
-                        <span className="text-xs font-bold text-gray-400 uppercase">Sort:</span>
-                        <select
-                            value={sortBy}
-                            onChange={(e) => setSortBy(e.target.value as any)}
-                            className="bg-transparent font-bold text-sm focus:outline-none text-gray-700"
+                    className="bg-transparent font-bold text-sm focus:outline-none text-gray-700"
                         >
-                            <option value="score">Highest Score</option>
-                            <option value="quizzes">Quizzes Taken</option>
-                            <option value="name">Name (A-Z)</option>
-                        </select>
-                    </div>
-                </div>
+                    <option value="all">Overall Performance</option>
+                    {Array.from({ length: 13 }, (_, i) => i + 1).map(w => (
+                        <option key={w} value={w.toString()}>Week {w}</option>
+                    ))}
+                </select>
             </div>
 
-            <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden shadow-sm">
-                <div className="overflow-x-auto custom-scrollbar">
-                    <table className="w-full text-left">
-                        <thead className="bg-gray-50 border-b border-gray-100">
-                            <tr>
-                                <th className="px-6 py-4 font-bold text-gray-500 text-xs uppercase text-center w-16">Rank</th>
-                                <th className="px-6 py-4 font-bold text-gray-500 text-xs uppercase">Student ID</th>
-                                <th className="px-6 py-4 font-bold text-gray-500 text-xs uppercase text-center">
-                                    {selectedWeek === 'all' ? 'Total Score' : `Week ${selectedWeek} Score`}
-                                </th>
-                                <th className="px-6 py-4 font-bold text-gray-500 text-xs uppercase text-center">
-                                    Quizzes
-                                </th>
-                                <th className="px-6 py-4 font-bold text-gray-500 text-xs uppercase text-center">Status</th>
-                                <th className="px-6 py-4 font-bold text-gray-500 text-xs uppercase text-right">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-50">
-                            {enrolledUsers.length > 0 ? enrolledUsers.map((user, index) => {
-                                const hasId = !!user.mcamp?.uniqueId;
-                                // Rank based on current sort
-                                const isTop3 = index < 3 && user.totalScore > 0;
-
-                                let rankIcon = null;
-                                if (index === 0 && isTop3) rankIcon = <Star size={16} className="text-yellow-400 fill-yellow-400" />;
-                                else if (index === 1 && isTop3) rankIcon = <Star size={16} className="text-gray-400 fill-gray-400" />;
-                                else if (index === 2 && isTop3) rankIcon = <Star size={16} className="text-orange-400 fill-orange-400" />;
-
-                                return (
-                                    <tr key={user.uid || user.id} className={`hover:bg-blue-50/10 transition-colors ${isTop3 ? 'bg-yellow-50/20' : ''}`}>
-                                        <td className="px-6 py-4 text-center">
-                                            <div className="flex flex-col items-center justify-center gap-1">
-                                                <span className={`text-lg font-bold ${isTop3 ? 'text-brand-dark' : 'text-gray-400'}`}>{index + 1}</span>
-                                                {rankIcon}
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <div>
-                                                <div className="flex items-center gap-2 mb-1">
-                                                    {hasId ? (
-                                                        <span className="text-sm font-mono bg-blue-50 text-brand-blue px-2 py-1 rounded border border-blue-100 font-bold">{user.mcamp.uniqueId}</span>
-                                                    ) : <span className="text-gray-400 italic text-[10px]">Pending ID</span>}
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-4 text-center">
-                                            <div className="font-bold text-gray-900 text-lg">{user.totalScore}</div>
-                                            <div className="text-[10px] text-gray-400 uppercase font-bold">Points</div>
-                                        </td>
-                                        <td className="px-6 py-4 text-center">
-                                            <div className="font-bold text-gray-700">{user.quizzesTaken}</div>
-                                            <div className="text-[10px] text-gray-400 uppercase font-bold">Submitted</div>
-                                        </td>
-                                        <td className="px-6 py-4 text-center">
-                                            <span className={`text-[10px] px-2 py-1 rounded-full font-bold uppercase ${user.mcamp?.isSuspended ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'}`}>
-                                                {user.mcamp?.isSuspended ? 'Suspended' : 'Active'}
-                                            </span>
-                                        </td>
-                                        <td className="px-6 py-4 text-right">
-                                            <div className="flex items-center justify-end gap-2">
-                                                <button
-                                                    onClick={() => setAnnouncementModal({ isOpen: true, userId: user.uid || user.id })}
-                                                    className="text-xs bg-purple-100 text-purple-600 px-3 py-1.5 rounded-lg font-bold hover:bg-purple-200 transition-colors flex items-center gap-1"
-                                                    title="Send Announcement"
-                                                >
-                                                    <Megaphone size={14} /> Send
-                                                </button>
-                                                <button
-                                                    onClick={async () => {
-                                                        if (window.confirm(`Are you sure you want to ${user.mcamp?.isSuspended ? 'ACTIVATE' : 'SUSPEND'} this user?`)) {
-                                                            try {
-                                                                const isSuspending = !user.mcamp?.isSuspended;
-                                                                await api.users.update(user.uid || user.id, {
-                                                                    status: isSuspending ? 'suspended' : 'active',
-                                                                    mcamp: {
-                                                                        ...user.mcamp,
-                                                                        isSuspended: isSuspending,
-                                                                        suspensionDate: isSuspending ? new Date().toISOString() : null
-                                                                    }
-                                                                });
-                                                                alert(`User successfully ${isSuspending ? 'suspended' : 'activated'}`);
-                                                                loadData();
-                                                            } catch (err: any) {
-                                                                console.error("Suspension toggle failed:", err);
-                                                                alert("Failed to update user status: " + (err.message || "Unknown error"));
-                                                            }
-                                                        }
-                                                    }}
-                                                    className={`text-xs px-3 py-1.5 rounded-lg font-bold transition-colors ${user.mcamp?.isSuspended ? 'bg-green-100 text-green-600 hover:bg-green-200' : 'bg-red-50 text-red-500 hover:bg-red-100'}`}
-                                                >
-                                                    {user.mcamp?.isSuspended ? 'Activate' : 'Suspend'}
-                                                </button>
-                                                {!hasId && (
-                                                    <button onClick={() => generateId(user.uid || user.id)} className="text-xs bg-brand-dark text-white px-3 py-1.5 rounded-lg font-bold hover:bg-black transition-colors">
-                                                        Generate ID
-                                                    </button>
-                                                )}
-                                            </div>
-                                        </td>
-                                    </tr>
-                                );
-                            }) : (
-                                <tr>
-                                    <td colSpan={5} className="px-6 py-12 text-center text-gray-400 italic">
-                                        No students found matching filters.
-                                    </td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </table>
-                </div>
+            {/* Sort */}
+            <div className="flex items-center gap-2 bg-white border border-gray-200 px-3 py-2 rounded-xl">
+                <span className="text-xs font-bold text-gray-400 uppercase">Sort:</span>
+                <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value as any)}
+                    className="bg-transparent font-bold text-sm focus:outline-none text-gray-700"
+                >
+                    <option value="score">Highest Score</option>
+                    <option value="quizzes">Quizzes Taken</option>
+                    <option value="name">Name (A-Z)</option>
+                </select>
             </div>
-
-            {/* Announcement Modal */}
-            {announcementModal.isOpen && (
-                <AnnouncementModal
-                    userId={announcementModal.userId}
-                    onClose={() => setAnnouncementModal({ isOpen: false, userId: null })}
-                />
-            )}
         </div>
+            </div >
+
+    <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden shadow-sm">
+        <div className="overflow-x-auto custom-scrollbar">
+            <table className="w-full text-left">
+                <thead className="bg-gray-50 border-b border-gray-100">
+                    <tr>
+                        <th className="px-6 py-4 font-bold text-gray-500 text-xs uppercase text-center w-16">Rank</th>
+                        <th className="px-6 py-4 font-bold text-gray-500 text-xs uppercase">Student ID</th>
+                        <th className="px-6 py-4 font-bold text-gray-500 text-xs uppercase text-center">
+                            {selectedWeek === 'all' ? 'Total Score' : `Week ${selectedWeek} Score`}
+                        </th>
+                        <th className="px-6 py-4 font-bold text-gray-500 text-xs uppercase text-center">
+                            Quizzes
+                        </th>
+                        <th className="px-6 py-4 font-bold text-gray-500 text-xs uppercase text-center">Status</th>
+                        <th className="px-6 py-4 font-bold text-gray-500 text-xs uppercase text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                    {enrolledUsers.length > 0 ? enrolledUsers.map((user, index) => {
+                        const hasId = !!user.mcamp?.uniqueId;
+                        // Rank based on current sort
+                        const isTop3 = index < 3 && user.totalScore > 0;
+
+                        let rankIcon = null;
+                        if (index === 0 && isTop3) rankIcon = <Star size={16} className="text-yellow-400 fill-yellow-400" />;
+                        else if (index === 1 && isTop3) rankIcon = <Star size={16} className="text-gray-400 fill-gray-400" />;
+                        else if (index === 2 && isTop3) rankIcon = <Star size={16} className="text-orange-400 fill-orange-400" />;
+
+                        return (
+                            <tr key={user.uid || user.id} className={`hover:bg-blue-50/10 transition-colors ${isTop3 ? 'bg-yellow-50/20' : ''}`}>
+                                <td className="px-6 py-4 text-center">
+                                    <div className="flex flex-col items-center justify-center gap-1">
+                                        <span className={`text-lg font-bold ${isTop3 ? 'text-brand-dark' : 'text-gray-400'}`}>{index + 1}</span>
+                                        {rankIcon}
+                                    </div>
+                                </td>
+                                <td className="px-6 py-4">
+                                    <div>
+                                        <div className="flex items-center gap-2 mb-1">
+                                            {hasId ? (
+                                                <span className="text-sm font-mono bg-blue-50 text-brand-blue px-2 py-1 rounded border border-blue-100 font-bold">{user.mcamp.uniqueId}</span>
+                                            ) : <span className="text-gray-400 italic text-[10px]">Pending ID</span>}
+                                        </div>
+                                    </div>
+                                </td>
+                                <td className="px-6 py-4 text-center">
+                                    <div className="font-bold text-gray-900 text-lg">{user.totalScore}</div>
+                                    <div className="text-[10px] text-gray-400 uppercase font-bold">Points</div>
+                                </td>
+                                <td className="px-6 py-4 text-center">
+                                    <div className="font-bold text-gray-700">{user.quizzesTaken}</div>
+                                    <div className="text-[10px] text-gray-400 uppercase font-bold">Submitted</div>
+                                </td>
+                                <td className="px-6 py-4 text-center">
+                                    <span className={`text-[10px] px-2 py-1 rounded-full font-bold uppercase ${user.mcamp?.isSuspended ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'}`}>
+                                        {user.mcamp?.isSuspended ? 'Suspended' : 'Active'}
+                                    </span>
+                                </td>
+                                <td className="px-6 py-4 text-right">
+                                    <div className="flex items-center justify-end gap-2">
+                                        <button
+                                            onClick={() => setAnnouncementModal({ isOpen: true, userId: user.uid || user.id })}
+                                            className="text-xs bg-purple-100 text-purple-600 px-3 py-1.5 rounded-lg font-bold hover:bg-purple-200 transition-colors flex items-center gap-1"
+                                            title="Send Announcement"
+                                        >
+                                            <Megaphone size={14} /> Send
+                                        </button>
+                                        <button
+                                            onClick={async () => {
+                                                if (window.confirm(`Are you sure you want to ${user.mcamp?.isSuspended ? 'ACTIVATE' : 'SUSPEND'} this user?`)) {
+                                                    try {
+                                                        const isSuspending = !user.mcamp?.isSuspended;
+                                                        await api.users.update(user.uid || user.id, {
+                                                            status: isSuspending ? 'suspended' : 'active',
+                                                            mcamp: {
+                                                                ...user.mcamp,
+                                                                isSuspended: isSuspending,
+                                                                suspensionDate: isSuspending ? new Date().toISOString() : null
+                                                            }
+                                                        });
+                                                        alert(`User successfully ${isSuspending ? 'suspended' : 'activated'}`);
+                                                        loadData();
+                                                    } catch (err: any) {
+                                                        console.error("Suspension toggle failed:", err);
+                                                        alert("Failed to update user status: " + (err.message || "Unknown error"));
+                                                    }
+                                                }
+                                            }}
+                                            className={`text-xs px-3 py-1.5 rounded-lg font-bold transition-colors ${user.mcamp?.isSuspended ? 'bg-green-100 text-green-600 hover:bg-green-200' : 'bg-red-50 text-red-500 hover:bg-red-100'}`}
+                                        >
+                                            {user.mcamp?.isSuspended ? 'Activate' : 'Suspend'}
+                                        </button>
+                                        {!hasId && (
+                                            <button onClick={() => generateId(user.uid || user.id)} className="text-xs bg-brand-dark text-white px-3 py-1.5 rounded-lg font-bold hover:bg-black transition-colors">
+                                                Generate ID
+                                            </button>
+                                        )}
+                                    </div>
+                                </td>
+                            </tr>
+                        );
+                    }) : (
+                        <tr>
+                            <td colSpan={5} className="px-6 py-12 text-center text-gray-400 italic">
+                                No students found matching filters.
+                            </td>
+                        </tr>
+                    )}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+{/* Announcement Modal */ }
+{
+    announcementModal.isOpen && (
+        <AnnouncementModal
+            userId={announcementModal.userId}
+            onClose={() => setAnnouncementModal({ isOpen: false, userId: null })}
+        />
+    )
+}
+        </div >
     );
 };
 

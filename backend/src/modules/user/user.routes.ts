@@ -322,6 +322,20 @@ router.patch('/:uid/profile', verifyAuth, async (req: Request, res: Response) =>
         // Construct update operation dynamically to avoid conflicts
         const updateOp: any = { $set: updates };
 
+        // --- HISTORY ARCHIVING ---
+        // If enrolling in a DIFFERENT session, archive the old one
+        const newUniqueId = updates['mcamp.uniqueId'];
+        if (newUniqueId && oldUser?.mcamp?.isEnrolled && oldUser.mcamp.uniqueId && oldUser.mcamp.uniqueId !== newUniqueId) {
+            // Archive the old session
+            const archivedSession = {
+                ...oldUser.mcamp, // Copy old session data
+                completionDate: new Date() // Mark completion time
+            };
+
+            // Use $push to append to history
+            updateOp.$push = { mcampHistory: archivedSession };
+        }
+
         // Only add $setOnInsert for self-updates (signup flow)
         // This prevents "Updating the path 'role' would create a conflict at 'role'" errors
         // when admin updates a user and sends keys that are also in $setOnInsert

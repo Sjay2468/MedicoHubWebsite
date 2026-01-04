@@ -36,6 +36,14 @@ export interface IUser extends Document {
         suspensionDate?: string | Date | null;
         cohortYear?: string;
     };
+
+    mcampHistory?: {
+        uniqueId?: string;
+        cohortId?: string;
+        enrollmentDate?: Date;
+        completionDate?: Date;
+        level?: string;
+    }[];
     status?: 'active' | 'suspended';
 
     quizAttempts?: Map<string, any>;
@@ -93,6 +101,14 @@ const UserSchema: Schema = new Schema({
         suspensionDate: Date,
         cohortYear: String
     },
+
+    mcampHistory: [{
+        uniqueId: String,
+        cohortId: String,
+        enrollmentDate: Date,
+        completionDate: Date,
+        level: String
+    }],
 
     quizAttempts: {
         type: Map,
