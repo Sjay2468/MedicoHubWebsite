@@ -763,7 +763,7 @@ export const Learning: React.FC<LearningProps> = ({
                                                     /* PDF VIEWER */
                                                     /* PDF VIEWER */
                                                     // Custom Canvas PDF Viewer
-                                                    <div className="w-full min-h-[80vh] bg-gray-100 rounded-3xl overflow-hidden shadow-xl relative border border-gray-200 flex flex-col items-center justify-center group select-none">
+                                                    <div className="w-[calc(100%+2rem)] -mx-4 md:mx-0 md:w-full min-h-[80vh] bg-gray-100 rounded-none md:rounded-3xl overflow-hidden shadow-xl relative border-y md:border border-gray-200 flex flex-col items-center justify-center group select-none">
 
                                                         {/* Header / Toolbar */}
                                                         <div className="absolute top-0 left-0 right-0 bg-white/90 backdrop-blur-md p-3 flex items-center justify-between z-20 shadow-sm border-b border-gray-200">
@@ -779,7 +779,7 @@ export const Learning: React.FC<LearningProps> = ({
 
                                                         {/* Canvas Render Area */}
                                                         <div
-                                                            className="flex-1 w-full flex items-center justify-center p-8 overflow-auto custom-scrollbar relative bg-gray-50"
+                                                            className="flex-1 w-full flex items-center justify-center p-0 md:p-8 overflow-auto custom-scrollbar relative bg-gray-50"
                                                             onContextMenu={(e) => e.preventDefault()}
                                                         >
                                                             <canvas
@@ -1110,14 +1110,6 @@ export const Learning: React.FC<LearningProps> = ({
                                         </div>
 
                                         {/* Floating AI Button (Mobile) */}
-                                        {canUseAi && (
-                                            <button
-                                                onClick={toggleAiChat}
-                                                className="md:hidden absolute bottom-24 right-6 w-14 h-14 bg-brand-dark hover:bg-black text-white rounded-full flex items-center justify-center shadow-2xl shadow-brand-dark/30 transition-all hover:scale-110 z-40 border-4 border-white/20"
-                                            >
-                                                <Bot size={28} />
-                                            </button>
-                                        )}
 
                                         {/* AI Chat Overlay */}
                                         {isAiChatOpen && canUseAi && (
