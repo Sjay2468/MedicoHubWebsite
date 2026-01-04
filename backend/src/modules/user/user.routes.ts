@@ -272,13 +272,8 @@ router.get('/:uid/profile', verifyAuth, async (req: Request, res: Response) => {
         userData.year = userData.academicYear || userData.year;
 
         res.json({ success: true, user: userData });
-    } catch (error: any) {
-        console.error(`[UserUpdate] ERROR updating UID ${uid}:`, error);
-        res.status(500).json({
-            error: "Failed to update user profile",
-            message: error.message,
-            details: error.errors ? Object.keys(error.errors) : undefined
-        });
+    } catch (error) {
+        res.status(500).json({ error: "Internal Server Error" });
     }
 });
 
@@ -382,12 +377,11 @@ router.patch('/:uid/profile', verifyAuth, async (req: Request, res: Response) =>
             {
                 $set: updates,
                 $setOnInsert: {
-                    email: updates.email || req.user.email || '',
-                    name: updates.name || 'Student', // Default name to satisfy MongoDB validation
+                    email: req.user.email || '',
                     role: 'student'
                 }
             },
-            { new: true, upsert: true, runValidators: true }
+            { new: true, upsert: true }
         );
 
         // --- EMAIL TRIGGERS ---

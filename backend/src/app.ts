@@ -1,14 +1,14 @@
-import dotenv from 'dotenv';
-dotenv.config();
-
 import express, { Express, Request, Response } from 'express';
 import cors from 'cors';
+import dotenv from 'dotenv';
 import path from 'path';
 import swaggerUi from 'swagger-ui-express';
 import swaggerJsDoc from 'swagger-jsdoc';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import connectDB from './config/database';
+
+dotenv.config();
 
 // Connect to MongoDB Database
 connectDB();
