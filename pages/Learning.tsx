@@ -329,7 +329,8 @@ export const Learning: React.FC<LearningProps> = ({
                 const unscaledViewport = page.getViewport({ scale: 1 });
 
                 // baseScale is what we need to fit the container width
-                const baseScale = (containerWidth - 40) / unscaledViewport.width;
+                const padding = windowWidth < 768 ? 0 : 40;
+                const baseScale = (containerWidth - padding) / unscaledViewport.width;
 
                 // renderScale accounts for screen density (Retina/Mobile) and manual zoom
                 // We use a minimum of 2.0 multiplier relative to baseScale to ensure sharpness
