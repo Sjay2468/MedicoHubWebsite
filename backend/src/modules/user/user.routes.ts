@@ -307,11 +307,19 @@ router.patch('/:uid/profile', verifyAuth, async (req: Request, res: Response) =>
             });
         }
 
+        // Fix for Admin Updates:
+        // If Admin is updating another user, DO NOT upsert. Upserting would use req.user (Admin) email
+        // in $setOnInsert, causing E11000 Duplicate Key Error on email field.
+        // Upsert is only safe for "Self Updates" where the token belongs to the user being created.
+        // @ts-ignore
+        const isSelfUpdate = req.user.uid === uid;
+
         const user = await User.findOneAndUpdate(
             { uid },
             {
                 $set: updates,
                 $setOnInsert: {
+                    // Only used if upserting (Self Update)
                     email: req.user.email || '',
                     role: 'student',
                     // Prevent "Anonymous" users: If creating a new user via a partial update (e.g. year),
@@ -320,7 +328,7 @@ router.patch('/:uid/profile', verifyAuth, async (req: Request, res: Response) =>
                     photoURL: req.user.picture || req.user.photoURL || undefined
                 }
             },
-            { new: true, upsert: true }
+            { new: true, upsert: isSelfUpdate } // Only upsert if user is updating themselves
         );
 
         // --- EMAIL TRIGGERS ---
