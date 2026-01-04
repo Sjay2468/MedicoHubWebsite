@@ -64,7 +64,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         try {
             // 2. Add their name to their profile
             await updateProfile(userCredential.user, { displayName: name });
-            // MongoDB profile will be auto-created on the first API call to GET /profile
+
+            // 3. Force Creation in MongoDB (Sync)
+            // This ensures the Admin Panel sees the name immediately, instead of "Anonymous"
+            await api.users.update(userCredential.user.uid, { name, email });
         } catch (error) {
             console.error("Error setting up user profile name:", error);
         }
@@ -117,7 +120,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const googleSignIn = async () => {
         const provider = new GoogleAuthProvider();
         const result = await signInWithPopup(auth, provider);
-        // MongoDB profile will be auto-created on the first API call to GET /profile
+
+        // Force Creation/Sync in MongoDB immediately
+        if (result.user) {
+            try {
+                await api.users.update(result.user.uid, {
+                    name: result.user.displayName || 'Google User',
+                    email: result.user.email,
+                    photoURL: result.user.photoURL
+                });
+            } catch (e) {
+                console.error("Failed to sync Google user to MongoDB:", e);
+            }
+        }
         return result.user !== null;
     };
 
