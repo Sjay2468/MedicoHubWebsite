@@ -97,12 +97,22 @@ const STYLES = {
 /**
  * Modern HTML Template wrapper
  */
+// SVG Path for Stethoscope
+const STETHOSCOPE_ICON = `
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M11 2v2a5 5 0 0 1-10 0V2" />
+  <path d="M5 2v2" />
+  <path d="M22 6h-2a2 2 0 0 0-2 2v3a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2Z" />
+  <path d="M11 9v5a3 3 0 0 0 3 3h2a3 3 0 0 1 3 3v1" />
+</svg>
+`;
+
 const wrapEmail = (title: string, contentHtml: string) => `
 <!DOCTYPE html>
 <html>
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
     <style>
         body { margin: 0; padding: 0; background-color: ${COLORS.bg}; -webkit-font-smoothing: antialiased; }
         a:hover { opacity: 0.9; }
@@ -112,8 +122,23 @@ const wrapEmail = (title: string, contentHtml: string) => `
     <div style="${STYLES.container}">
         <!-- Brand Header -->
         <div style="${STYLES.header}">
-            <!-- Using the public URL for the logo -->
-           <img src="https://admin.medicohub.com.ng/assets/medico-hub-logo-white-C4tC:UsersJosephDownloadsimag.png" alt="Medico Hub" style="${STYLES.logoImg}" width="180" height="48" />
+            <table align="center" border="0" cellpadding="0" cellspacing="0" role="presentation">
+                <tr>
+                    <td style="padding-right: 12px;">
+                        <div style="width: 42px; height: 42px; background-color: #0066FF; border-radius: 12px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(0, 102, 255, 0.3);">
+                            <!-- Stethoscope SVG -->
+                           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M4.8 2.3A.3.3 0 1 0 5 2H4a2 2 0 0 0-2 2v5a6 6 0 0 0 6 6v0a6 6 0 0 0 6-6V4a2 2 0 0 0-2-2h-1a.2.2 0 1 0 .3.3" />
+                                <path d="M8 15v1a6 6 0 0 0 6 6v0a6 6 0 0 0 6-6v-4" />
+                                <circle cx="20" cy="10" r="2" />
+                            </svg>
+                        </div>
+                    </td>
+                    <td style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 28px; font-weight: 800; letter-spacing: -0.5px; line-height: 1;">
+                        <span style="color: #ffffff">Medico</span><span style="color: #3b82f6">Hub</span>
+                    </td>
+                </tr>
+            </table>
         </div>
         
         <!-- Main Content -->
@@ -206,6 +231,43 @@ export const EmailService = {
     },
 
     // --- PRO SUBSCRIPTION ---
+    sendUpgradePromptEmail: async (user: any) => {
+        if (!resend || !process.env.RESEND_API_KEY) return;
+        try {
+            const content = `
+                <h1 style="${STYLES.h1}">Unlock Your Full Potential 🚀</h1>
+                <p style="${STYLES.p}">
+                    You're currently on the <strong>Free Tier</strong>. While you have access to basic resources, the real power of Medico Hub lies in our Pro plan.
+                </p>
+                <div style="${STYLES.highlightBox}; background: linear-gradient(to right, #fdfbf7, #fff);">
+                    <h3 style="margin: 0 0 16px 0; color: #b45309;">🏆 Why Go Pro?</h3>
+                    <div style="display: flex; margin-bottom: 12px; align-items: start;">
+                        <span style="color: ${COLORS.success}; margin-right: 12px; font-weight: bold;">✓</span>
+                        <span><strong>Unlimited Access</strong> to all study notes & PDFs</span>
+                    </div>
+                     <div style="display: flex; margin-bottom: 12px; align-items: start;">
+                        <span style="color: ${COLORS.success}; margin-right: 12px; font-weight: bold;">✓</span>
+                        <span><strong>Ad-Free</strong> Experience</span>
+                    </div>
+                     <div style="display: flex; align-items: start;">
+                        <span style="color: ${COLORS.success}; margin-right: 12px; font-weight: bold;">✓</span>
+                        <span><strong>Priority</strong> Support & MCAMP Placement</span>
+                    </div>
+                </div>
+                 <div style="text-align: center; margin-top: 32px;">
+                    <a href="https://medicohub.com.ng/pricing" style="${STYLES.button}">Upgrade to Pro</a>
+                    <p style="margin-top: 16px; font-size: 12px; color: ${COLORS.textLight};">Invest in your medical career today.</p>
+                </div>
+            `;
+            await resend.emails.send({
+                from: FROM_EMAIL,
+                to: user.email,
+                subject: 'Unlock Unlimited Access with Pro 🌟',
+                html: wrapEmail('Upgrade to Pro', content)
+            });
+        } catch (e) { console.error(e); }
+    },
+
     sendSubscriptionStatusEmail: async (user: any, isPro: boolean) => {
         if (!resend || !process.env.RESEND_API_KEY) return;
         try {

@@ -338,13 +338,26 @@ router.patch('/:uid/profile', verifyAuth, async (req: Request, res: Response) =>
                 EmailService.sendMcampWelcomeEmail(user, user.mcamp?.uniqueId || 'PENDING').catch(e => console.error("MCAMP email failed", e));
             }
 
-            // 3. Subscription Status Change: Send if isSubscribed changed
+            // 3. Subscription Status Change:
             const wasSubscribed = oldUser?.isSubscribed;
             const isSubscribed = user.isSubscribed;
-            // Only send if explicit change. Note: 'updates' might not contain isSubscribed if it wasn't in req.body
-            // But 'user' is the new document.
-            if (isSubscribed !== wasSubscribed) {
-                EmailService.sendSubscriptionStatusEmail(user, !!isSubscribed).catch(e => console.error("Subscription email failed", e));
+
+            if (!oldUser) {
+                // NEW USER
+                if (!isSubscribed) {
+                    // Send "Upgrade to Pro" prompt instead of "Subscription Ended"
+                    // (Optional: You might want to skip this if they get a Welcome email already, 
+                    // but the user explicitly requested this specific email)
+                    EmailService.sendUpgradePromptEmail(user).catch(e => console.error("Upgrade prompt email failed", e));
+                } else {
+                    // New user started as Pro (unlikely but possible via admin)
+                    EmailService.sendSubscriptionStatusEmail(user, true).catch(e => console.error("Subscription email failed", e));
+                }
+            } else {
+                // EXISTING USER UPDATE
+                if (isSubscribed !== wasSubscribed) {
+                    EmailService.sendSubscriptionStatusEmail(user, !!isSubscribed).catch(e => console.error("Subscription email failed", e));
+                }
             }
         }
 
