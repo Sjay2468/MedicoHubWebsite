@@ -39,6 +39,7 @@ const ScrollToTop = () => {
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { EmailVerificationBanner } from './components/EmailVerificationBanner';
 import { NotFound } from './components/NotFound';
+import { GlobalErrorBoundary } from './components/GlobalErrorBoundary';
 
 const queryClient = new QueryClient();
 
@@ -568,14 +569,16 @@ const AppContent: React.FC = () => {
 const App: React.FC = () => {
   return (
     <AuthProvider>
-      <SettingsProvider>
-        <QueryClientProvider client={queryClient}>
-          <HashRouter>
-            <ScrollToTop />
-            <AppContent />
-          </HashRouter>
-        </QueryClientProvider>
-      </SettingsProvider>
+      <GlobalErrorBoundary>
+        <SettingsProvider>
+          <QueryClientProvider client={queryClient}>
+            <HashRouter>
+              <ScrollToTop />
+              <AppContent />
+            </HashRouter>
+          </QueryClientProvider>
+        </SettingsProvider>
+      </GlobalErrorBoundary>
     </AuthProvider>
   );
 }

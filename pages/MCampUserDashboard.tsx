@@ -139,8 +139,8 @@ export const MCampUserDashboard: React.FC<MCampUserDashboardProps> = ({
 
   // Determine eligibility based on targetYear from curriculum
   const isEligible = React.useMemo(() => {
-    const userY = (user.year || user.academicYear || '').toString().toLowerCase();
-    const targetY = targetYear.toLowerCase();
+    const userY = String(user.year || user.academicYear || '').toLowerCase();
+    const targetY = String(targetYear || '').toLowerCase();
 
     // Normalize: extract first digit or match strings
     const getLevel = (s: string) => {
@@ -171,8 +171,8 @@ export const MCampUserDashboard: React.FC<MCampUserDashboardProps> = ({
     }
 
     // Fallback: Check if user's cohort year matches current target year (only if no activeCohortId set by admin)
-    const userCohort = (user.mcamp?.cohortYear || user.year || user.academicYear || '').toString().toLowerCase();
-    const targetY = targetYear.toLowerCase();
+    const userCohort = String(user.mcamp?.cohortYear || user.year || user.academicYear || '').toLowerCase();
+    const targetY = String(targetYear || '').toLowerCase();
     return userCohort === targetY || userCohort.includes(targetY) || targetY.includes(userCohort);
   }, [isEnrolled, user.mcamp?.cohortId, user.mcamp?.cohortYear, user.year, user.academicYear, targetYear, activeCohortId]);
 

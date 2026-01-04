@@ -333,6 +333,15 @@ router.patch('/:uid/profile', verifyAuth, async (req: Request, res: Response) =>
             if (isEnrolled && !wasEnrolled) {
                 EmailService.sendMcampWelcomeEmail(user, user.mcamp?.uniqueId || 'PENDING').catch(e => console.error("MCAMP email failed", e));
             }
+
+            // 3. Subscription Status Change: Send if isSubscribed changed
+            const wasSubscribed = oldUser?.isSubscribed;
+            const isSubscribed = user.isSubscribed;
+            // Only send if explicit change. Note: 'updates' might not contain isSubscribed if it wasn't in req.body
+            // But 'user' is the new document.
+            if (isSubscribed !== wasSubscribed) {
+                EmailService.sendSubscriptionStatusEmail(user, !!isSubscribed).catch(e => console.error("Subscription email failed", e));
+            }
         }
 
         // Explicitly map for frontend compatibility

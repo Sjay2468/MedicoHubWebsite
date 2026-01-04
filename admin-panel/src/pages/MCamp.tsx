@@ -284,6 +284,11 @@ const ScheduleManager = () => {
     const [targetYear, setTargetYear] = useState<string>('Year 2');
     const [activeCohortId, setActiveCohortId] = useState<string>('');
 
+    // Safety Features
+    const [initialActiveCohortId, setInitialActiveCohortId] = useState<string>('');
+    const [isSessionLocked, setIsSessionLocked] = useState(true);
+    const [showSessionConfirmation, setShowSessionConfirmation] = useState(false);
+
     useEffect(() => {
         fetchData();
     }, []);
@@ -301,7 +306,10 @@ const ScheduleManager = () => {
 
             let loadedWeeks = curData.weeks || [];
             if (curData.targetYear) setTargetYear(curData.targetYear);
-            if (curData.activeCohortId) setActiveCohortId(curData.activeCohortId);
+            if (curData.activeCohortId) {
+                setActiveCohortId(curData.activeCohortId);
+                setInitialActiveCohortId(curData.activeCohortId);
+            }
 
             if (loadedWeeks.length === 0) {
                 loadedWeeks = Array.from({ length: 13 }, (_, i) => ({
@@ -362,10 +370,22 @@ const ScheduleManager = () => {
             return;
         }
 
+        // Check if Session ID changed and warn user
+        if (activeCohortId !== initialActiveCohortId) {
+            setShowSessionConfirmation(true);
+            return;
+        }
+
+        await performSave();
+    };
+
+    const performSave = async () => {
         setIsSaving(true);
         try {
             await api.curriculum.update({ weeks, targetYear, activeCohortId });
             setHasUnsavedChanges(false);
+            setInitialActiveCohortId(activeCohortId);
+            setIsSessionLocked(true);
             // Simple confirmation
             setTimeout(() => alert("Schedule saved successfully!"), 100);
         } catch (error) {
@@ -373,6 +393,7 @@ const ScheduleManager = () => {
             alert("Failed to save changes.");
         } finally {
             setIsSaving(false);
+            setShowSessionConfirmation(false);
         }
     };
 
@@ -411,6 +432,43 @@ const ScheduleManager = () => {
 
     return (
         <div className="space-y-8">
+            {/* ... prev content ... */}
+
+            {/* DANGER: Session ID Change Confirmation Modal */}
+            {showSessionConfirmation && createPortal(
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-red-900/20 backdrop-blur-sm animate-fade-in">
+                    <div className="bg-white rounded-[2rem] w-full max-w-md shadow-2xl p-8 animate-pop-in border-2 border-red-100">
+                        <div className="flex flex-col items-center text-center">
+                            <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mb-4">
+                                <AlertCircle size={32} />
+                            </div>
+                            <h3 className="text-xl font-extrabold text-brand-dark mb-2">Changing Session ID?</h3>
+                            <p className="text-gray-500 mb-6 text-sm">
+                                You are about to change the Cohort Session ID from <span className="font-mono font-bold bg-gray-100 px-1 rounded">{initialActiveCohortId}</span> to <span className="font-mono font-bold bg-blue-50 text-brand-blue px-1 rounded">{activeCohortId}</span>.
+                                <br /><br />
+                                <span className="text-red-600 font-bold bg-red-50 px-2 py-1 rounded">⚠️ This will disconnect all existing students</span> from the current schedule and tracking. They will need the new ID to rejoin.
+                            </p>
+
+                            <div className="flex gap-3 w-full">
+                                <button
+                                    onClick={() => setShowSessionConfirmation(false)}
+                                    className="flex-1 py-3 text-gray-500 font-bold hover:bg-gray-50 rounded-xl transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={performSave}
+                                    className="flex-1 py-3 bg-red-500 text-white font-bold rounded-xl hover:bg-red-600 shadow-lg shadow-red-500/20 transition-all"
+                                >
+                                    Yes, Change it
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>,
+                document.body
+            )}
+
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                     <h2 className="text-2xl font-bold text-gray-800">Weekly Schedule</h2>
@@ -440,28 +498,41 @@ const ScheduleManager = () => {
                     <div className="flex items-center gap-2 border-r border-gray-200 pr-4">
                         <Tag size={16} className="text-purple-500" />
                         <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Session ID:</span>
-                        <div className="flex items-center gap-1">
+                        <div className="flex items-center gap-2 bg-white px-2 py-1 rounded-lg border border-gray-200 focus-within:border-brand-blue transition-colors relative group">
                             <input
                                 type="text"
                                 placeholder="e.g. batch-a-2026"
                                 value={activeCohortId}
+                                disabled={isSessionLocked}
                                 onChange={(e) => {
                                     setActiveCohortId(e.target.value);
                                     setHasUnsavedChanges(true);
                                 }}
-                                className="bg-transparent font-mono font-bold text-xs focus:outline-none text-brand-dark w-32"
+                                className={`bg-transparent font-mono font-bold text-xs focus:outline-none w-32 ${isSessionLocked ? 'text-gray-500 cursor-not-allowed' : 'text-brand-dark'}`}
                             />
+
+                            {/* Lock/Unlock Control */}
                             <button
-                                onClick={() => {
-                                    const random = Math.random().toString(36).substring(2, 7).toUpperCase();
-                                    setActiveCohortId(`cohort-v3-${random}`);
-                                    setHasUnsavedChanges(true);
-                                }}
-                                className="text-gray-400 hover:text-brand-blue"
-                                title="Generate New Session ID"
+                                onClick={() => setIsSessionLocked(!isSessionLocked)}
+                                className={`p-1 rounded hover:bg-gray-100 transition-colors ${isSessionLocked ? 'text-gray-400' : 'text-brand-blue'}`}
+                                title={isSessionLocked ? "Click to Unlock Editing" : "Click to Lock"}
                             >
-                                <Plus size={14} />
+                                {isSessionLocked ? <Lock size={12} /> : <Unlock size={12} />}
                             </button>
+
+                            {!isSessionLocked && (
+                                <button
+                                    onClick={() => {
+                                        const random = Math.random().toString(36).substring(2, 7).toUpperCase();
+                                        setActiveCohortId(`cohort-v3-${random}`);
+                                        setHasUnsavedChanges(true);
+                                    }}
+                                    className="text-gray-400 hover:text-brand-blue pl-1 border-l border-gray-100"
+                                    title="Generate New Session ID"
+                                >
+                                    <Plus size={14} />
+                                </button>
+                            )}
                         </div>
                     </div>
 
