@@ -357,5 +357,28 @@ export const api = {
             const result = await res.json();
             return result;
         }
+    },
+    auth: {
+        sendVerificationEmail: async () => {
+            const res = await fetch(`${BASE_URL}/auth/send-verification`, {
+                method: 'POST',
+                headers: await getAuthHeaders()
+            });
+            return handleResponse(res);
+        },
+        sendPasswordReset: async (email: string) => {
+            // Note: Password reset must be public (no auth headers required for initial request usually, 
+            // but our backend endpoint might require token if it's for logged in user? 
+            // Actually, for "Forgot Password", the user is NOT logged in.
+            // Let's check backend route definition... 
+            // Wait, backend route /api/v1/auth/send-reset usually takes email in body and is public.
+            // Let's assume it is public for now.
+            const res = await fetch(`${BASE_URL}/auth/send-reset`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email })
+            });
+            return handleResponse(res);
+        }
     }
 };

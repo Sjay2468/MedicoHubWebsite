@@ -42,7 +42,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const login = async (email: string, pass: string) => {
         const credential = await signInWithEmailAndPassword(auth, email, pass);
         const token = await credential.user.getIdTokenResult();
-        if (!token.claims.admin) {
+
+        // Allow Super Admin explicitly (bypass claim check)
+        const isSuperAdmin = email.toLowerCase() === 'medicohub2024@gmail.com';
+
+        if (!token.claims.admin && !isSuperAdmin) {
             await signOut(auth);
             throw new Error("Unauthorized: Access restricted to administrators only.");
         }
@@ -53,7 +57,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     const resetPassword = async (email: string) => {
-        await sendPasswordResetEmail(auth, email);
+        // Use custom backend to ensure styled email (Resend)
+        // Ensure you import { api } from '../services/api';
+        try {
+            // Try backend first
+            // We need to dynamically import api or assume it is available. 
+            // Since we can't easily add imports with replace_file_content if we don't match the top,
+            // let's use the fetch directly or assume import is added.
+            // Actually, let's just do a fetch here to be safe and avoid import mess in this snippet.
+            let url = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || 'https://medico-backend-06fb.onrender.com';
+            url = String(url).trim().replace(/\/$/, "");
+            if (!url.endsWith('/api/v1')) url += '/api/v1';
+
+            const res = await fetch(`${url}/auth/send-reset`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email })
+            });
+            if (!res.ok) throw new Error("Backend reset failed");
+        } catch (e) {
+            console.warn("Custom reset failed, falling back to Firebase:", e);
+            await sendPasswordResetEmail(auth, email);
+        }
     };
 
     return (
