@@ -295,99 +295,101 @@ router.patch('/:uid/profile', verifyAuth, async (req: Request, res: Response) =>
             } else {
                 updates[key] = val;
             }
-            const oldUser = await User.findOne({ uid });
+        });
 
-            // If photoURL or name is updated, also update Firebase Auth Profile (Sync for Auth only)
-            if (updates.photoURL || updates.name) {
-                try {
-                    await auth.updateUser(uid, {
-                        photoURL: updates.photoURL || undefined,
-                        displayName: updates.name || undefined
-                    });
-                } catch (authError: any) {
-                    console.warn(`[Warning] Failed to sync Firebase profile for ${uid}:`, authError.message);
-                    // Continue with MongoDB update even if Firebase sync fails
-                }
+        const oldUser = await User.findOne({ uid });
+
+        // If photoURL or name is updated, also update Firebase Auth Profile (Sync for Auth only)
+        if (updates.photoURL || updates.name) {
+            try {
+                await auth.updateUser(uid, {
+                    photoURL: updates.photoURL || undefined,
+                    displayName: updates.name || undefined
+                });
+            } catch (authError: any) {
+                console.warn(`[Warning] Failed to sync Firebase profile for ${uid}:`, authError.message);
+                // Continue with MongoDB update even if Firebase sync fails
             }
-
-            // Fix for Admin Updates:
-            // If Admin is updating another user, DO NOT upsert. Upserting would use req.user (Admin) email
-            // in $setOnInsert, causing E11000 Duplicate Key Error on email field.
-            // Upsert is only safe for "Self Updates" where the token belongs to the user being created.
-            // @ts-ignore
-            const isSelfUpdate = req.user.uid === uid;
-
-            // Construct update operation dynamically to avoid conflicts
-            const updateOp: any = { $set: updates };
-
-            // Only add $setOnInsert for self-updates (signup flow)
-            // This prevents "Updating the path 'role' would create a conflict at 'role'" errors
-            // when admin updates a user and sends keys that are also in $setOnInsert
-            if (isSelfUpdate) {
-                updateOp.$setOnInsert = {
-                    email: req.user.email || '',
-                    role: 'student',
-                    name: req.user.name || req.user.displayName || 'Student',
-                    photoURL: req.user.picture || req.user.photoURL || undefined
-                };
-            }
-
-            const user = await User.findOneAndUpdate(
-                { uid },
-                updateOp,
-                { new: true, upsert: isSelfUpdate, runValidators: true }
-            );
-
-            // --- EMAIL TRIGGERS ---
-            if (user) {
-                // 1. Welcome Email: Send if name was just set and they didn't have one before
-                // Or if it's a completely new user document (oldUser is null)
-                if (!oldUser || (!oldUser.name && updates.name)) {
-                    EmailService.sendWelcomeEmail(user).catch(e => console.error("Welcome email failed", e));
-                }
-
-                // 2. MCAMP Welcome: Send if mcamp.isEnrolled transitioned from false/undefined to true
-                const wasEnrolled = oldUser?.mcamp?.isEnrolled;
-                const isEnrolled = user.mcamp?.isEnrolled;
-                if (isEnrolled && !wasEnrolled) {
-                    EmailService.sendMcampWelcomeEmail(user, user.mcamp?.uniqueId || 'PENDING').catch(e => console.error("MCAMP email failed", e));
-                }
-
-                // 3. Subscription Status Change:
-                const wasSubscribed = oldUser?.isSubscribed;
-                const isSubscribed = user.isSubscribed;
-
-                if (!oldUser) {
-                    // NEW USER
-                    if (!isSubscribed) {
-                        // Send "Upgrade to Pro" prompt instead of "Subscription Ended"
-                        // (Optional: You might want to skip this if they get a Welcome email already, 
-                        // but the user explicitly requested this specific email)
-                        EmailService.sendUpgradePromptEmail(user).catch(e => console.error("Upgrade prompt email failed", e));
-                    } else {
-                        // New user started as Pro (unlikely but possible via admin)
-                        EmailService.sendSubscriptionStatusEmail(user, true).catch(e => console.error("Subscription email failed", e));
-                    }
-                } else {
-                    // EXISTING USER UPDATE
-                    if (isSubscribed !== wasSubscribed) {
-                        EmailService.sendSubscriptionStatusEmail(user, !!isSubscribed).catch(e => console.error("Subscription email failed", e));
-                    }
-                }
-            }
-
-            // Explicitly map for frontend compatibility
-            const userData = user ? user.toObject() : null;
-            if (userData) {
-                userData.year = userData.academicYear || userData.year;
-            }
-
-            res.json({ success: true, user: userData });
-        } catch (error: any) {
-            console.error("Error updating profile in MongoDB:", error);
-            // Expose error message to client for debugging
-            res.status(500).json({ error: error.message || "Failed to update profile", details: error });
         }
-    });
+
+        // Fix for Admin Updates:
+        // If Admin is updating another user, DO NOT upsert. Upserting would use req.user (Admin) email
+        // in $setOnInsert, causing E11000 Duplicate Key Error on email field.
+        // Upsert is only safe for "Self Updates" where the token belongs to the user being created.
+        // @ts-ignore
+        const isSelfUpdate = req.user.uid === uid;
+
+        // Construct update operation dynamically to avoid conflicts
+        const updateOp: any = { $set: updates };
+
+        // Only add $setOnInsert for self-updates (signup flow)
+        // This prevents "Updating the path 'role' would create a conflict at 'role'" errors
+        // when admin updates a user and sends keys that are also in $setOnInsert
+        if (isSelfUpdate) {
+            updateOp.$setOnInsert = {
+                email: req.user.email || '',
+                role: 'student',
+                name: req.user.name || req.user.displayName || 'Student',
+                photoURL: req.user.picture || req.user.photoURL || undefined
+            };
+        }
+
+        const user = await User.findOneAndUpdate(
+            { uid },
+            updateOp,
+            { new: true, upsert: isSelfUpdate, runValidators: true }
+        );
+
+        // --- EMAIL TRIGGERS ---
+        if (user) {
+            // 1. Welcome Email: Send if name was just set and they didn't have one before
+            // Or if it's a completely new user document (oldUser is null)
+            if (!oldUser || (!oldUser.name && updates.name)) {
+                EmailService.sendWelcomeEmail(user).catch(e => console.error("Welcome email failed", e));
+            }
+
+            // 2. MCAMP Welcome: Send if mcamp.isEnrolled transitioned from false/undefined to true
+            const wasEnrolled = oldUser?.mcamp?.isEnrolled;
+            const isEnrolled = user.mcamp?.isEnrolled;
+            if (isEnrolled && !wasEnrolled) {
+                EmailService.sendMcampWelcomeEmail(user, user.mcamp?.uniqueId || 'PENDING').catch(e => console.error("MCAMP email failed", e));
+            }
+
+            // 3. Subscription Status Change:
+            const wasSubscribed = oldUser?.isSubscribed;
+            const isSubscribed = user.isSubscribed;
+
+            if (!oldUser) {
+                // NEW USER
+                if (!isSubscribed) {
+                    // Send "Upgrade to Pro" prompt instead of "Subscription Ended"
+                    // (Optional: You might want to skip this if they get a Welcome email already, 
+                    // but the user explicitly requested this specific email)
+                    EmailService.sendUpgradePromptEmail(user).catch(e => console.error("Upgrade prompt email failed", e));
+                } else {
+                    // New user started as Pro (unlikely but possible via admin)
+                    EmailService.sendSubscriptionStatusEmail(user, true).catch(e => console.error("Subscription email failed", e));
+                }
+            } else {
+                // EXISTING USER UPDATE
+                if (isSubscribed !== wasSubscribed) {
+                    EmailService.sendSubscriptionStatusEmail(user, !!isSubscribed).catch(e => console.error("Subscription email failed", e));
+                }
+            }
+        }
+
+        // Explicitly map for frontend compatibility
+        const userData = user ? user.toObject() : null;
+        if (userData) {
+            userData.year = userData.academicYear || userData.year;
+        }
+
+        res.json({ success: true, user: userData });
+    } catch (error: any) {
+        console.error("Error updating profile in MongoDB:", error);
+        // Expose error message to client for debugging
+        res.status(500).json({ error: error.message || "Failed to update profile", details: error });
+    }
+});
 
 export default router;

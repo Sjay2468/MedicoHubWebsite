@@ -66,11 +66,16 @@ export const verifyAdmin = async (req: Request, res: Response, next: NextFunctio
         }
     }
 
-    // We check the "Admin" tag that we put on their Firebase account
-    if (req.user.admin === true) {
-        next(); // They are an admin, let them through
+    // SUPER ADMIN LOCKDOWN:
+    // Only this specific email is allowed to access admin routes.
+    // This overrides any "admin" claim in the token.
+    const SUPER_ADMIN_EMAIL = 'medicohub2024@gmail.com';
+
+    if (req.user.email === SUPER_ADMIN_EMAIL) {
+        next(); // The Chosen One. Proceed.
     } else {
-        return res.status(403).json({ error: 'Forbidden: Admin access required' });
+        console.warn(`[Security] Blocked admin access attempt from: ${req.user.email}`);
+        return res.status(403).json({ error: 'Forbidden: Access restricted to Super Admin only.' });
     }
 };
 
