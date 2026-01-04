@@ -3,6 +3,7 @@ import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { verifyPasswordResetCode, confirmPasswordReset, getAuth } from 'firebase/auth';
 import { KeyRound, CheckCircle, XCircle, ArrowRight, Loader2, Eye, EyeOff, Lock } from 'lucide-react';
 import { AppRoute } from '../types';
+import { api } from '../services/api';
 
 export const ResetPassword: React.FC = () => {
     const [searchParams] = useSearchParams();
@@ -20,11 +21,17 @@ export const ResetPassword: React.FC = () => {
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     const oobCode = searchParams.get('oobCode');
+    const token = searchParams.get('token');
 
     useEffect(() => {
         const mode = searchParams.get('mode');
 
-        if (mode === 'resetPassword' && oobCode) {
+        if (token) {
+            // [CUSTOM FLOW]
+            // We can't verify email without an API call, so we assume valid for now
+            // and let the submit step handle validation.
+            setStatus('valid');
+        } else if (mode === 'resetPassword' && oobCode) {
             handleVerifyCode(oobCode);
         } else {
             setStatus('error');
@@ -46,7 +53,8 @@ export const ResetPassword: React.FC = () => {
 
     const handleResetSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!oobCode) return;
+
+        if (!oobCode && !token) return;
 
         if (newPassword !== confirmPassword) {
             setMessage("Passwords do not match.");
@@ -60,14 +68,21 @@ export const ResetPassword: React.FC = () => {
 
         setIsSubmitting(true);
         try {
-            await confirmPasswordReset(auth, oobCode, newPassword);
+            if (token) {
+                // [CUSTOM FLOW]
+                await api.auth.confirmReset(token, newPassword);
+            } else if (oobCode) {
+                // [LEGACY FIREBASE FLOW]
+                await confirmPasswordReset(auth, oobCode, newPassword);
+            }
             setStatus('success');
             setMessage('Your password has been reset successfully. You can now login with your new password.');
         } catch (error: any) {
             console.error('Reset error:', error);
-            // If the code is invalid now (maybe expired during form fill), show error
             setStatus('error');
-            setMessage(getErrorText(error.code));
+            // Check for specific api error message or fallback
+            const msg = error.message || getErrorText(error.code);
+            setMessage(msg);
         } finally {
             setIsSubmitting(false);
         }

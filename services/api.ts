@@ -62,6 +62,18 @@ export const api = {
                 throw new Error(err.error || 'Failed to send password reset email');
             }
             return res.json();
+        },
+        confirmReset: async (token: string, newPassword: string) => {
+            const res = await fetch(`${V1_URL}/auth/confirm-reset`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ token, newPassword })
+            });
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.error || 'Failed to reset password');
+            }
+            return res.json();
         }
     },
     delivery: {

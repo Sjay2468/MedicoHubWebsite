@@ -14,6 +14,10 @@ export interface IUser extends Document {
     photoURL?: string;
     year?: string; // Virtual field for frontend compatibility (mirrors academicYear)
 
+    // Custom Password Reset
+    resetToken?: string;
+    resetTokenExpires?: Date;
+
     isSubscribed: boolean;
     subscriptions: {
         planId: string;
@@ -74,6 +78,10 @@ const UserSchema: Schema = new Schema({
     currentCourses: { type: [String], default: [] },
 
     photoURL: { type: String },
+
+    resetToken: { type: String, select: false }, // Hide by default
+    resetTokenExpires: { type: Date },
+
     isSubscribed: { type: Boolean, default: false },
     subscriptions: [{
         planId: String,

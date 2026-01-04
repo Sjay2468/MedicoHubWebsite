@@ -1,5 +1,7 @@
 import express from 'express';
 import { getAuth } from 'firebase-admin/auth';
+import crypto from 'crypto';
+import { User } from '../../models/User';
 import { EmailService } from '../../services/email.service';
 
 const router = express.Router();
@@ -48,41 +50,72 @@ router.post('/send-verification', async (req, res) => {
  * POST /api/v1/auth/send-reset
  * Generates a Firebase Password Reset Link and sends it via Resend.
  */
+// [REPLACED WITH CUSTOM FLOW]
 router.post('/send-reset', async (req, res) => {
     try {
         const { email } = req.body;
-        if (!email) {
-            return res.status(400).json({ error: 'Email is required' });
-        }
+        if (!email) return res.status(400).json({ error: 'Email is required' });
 
-        // 1. Generate the link using Firebase Admin SDK
-        // We omit actionCodeSettings to avoid "Authorized Domain" errors since we are custom-building the link anyway.
-        const firebaseLink = await getAuth().generatePasswordResetLink(email);
-
-        // 2. Extract oobCode and construct Custom Frontend Link
-        const urlObj = new URL(firebaseLink);
-        const oobCode = urlObj.searchParams.get('oobCode');
-        const mode = urlObj.searchParams.get('mode') || 'resetPassword';
-
-        // Construct the branded link pointing to our React App Reset Page
-        const link = `https://medicohub.com.ng/#/reset-password?mode=${mode}&oobCode=${oobCode}`;
-
-        // 2. Send the branded email using Resend
-        await EmailService.sendPasswordResetEmail(email, link);
-
-        res.status(200).json({ message: 'Password reset email sent successfully' });
-    } catch (error: any) {
-        console.error('Error sending password reset email:', error);
-
-        // Handle case where user not found
-        if (error.code === 'auth/user-not-found') {
-            // For security, we usually don't want to tell the user the email doesn't exist, 
-            // but for now, we'll return a generic success to prevent enumeration or specific error if preferred.
-            // However, to be helpful to the UI, let's return the error for now or log it.
+        const user = await User.findOne({ email });
+        if (!user) {
+            // Silently fail or return success to prevent enumeration (or 404 if preferred for admin)
+            // For now, let's return 404 to help the specific user debug
             return res.status(404).json({ error: 'User not found' });
         }
 
-        res.status(500).json({ error: error.message || 'Failed to send password reset email' });
+        // Generate Custom Token
+        const resetToken = crypto.randomBytes(32).toString('hex');
+        const resetTokenExpires = new Date(Date.now() + 3600000); // 1 hour
+
+        user.resetToken = resetToken;
+        user.resetTokenExpires = resetTokenExpires;
+        await user.save();
+
+        // Construct Link with ?token=... ONLY (no mode/oobCode needed for custom flow)
+        const link = `https://medicohub.com.ng/#/reset-password?token=${resetToken}`;
+
+        await EmailService.sendPasswordResetEmail(email, link);
+
+        res.status(200).json({ message: 'Password reset link sent (Custom Flow)' });
+    } catch (error: any) {
+        console.error('Error sending reset email:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+/**
+ * POST /api/v1/auth/confirm-reset
+ * Verifies the custom token and updates the password via Admin SDK.
+ */
+router.post('/confirm-reset', async (req, res) => {
+    try {
+        const { token, newPassword } = req.body;
+        if (!token || !newPassword) {
+            return res.status(400).json({ error: 'Token and password are required' });
+        }
+
+        // Find user by token and ensure it hasn't expired
+        const user = await User.findOne({
+            resetToken: token,
+            resetTokenExpires: { $gt: new Date() }
+        }).select('+resetToken'); // explicitly select it since it's hidden
+
+        if (!user) {
+            return res.status(400).json({ error: 'Invalid or expired reset token' });
+        }
+
+        // Update Password in Firebase Auth
+        await getAuth().updateUser(user.uid, { password: newPassword });
+
+        // Clear token
+        user.resetToken = undefined;
+        user.resetTokenExpires = undefined;
+        await user.save();
+
+        res.status(200).json({ success: true, message: 'Password updated successfully' });
+    } catch (error: any) {
+        console.error('Error resetting password:', error);
+        res.status(500).json({ error: error.message });
     }
 });
 
