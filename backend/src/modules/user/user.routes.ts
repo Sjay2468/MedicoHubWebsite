@@ -304,10 +304,15 @@ router.patch('/:uid/profile', verifyAuth, async (req: Request, res: Response) =>
 
         // If photoURL or name is updated, also update Firebase Auth Profile (Sync for Auth only)
         if (updates.photoURL || updates.name) {
-            await auth.updateUser(uid, {
-                photoURL: updates.photoURL || undefined,
-                displayName: updates.name || undefined
-            });
+            try {
+                await auth.updateUser(uid, {
+                    photoURL: updates.photoURL || undefined,
+                    displayName: updates.name || undefined
+                });
+            } catch (authError: any) {
+                console.warn(`[Warning] Failed to sync Firebase profile for ${uid}:`, authError.message);
+                // Continue with MongoDB update even if Firebase sync fails
+            }
         }
 
         // Fix for Admin Updates:
@@ -331,7 +336,7 @@ router.patch('/:uid/profile', verifyAuth, async (req: Request, res: Response) =>
                     photoURL: req.user.picture || req.user.photoURL || undefined
                 }
             },
-            { new: true, upsert: isSelfUpdate } // Only upsert if user is updating themselves
+            { new: true, upsert: isSelfUpdate, runValidators: true } // Only upsert if user is updating themselves
         );
 
         // --- EMAIL TRIGGERS ---
@@ -379,9 +384,10 @@ router.patch('/:uid/profile', verifyAuth, async (req: Request, res: Response) =>
         }
 
         res.json({ success: true, user: userData });
-    } catch (error) {
+    } catch (error: any) {
         console.error("Error updating profile in MongoDB:", error);
-        res.status(500).json({ error: "Failed to update profile" });
+        // Expose error message to client for debugging
+        res.status(500).json({ error: error.message || "Failed to update profile", details: error });
     }
 });
 
