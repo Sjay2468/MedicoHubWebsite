@@ -38,6 +38,32 @@ export const api = {
             return res.json();
         }
     },
+    auth: {
+        sendVerification: async (email: string) => {
+            const res = await fetch(`${V1_URL}/auth/send-verification`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email })
+            });
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.error || 'Failed to send verification email');
+            }
+            return res.json();
+        },
+        sendReset: async (email: string) => {
+            const res = await fetch(`${V1_URL}/auth/send-reset`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email })
+            });
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.error || 'Failed to send password reset email');
+            }
+            return res.json();
+        }
+    },
     delivery: {
         getZones: async () => {
             try {

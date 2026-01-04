@@ -144,7 +144,8 @@ app.get('/', (req: Request, res: Response) => {
     res.send('Medico V3 Backend is Running');
 });
 
-// Import Modules
+// 4. API Routes
+import authRoutes from './modules/auth/auth.routes';
 import userRoutes from './modules/user/user.routes';
 import analyticsRoutes from './modules/analytics/analytics.routes';
 import resourceRoutesV3 from './modules/resources/resource.routes';
@@ -158,6 +159,7 @@ import couponRoutes from './modules/coupons/coupon.routes';
 import deliveryRoutes from './modules/delivery/delivery.routes';
 import orderRoutes from './modules/orders/order.routes';
 
+app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/users', userRoutes);
 app.use('/api/v1/curriculum', curriculumRoutes);
 app.use('/api/v1/notifications', notificationRoutes);

@@ -7,11 +7,10 @@ import {
     onAuthStateChanged,
     GoogleAuthProvider,
     signInWithPopup,
-    updateProfile,
-    sendEmailVerification,
-    sendPasswordResetEmail
+    updateProfile
 } from 'firebase/auth';
 import { auth } from '../services/firebase';
+import { api } from '../services/api';
 
 /**
  * AUTH CONTEXT:
@@ -104,13 +103,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     const sendVerificationEmail = async () => {
-        if (auth.currentUser) {
-            await sendEmailVerification(auth.currentUser);
+        if (auth.currentUser && auth.currentUser.email) {
+            // Use our custom backend endpoint to send branded email
+            await api.auth.sendVerification(auth.currentUser.email);
         }
     };
 
     const resetPassword = (email: string) => {
-        return sendPasswordResetEmail(auth, email);
+        // Use our custom backend endpoint to send branded email
+        return api.auth.sendReset(email);
     };
 
     const googleSignIn = async () => {

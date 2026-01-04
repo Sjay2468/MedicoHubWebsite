@@ -87,11 +87,15 @@ router.patch('/:uid/ban', verifyAuth, verifyAdmin, async (req: Request, res: Res
         await auth.updateUser(uid, { disabled: ban });
 
         // 2. Update status in MongoDB
-        await User.findOneAndUpdate(
+        const user = await User.findOneAndUpdate(
             { uid },
             { $set: { status: ban ? 'suspended' : 'active' } },
-            { upsert: true }
+            { new: true, upsert: true }
         );
+
+        if (user) {
+            EmailService.sendSuspensionEmail(user, ban).catch(console.error);
+        }
 
         res.json({ success: true, message: `User ${ban ? 'banned' : 'unbanned'}` });
     } catch (error) {
@@ -132,7 +136,12 @@ router.patch('/:uid/subscription', verifyAuth, verifyAdmin, async (req: Request,
     const { isPro } = req.body;
 
     try {
-        await User.findOneAndUpdate({ uid }, { isSubscribed: isPro });
+        const user = await User.findOneAndUpdate({ uid }, { isSubscribed: isPro }, { new: true });
+
+        if (user) {
+            EmailService.sendSubscriptionStatusEmail(user, isPro).catch(console.error);
+        }
+
         res.json({ success: true, message: `User subscription ${isPro ? 'activated' : 'deactivated'}` });
     } catch (error) {
         console.error("Error updating subscription:", error);
