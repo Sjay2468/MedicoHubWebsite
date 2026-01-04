@@ -322,21 +322,25 @@ router.patch('/:uid/profile', verifyAuth, async (req: Request, res: Response) =>
         // @ts-ignore
         const isSelfUpdate = req.user.uid === uid;
 
+        // Construct update operation dynamically to avoid conflicts
+        const updateOp: any = { $set: updates };
+
+        // Only add $setOnInsert for self-updates (signup flow)
+        // This prevents "Updating the path 'role' would create a conflict at 'role'" errors
+        // when admin updates a user and sends keys that are also in $setOnInsert
+        if (isSelfUpdate) {
+            updateOp.$setOnInsert = {
+                email: req.user.email || '',
+                role: 'student',
+                name: req.user.name || req.user.displayName || 'Student',
+                photoURL: req.user.picture || req.user.photoURL || undefined
+            };
+        }
+
         const user = await User.findOneAndUpdate(
             { uid },
-            {
-                $set: updates,
-                $setOnInsert: {
-                    // Only used if upserting (Self Update)
-                    email: req.user.email || '',
-                    role: 'student',
-                    // Prevent "Anonymous" users: If creating a new user via a partial update (e.g. year),
-                    // ensure we set a name from the token or default to "Student".
-                    name: req.user.name || req.user.displayName || 'Student',
-                    photoURL: req.user.picture || req.user.photoURL || undefined
-                }
-            },
-            { new: true, upsert: isSelfUpdate, runValidators: true } // Only upsert if user is updating themselves
+            updateOp,
+            { new: true, upsert: isSelfUpdate, runValidators: true }
         );
 
         // --- EMAIL TRIGGERS ---
