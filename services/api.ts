@@ -253,5 +253,33 @@ export const api = {
             if (!res.ok) throw new Error("Failed to fetch curriculum from MongoDB");
             return res.json();
         }
+    },
+    auth: {
+        resetPassword: async (email: string) => {
+            const res = await fetch(`${V1_URL}/users/auth/reset-password`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email })
+            });
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.error || 'Failed to send reset email');
+            }
+            return res.json();
+        },
+        verifyEmail: async () => {
+            const token = await auth.currentUser?.getIdToken();
+            const res = await fetch(`${V1_URL}/users/auth/verify-email`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': token ? `Bearer ${token}` : ''
+                }
+            });
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.error || 'Failed to send verification email');
+            }
+            return res.json();
+        }
     }
 };

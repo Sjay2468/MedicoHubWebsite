@@ -140,6 +140,69 @@ router.patch('/:uid/subscription', verifyAuth, verifyAdmin, async (req: Request,
     }
 });
 
+/**
+ * @swagger
+ * /api/v1/users/auth/reset-password:
+ *   post:
+ *     summary: Request password reset email via Resend
+ *     tags: [Users]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ */
+router.post('/auth/reset-password', async (req: Request, res: Response) => {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: "Email is required" });
+
+    try {
+        // Generate a standard Firebase password reset link
+        const link = await admin.auth().generatePasswordResetLink(email, {
+            url: process.env.FRONTEND_URL || 'https://medicohub.com.ng/login'
+        });
+
+        // Send it via our custom Resend template
+        await EmailService.sendPasswordResetEmail(email, link);
+
+        res.json({ success: true, message: "Reset email sent successfully" });
+    } catch (error: any) {
+        console.error("Password reset link generation failed:", error);
+        res.status(500).json({ error: error.message || "Failed to process request" });
+    }
+});
+
+/**
+ * @swagger
+ * /api/v1/users/auth/verify-email:
+ *   post:
+ *     summary: Request email verification via Resend
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ */
+router.post('/auth/verify-email', verifyAuth, async (req: Request, res: Response) => {
+    const email = req.user.email;
+    if (!email) return res.status(400).json({ error: "User email not found" });
+
+    try {
+        const link = await admin.auth().generateEmailVerificationLink(email, {
+            url: process.env.FRONTEND_URL || 'https://medicohub.com.ng/dashboard'
+        });
+
+        await EmailService.sendVerificationEmail(email, link);
+
+        res.json({ success: true, message: "Verification email sent successfully" });
+    } catch (error: any) {
+        console.error("Verification link generation failed:", error);
+        res.status(500).json({ error: error.message || "Failed to process request" });
+    }
+});
+
 // DELETE /api/v1/users/:uid
 // Permanently delete a user (Auth + MongoDB)
 router.delete('/:uid', verifyAuth, async (req: Request, res: Response) => {

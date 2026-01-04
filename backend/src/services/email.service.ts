@@ -252,5 +252,78 @@ export const EmailService = {
         } catch (error) {
             console.error("[EmailService] Failed to send status update email:", error);
         }
+    },
+    /**
+     * Sends a custom password reset email using a Resend template.
+     */
+    sendPasswordResetEmail: async (email: string, resetLink: string) => {
+        if (!resend || !process.env.RESEND_API_KEY || process.env.RESEND_API_KEY === 're_123') return;
+
+        try {
+            await resend.emails.send({
+                from: FROM_EMAIL,
+                to: email,
+                subject: 'Reset Your Medico Hub Password 🔐',
+                html: `
+                    <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px;">
+                        <h2 style="color: #155e75;">Password Reset Request</h2>
+                        <p style="color: #64748b;">Hi, we received a request to reset your password for your Medico Hub account. Click the button below to choose a new one:</p>
+                        
+                        <div style="text-align: center; margin: 30px 0;">
+                            <a href="${resetLink}" 
+                               style="background: #155e75; color: white; padding: 14px 28px; text-decoration: none; border-radius: 10px; font-weight: bold; display: inline-block;">
+                               Reset Password
+                            </a>
+                        </div>
+
+                        <p style="color: #94a3b8; font-size: 12px;">If you didn't request this, you can safely ignore this email. This link will expire shortly.</p>
+                        
+                        <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; text-align: center; color: #94a3b8; font-size: 12px;">
+                            <p>Medico Hub - Empowering the Next Generation of Medics</p>
+                        </div>
+                    </div>
+                `
+            });
+            console.log(`[EmailService] Password reset sent to ${email}`);
+        } catch (error) {
+            console.error("[EmailService] Failed to send password reset:", error);
+        }
+    },
+
+    /**
+     * Sends a custom email verification link.
+     */
+    sendVerificationEmail: async (email: string, verifyLink: string) => {
+        if (!resend || !process.env.RESEND_API_KEY || process.env.RESEND_API_KEY === 're_123') return;
+
+        try {
+            await resend.emails.send({
+                from: FROM_EMAIL,
+                to: email,
+                subject: 'Verify your Medico Hub Account 📧',
+                html: `
+                    <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px;">
+                        <h2 style="color: #155e75;">Verify Your Email</h2>
+                        <p style="color: #64748b;">Thanks for joining Medico Hub! Please verify your email address to get full access to your account:</p>
+                        
+                        <div style="text-align: center; margin: 30px 0;">
+                            <a href="${verifyLink}" 
+                               style="background: #155e75; color: white; padding: 14px 28px; text-decoration: none; border-radius: 10px; font-weight: bold; display: inline-block;">
+                               Verify Email Address
+                            </a>
+                        </div>
+
+                        <p style="color: #94a3b8; font-size: 12px;">If you didn't create an account, you can safely ignore this email.</p>
+                        
+                        <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; text-align: center; color: #94a3b8; font-size: 12px;">
+                            <p>Medico Hub - Empowering the Next Generation of Medics</p>
+                        </div>
+                    </div>
+                `
+            });
+            console.log(`[EmailService] Verification email sent to ${email}`);
+        } catch (error) {
+            console.error("[EmailService] Failed to send verification email:", error);
+        }
     }
 };
