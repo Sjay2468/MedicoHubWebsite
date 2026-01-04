@@ -162,32 +162,21 @@ router.delete('/:uid', verifyAuth, async (req: Request, res: Response) => {
     }
 
     try {
-        console.log(`[Delete User] Request to delete UID: ${uid}`);
-
         // 1. Delete from Firebase Auth (Optional: Usually handled by client before calling this, 
         // but for admin deletion it's necessary here)
         try {
             await auth.deleteUser(uid);
-            console.log(`[Delete User] Firebase Auth user ${uid} deleted successfully`);
         } catch (e: any) {
-            // Important: If user is not found in Auth, we still proceed to delete from DB
-            // asking for "cleanup" of ghost users.
-            console.warn(`[Delete User] Auth deletion warning for ${uid} (proceeding to DB delete):`, e.message);
+            console.warn("Auth deletion failed (might be already deleted):", e.message);
         }
 
         // 2. Delete from MongoDB
-        const deletedUser = await User.findOneAndDelete({ uid });
+        await User.findOneAndDelete({ uid });
 
-        if (!deletedUser) {
-            console.warn(`[Delete User] User not found in MongoDB: ${uid}`);
-            return res.status(404).json({ error: "User not found in database", uid });
-        }
-
-        console.log(`[Delete User] MongoDB user ${uid} deleted successfully`);
-        res.json({ success: true, message: "User permanently deleted", user: deletedUser });
-    } catch (error: any) {
+        res.json({ success: true, message: "User permanently deleted" });
+    } catch (error) {
         console.error("Error deleting user from MongoDB:", error);
-        res.status(500).json({ error: error.message || "Failed to delete user", details: error });
+        res.status(500).json({ error: "Failed to delete user" });
     }
 });
 
