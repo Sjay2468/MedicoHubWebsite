@@ -138,6 +138,5 @@ export enum AppRoute {
   MCAMP_DASHBOARD = '/dashboard/mcamp',
   PRIVACY = '/privacy',
   TERMS = '/terms',
-  LEGAL = '/legal',
-  SUBSCRIPTION_SETUP = '/subscription-setup'
+  LEGAL = '/legal'
 }

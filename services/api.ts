@@ -12,7 +12,6 @@ const getRootUrl = () => {
 };
 
 const ROOT_URL = getRootUrl();
-console.log(`[API Service] Using Backend URL: ${ROOT_URL}`);
 const V1_URL = `${ROOT_URL}/api/v1`;
 const V3_URL = `${ROOT_URL}/api/v3`;
 
@@ -252,34 +251,6 @@ export const api = {
         get: async () => {
             const res = await fetch(`${V1_URL}/curriculum`);
             if (!res.ok) throw new Error("Failed to fetch curriculum from MongoDB");
-            return res.json();
-        }
-    },
-    auth: {
-        resetPassword: async (email: string) => {
-            const res = await fetch(`${V1_URL}/users/auth/reset-password`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email })
-            });
-            if (!res.ok) {
-                const err = await res.json();
-                throw new Error(err.error || 'Failed to send reset email');
-            }
-            return res.json();
-        },
-        verifyEmail: async () => {
-            const token = await auth.currentUser?.getIdToken();
-            const res = await fetch(`${V1_URL}/users/auth/verify-email`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': token ? `Bearer ${token}` : ''
-                }
-            });
-            if (!res.ok) {
-                const err = await res.json();
-                throw new Error(err.error || 'Failed to send verification email');
-            }
             return res.json();
         }
     }

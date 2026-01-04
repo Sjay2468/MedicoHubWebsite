@@ -104,23 +104,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     const sendVerificationEmail = async () => {
-        try {
-            const { api } = await import('../services/api');
-            await api.auth.verifyEmail();
-        } catch (error: any) {
-            console.error("Failed to send verification email:", error);
-            throw error;
+        if (auth.currentUser) {
+            await sendEmailVerification(auth.currentUser);
         }
     };
 
-    const resetPassword = async (email: string) => {
-        try {
-            const { api } = await import('../services/api');
-            await api.auth.resetPassword(email);
-        } catch (error: any) {
-            console.error("Failed to send reset email:", error);
-            throw error;
-        }
+    const resetPassword = (email: string) => {
+        return sendPasswordResetEmail(auth, email);
     };
 
     const googleSignIn = async () => {
