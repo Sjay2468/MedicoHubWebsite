@@ -22,7 +22,7 @@ router.post('/send-verification', async (req, res) => {
         }
 
         // 1. Generate the link using Firebase Admin SDK
-        const firebaseLink = await getAuth().generateEmailVerificationLink(email, actionCodeSettings);
+        const firebaseLink = await getAuth().generateEmailVerificationLink(email);
 
         // 2. Extract oobCode and construct Custom Frontend Link
         // We parse the generated firebase link to get the 'oobCode'
@@ -56,7 +56,8 @@ router.post('/send-reset', async (req, res) => {
         }
 
         // 1. Generate the link using Firebase Admin SDK
-        const firebaseLink = await getAuth().generatePasswordResetLink(email, actionCodeSettings);
+        // We omit actionCodeSettings to avoid "Authorized Domain" errors since we are custom-building the link anyway.
+        const firebaseLink = await getAuth().generatePasswordResetLink(email);
 
         // 2. Extract oobCode and construct Custom Frontend Link
         const urlObj = new URL(firebaseLink);
