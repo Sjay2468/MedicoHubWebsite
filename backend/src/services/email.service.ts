@@ -1,6 +1,15 @@
 import { Resend } from 'resend';
 
-const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
+// Use lazy initialization to ensure env vars are loaded
+let _resend: Resend | null = null;
+const getResend = () => {
+    const key = process.env.RESEND_API_KEY;
+    if (!_resend && key && key !== 're_123') {
+        _resend = new Resend(key);
+    }
+    return _resend;
+};
+
 const FROM_EMAIL = process.env.EMAIL_FROM || 'Medico Hub <notifications@medicohub.com.ng>';
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'medicohub2024@gmail.com';
 
@@ -9,17 +18,16 @@ export const EmailService = {
      * Sends a welcome email to a new student.
      */
     sendWelcomeEmail: async (user: any) => {
+        const resend = getResend();
         console.log(`[EmailService] sendWelcomeEmail called for ${user?.email}`);
-        if (!resend) console.warn("[EmailService] WARN: Resend client is NULL");
-        if (!process.env.RESEND_API_KEY) console.warn("[EmailService] WARN: RESEND_API_KEY is missing");
 
-        if (!resend || !process.env.RESEND_API_KEY || process.env.RESEND_API_KEY === 're_123') {
-            console.warn("[EmailService] Aborting send: Missing or invalid credentials");
+        if (!resend) {
+            console.error("[EmailService] Aborting sendWelcomeEmail: Resend client not initialized (Key missing or invalid)");
             return;
         }
 
         try {
-            await resend.emails.send({
+            const { data, error } = await resend.emails.send({
                 from: FROM_EMAIL,
                 to: user.email,
                 subject: 'Welcome to Medico Hub! 🩺',
@@ -52,9 +60,14 @@ export const EmailService = {
                     </div>
                 `
             });
-            console.log(`[EmailService] Welcome email sent to ${user.email}`);
+
+            if (error) {
+                console.error("[EmailService] Welcome Email API Error:", error);
+            } else {
+                console.log(`[EmailService] Welcome email sent successfully (ID: ${data?.id})`);
+            }
         } catch (error) {
-            console.error("[EmailService] Failed to send welcome email:", error);
+            console.error("[EmailService] Unexpected Error in sendWelcomeEmail:", error);
         }
     },
 
@@ -62,59 +75,46 @@ export const EmailService = {
      * Sends a specialized welcome email for MCAMP cohort enrollment.
      */
     sendMcampWelcomeEmail: async (user: any, uniqueId: string) => {
+        const resend = getResend();
         console.log(`[EmailService] sendMcampWelcomeEmail called for ${user?.email}`);
-        if (!resend || !process.env.RESEND_API_KEY || process.env.RESEND_API_KEY === 're_123') {
-            console.warn("[EmailService] Aborting MCAMP send: Missing or invalid credentials");
+        if (!resend) {
+            console.error("[EmailService] Aborting sendMcampWelcomeEmail: Resend client not initialized");
             return;
         }
 
         try {
-            await resend.emails.send({
+            const { data, error } = await resend.emails.send({
                 from: 'MCAMP Admissions <admissions@medicohub.com.ng>',
                 to: user.email,
                 subject: 'Congratulations! You are officially an MCAMP Member 🎓',
                 html: `
                     <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px; background: #fafafa;">
                         <div style="text-align: center; margin-bottom: 20px;">
-                            <span style="background: #fbbf24; color: #000; padding: 5px 15px; rounded-full; font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; border-radius: 20px;">Distinction Cohort</span>
+                            <span style="background: #fbbf24; color: #000; padding: 5px 15px; border-radius: 20px; font-size: 10px; font-weight: 900; text-transform: uppercase;">Distinction Cohort</span>
                         </div>
-                        <h1 style="color: #1e293b; text-align: center; margin-bottom: 8px;">Admission Confirmed</h1>
-                        <p style="color: #64748b; text-align: center;">Welcome to the Medical Mentorship Cohort (MCAMP). You've taken a significant step towards academic excellence.</p>
+                        <h2 style="color: #1e293b; text-align: center;">Admission Confirmed</h2>
                         
-                        <div style="background: #ffffff; padding: 25px; border: 1px solid #e2e8f0; border-radius: 16px; margin: 25px 0; text-align: center; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
-                            <p style="margin: 0; font-size: 12px; color: #94a3b8; text-transform: uppercase; font-weight: bold;">Your Unique MCAMP ID</p>
-                            <h2 style="margin: 10px 0; font-size: 32px; color: #155e75; font-family: monospace; letter-spacing: 2px;">${uniqueId}</h2>
-                            <p style="margin: 0; font-size: 14px; color: #64748b;">Keep this ID safe. You'll need it for community verification and leaderboard tracking.</p>
+                        <div style="background: #ffffff; padding: 20px; border: 1px solid #e2e8f0; border-radius: 16px; margin: 20px 0; text-align: center;">
+                            <p style="margin: 0; font-size: 12px; color: #94a3b8; text-transform: uppercase; font-weight: bold;">Your MCAMP ID</p>
+                            <h2 style="margin: 10px 0; font-size: 28px; color: #155e75; letter-spacing: 2px;">${uniqueId}</h2>
                         </div>
 
-                        <div style="margin: 25px 0;">
-                            <h3 style="color: #1e293b; font-size: 16px;">What's next?</h3>
-                            <div style="display: flex; align-items: flex-start; margin-bottom: 12px;">
-                                <div style="background: #155e75; color: white; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; margin-right: 12px; flex-shrink: 0;">1</div>
-                                <p style="margin: 0; font-size: 14px; color: #475569;">Join the WhatsApp Community using the link on your dashboard.</p>
-                            </div>
-                            <div style="display: flex; align-items: flex-start; margin-bottom: 12px;">
-                                <div style="background: #155e75; color: white; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; margin-right: 12px; flex-shrink: 0;">2</div>
-                                <p style="margin: 0; font-size: 14px; color: #475569;">Complete your first Daily Module based on your set start date.</p>
-                            </div>
-                        </div>
+                        <p style="color: #475569; font-size: 14px; text-align: center;">Join the community using the link on your dashboard to start your daily mentorship module.</p>
 
-                        <div style="text-align: center; margin-top: 30px;">
-                            <a href="https://medicohub.com.ng/mcamp" 
-                               style="background: #000000; color: white; padding: 14px 32px; text-decoration: none; border-radius: 12px; font-weight: bold; display: inline-block;">
-                               Access MCAMP Dashboard
-                            </a>
-                        </div>
-
-                        <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #eee; text-align: center; color: #94a3b8; font-size: 12px;">
-                            <p>This email was sent to ${user.email} regarding your enrollment in the Medico Hub Mentorship Program.</p>
+                        <div style="text-align: center; margin-top: 25px;">
+                            <a href="https://medicohub.com.ng/mcamp" style="background: #000; color: white; padding: 12px 25px; text-decoration: none; border-radius: 10px; font-weight: bold; display: inline-block;">Access MCAMP</a>
                         </div>
                     </div>
                 `
             });
-            console.log(`[EmailService] MCAMP welcome sent to ${user.email}`);
+
+            if (error) {
+                console.error("[EmailService] MCAMP Email API Error:", error);
+            } else {
+                console.log(`[EmailService] MCAMP email sent successfully (ID: ${data?.id})`);
+            }
         } catch (error) {
-            console.error("[EmailService] Failed to send MCAMP welcome:", error);
+            console.error("[EmailService] Unexpected Error in sendMcampWelcomeEmail:", error);
         }
     },
 
@@ -122,9 +122,10 @@ export const EmailService = {
      * Sends a "Thank You" email to the customer after they buy something.
      */
     sendOrderConfirmation: async (order: any) => {
+        const resend = getResend();
         console.log(`[EmailService] sendOrderConfirmation called for ${order?.customer?.email} (Order: ${order?.orderId})`);
-        if (!resend || !process.env.RESEND_API_KEY || process.env.RESEND_API_KEY === 're_123') {
-            console.warn("[EmailService] Aborting Order Confirmation: Missing or invalid credentials");
+        if (!resend) {
+            console.error("[EmailService] Aborting sendOrderConfirmation: Resend client not initialized");
             return;
         }
 
@@ -136,55 +137,37 @@ export const EmailService = {
                 </tr>
             `).join('');
 
-            await resend.emails.send({
+            const { data, error } = await resend.emails.send({
                 from: FROM_EMAIL,
                 to: order.customer.email,
-                subject: `Order Confirmed - ${order.orderId}`,
+                subject: `Order Confirmation #${order.orderId} - Medico Hub 🛒`,
                 html: `
-                    <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px;">
-                        <h1 style="color: #155e75; margin-bottom: 8px;">Order Confirmed!</h1>
-                        <p style="color: #64748b;">Hi ${order.customer.name}, thank you for shopping with Medico Hub. We've received your order and are processing it.</p>
-                        
-                        <div style="background: #f8fafc; padding: 15px; border-radius: 8px; margin: 20px 0;">
-                            <h3 style="margin: 0; color: #1e293b;">Order Details</h3>
-                            <p style="margin: 5px 0; font-size: 14px; color: #64748b;">ID: <strong>${order.orderId}</strong></p>
-                            <p style="margin: 5px 0; font-size: 14px; color: #64748b;">Date: ${new Date(order.createdAt).toLocaleDateString()}</p>
+                    <div style="font-family: sans-serif; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #eee; border-radius: 10px; overflow: hidden;">
+                        <div style="background: #155e75; color: white; padding: 25px; text-align: center;">
+                            <h2 style="margin: 0;">Order Confirmed!</h2>
+                            <p style="margin: 5px 0 0 0; opacity: 0.8;">Order #${order.orderId}</p>
                         </div>
-
-                        <table style="width: 100%; border-collapse: collapse;">
-                            <thead>
-                                <tr style="background: #f1f5f9;">
-                                    <th style="padding: 10px; text-align: left; font-size: 12px; color: #475569; text-transform: uppercase;">Item</th>
-                                    <th style="padding: 10px; text-align: right; font-size: 12px; color: #475569; text-transform: uppercase;">Price</th>
+                        <div style="padding: 25px;">
+                            <p>Good news! Your order is being processed.</p>
+                            <table style="width: 100%; border-collapse: collapse;">
+                                ${itemsHtml}
+                                <tr>
+                                    <td style="padding: 10px; font-weight: bold;">Total</td>
+                                    <td style="padding: 10px; text-align: right; font-weight: bold;">₦${order.totalAmount.toLocaleString()}</td>
                                 </tr>
-                            </thead>
-                            <tbody>${itemsHtml}</tbody>
-                        </table>
-
-                        <div style="margin-top: 20px; border-top: 2px solid #f1f5f9; padding-top: 20px;">
-                            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                                <span style="color: #64748b;">Subtotal:</span>
-                                <span style="font-weight: bold;">₦${order.financials.subtotal.toLocaleString()}</span>
-                            </div>
-                            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                                <span style="color: #64748b;">Shipping:</span>
-                                <span style="font-weight: bold;">₦${order.financials.shippingFee.toLocaleString()}</span>
-                            </div>
-                            <div style="display: flex; justify-content: space-between; margin-top: 12px; font-size: 18px; color: #155e75;">
-                                <strong>Total Paid:</strong>
-                                <strong>₦${order.financials.total.toLocaleString()}</strong>
-                            </div>
-                        </div>
-
-                        <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; text-align: center; color: #94a3b8; font-size: 12px;">
-                            <p>Medico Hub - Premium Academic Tools for Medical Students</p>
+                            </table>
                         </div>
                     </div>
                 `
             });
-            console.log(`[EmailService] Confirmation sent to ${order.customer.email}`);
+
+            if (error) {
+                console.error("[EmailService] Order Email API Error:", error);
+            } else {
+                console.log(`[EmailService] Order confirmation sent (ID: ${data?.id})`);
+            }
         } catch (error) {
-            console.error("[EmailService] Failed to send customer email:", error);
+            console.error("[EmailService] Unexpected Error in sendOrderConfirmation:", error);
         }
     },
 
@@ -192,34 +175,20 @@ export const EmailService = {
      * Sends a private alert to the Store Owner whenever a new order comes in.
      */
     sendAdminOrderAlert: async (order: any) => {
+        const resend = getResend();
         console.log(`[EmailService] sendAdminOrderAlert called for Order: ${order?.orderId}`);
-        if (!resend || !process.env.RESEND_API_KEY || process.env.RESEND_API_KEY === 're_123') {
-            console.warn("[EmailService] Aborting Admin Alert: Missing or invalid credentials");
-            return;
-        }
+        if (!resend) return;
 
         try {
-            await resend.emails.send({
-                from: FROM_EMAIL,
+            const { data, error } = await resend.emails.send({
+                from: 'Medico Store <notifications@medicohub.com.ng>',
                 to: ADMIN_EMAIL,
-                subject: `🚨 NEW ORDER RECEIVED - ${order.orderId}`,
-                html: `
-                    <div style="font-family: sans-serif; padding: 20px;">
-                        <h2 style="color: #dc2626;">New Order Alert</h2>
-                        <p>Customer: <strong>${order.customer.name}</strong> (${order.customer.email})</p>
-                        <p>Phone: ${order.customer.phone}</p>
-                        <p>Total: <strong>₦${order.financials.total.toLocaleString()}</strong></p>
-                        <br/>
-                        <a href="${process.env.ADMIN_URL || 'http://localhost:5173'}/store" 
-                           style="background: #155e75; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold;">
-                           View in Admin Panel
-                        </a>
-                    </div>
-                `
+                subject: `New Order Received! #${order.orderId} 🚨`,
+                html: `<h1>New Order Received!</h1><p>Customer: ${order.customer.name} (${order.customer.email})</p><p>Amount: ₦${order.totalAmount.toLocaleString()}</p>`
             });
-            console.log(`[EmailService] Admin alert sent to ${ADMIN_EMAIL}`);
+            if (error) console.error("[EmailService] Admin Alert API Error:", error);
         } catch (error) {
-            console.error("[EmailService] Failed to send admin alert:", error);
+            console.error("[EmailService] Unexpected Error in sendAdminOrderAlert:", error);
         }
     },
 
@@ -227,93 +196,44 @@ export const EmailService = {
      * Automatically tells the customer when their order is officially "On the way" or "Delivered".
      */
     sendOrderStatusUpdate: async (order: any) => {
+        const resend = getResend();
         console.log(`[EmailService] sendOrderStatusUpdate called for ${order?.customer?.email} - Status: ${order?.status}`);
-        if (!resend || !process.env.RESEND_API_KEY || process.env.RESEND_API_KEY === 're_123') {
-            console.warn("[EmailService] Aborting Status Update: Missing or invalid credentials");
-            return;
-        }
+        if (!resend) return;
 
-        let subject = "";
-        let headline = "";
-        let message = "";
-
-        if (order.status === 'shipped') {
-            subject = `Your order is on its way! - ${order.orderId}`;
-            headline = "Out for Delivery";
-            message = "Great news! Your order has been shipped and is on its way to you. Keep an eye out for it!";
-        } else if (order.status === 'delivered') {
-            subject = `Order Delivered! - ${order.orderId}`;
-            headline = "Successfully Delivered";
-            message = "Your order has been marked as delivered. We hope you enjoy your new medical kit and tools!";
-        } else {
-            return;
-        }
+        let subject = `Update on Order #${order.orderId}`;
+        let headline = `Order Status: ${order.status.toUpperCase()}`;
 
         try {
-            await resend.emails.send({
+            const { data, error } = await resend.emails.send({
                 from: FROM_EMAIL,
                 to: order.customer.email,
-                subject: subject,
-                html: `
-                    <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px;">
-                        <h1 style="color: #155e75; margin-bottom: 8px;">${headline}!</h1>
-                        <p style="color: #64748b;">Hi ${order.customer.name}, ${message}</p>
-                        
-                        <div style="background: #f8fafc; padding: 15px; border-radius: 8px; margin: 20px 0;">
-                            <p style="margin: 5px 0; font-size: 14px; color: #64748b;">Order ID: <strong>${order.orderId}</strong></p>
-                            <p style="margin: 5px 0; font-size: 14px; color: #64748b;">Status: <span style="text-transform: uppercase; font-weight: bold; color: #155e75;">${order.status}</span></p>
-                        </div>
-
-                        <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; text-align: center; color: #94a3b8; font-size: 12px;">
-                            <p>Medico Hub - Premium Academic Tools for Medical Students</p>
-                            <p>If you have any questions, reply to this email.</p>
-                        </div>
-                    </div>
-                `
+                subject: `${subject} - Medico Hub 📦`,
+                html: `<h1>${headline}</h1><p>Your order #${order.orderId} is now ${order.status}.</p>`
             });
-            console.log(`[EmailService] Status update (${order.status}) sent to ${order.customer.email}`);
+            if (error) console.error("[EmailService] Status Update API Error:", error);
         } catch (error) {
-            console.error("[EmailService] Failed to send status update email:", error);
+            console.error("[EmailService] Unexpected Error in sendOrderStatusUpdate:", error);
         }
     },
+
     /**
      * Sends a custom password reset email using a Resend template.
      */
     sendPasswordResetEmail: async (email: string, resetLink: string) => {
+        const resend = getResend();
         console.log(`[EmailService] sendPasswordResetEmail called for ${email}`);
-        if (!resend || !process.env.RESEND_API_KEY || process.env.RESEND_API_KEY === 're_123') {
-            console.warn("[EmailService] Aborting Password Reset: Missing or invalid credentials");
-            return;
-        }
+        if (!resend) return;
 
         try {
-            await resend.emails.send({
+            const { data, error } = await resend.emails.send({
                 from: FROM_EMAIL,
                 to: email,
                 subject: 'Reset Your Medico Hub Password 🔐',
-                html: `
-                    <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px;">
-                        <h2 style="color: #155e75;">Password Reset Request</h2>
-                        <p style="color: #64748b;">Hi, we received a request to reset your password for your Medico Hub account. Click the button below to choose a new one:</p>
-                        
-                        <div style="text-align: center; margin: 30px 0;">
-                            <a href="${resetLink}" 
-                               style="background: #155e75; color: white; padding: 14px 28px; text-decoration: none; border-radius: 10px; font-weight: bold; display: inline-block;">
-                               Reset Password
-                            </a>
-                        </div>
-
-                        <p style="color: #94a3b8; font-size: 12px;">If you didn't request this, you can safely ignore this email. This link will expire shortly.</p>
-                        
-                        <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; text-align: center; color: #94a3b8; font-size: 12px;">
-                            <p>Medico Hub - Empowering the Next Generation of Medics</p>
-                        </div>
-                    </div>
-                `
+                html: `<h1>Password Reset</h1><a href="${resetLink}">Reset Password</a>`
             });
-            console.log(`[EmailService] Password reset sent to ${email}`);
+            if (error) console.error("[EmailService] Password Reset API Error:", error);
         } catch (error) {
-            console.error("[EmailService] Failed to send password reset:", error);
+            console.error("[EmailService] Unexpected Error in sendPasswordResetEmail:", error);
         }
     },
 
@@ -321,40 +241,21 @@ export const EmailService = {
      * Sends a custom email verification link.
      */
     sendVerificationEmail: async (email: string, verifyLink: string) => {
+        const resend = getResend();
         console.log(`[EmailService] sendVerificationEmail called for ${email}`);
-        if (!resend || !process.env.RESEND_API_KEY || process.env.RESEND_API_KEY === 're_123') {
-            console.warn("[EmailService] Aborting Email Verification: Missing or invalid credentials");
-            return;
-        }
+        if (!resend) return;
 
         try {
-            await resend.emails.send({
+            const { data, error } = await resend.emails.send({
                 from: FROM_EMAIL,
                 to: email,
-                subject: 'Verify your Medico Hub Account 📧',
-                html: `
-                    <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px;">
-                        <h2 style="color: #155e75;">Verify Your Email</h2>
-                        <p style="color: #64748b;">Thanks for joining Medico Hub! Please verify your email address to get full access to your account:</p>
-                        
-                        <div style="text-align: center; margin: 30px 0;">
-                            <a href="${verifyLink}" 
-                               style="background: #155e75; color: white; padding: 14px 28px; text-decoration: none; border-radius: 10px; font-weight: bold; display: inline-block;">
-                               Verify Email Address
-                            </a>
-                        </div>
-
-                        <p style="color: #94a3b8; font-size: 12px;">If you didn't create an account, you can safely ignore this email.</p>
-                        
-                        <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; text-align: center; color: #94a3b8; font-size: 12px;">
-                            <p>Medico Hub - Empowering the Next Generation of Medics</p>
-                        </div>
-                    </div>
-                `
+                subject: 'Verify Your Email - Medico Hub ✅',
+                html: `<h1>Verify Email</h1><a href="${verifyLink}">Verify Now</a>`
             });
-            console.log(`[EmailService] Verification email sent to ${email}`);
+            if (error) console.error("[EmailService] Verification Email API Error:", error);
+            else console.log(`[EmailService] Verification sent (ID: ${data?.id})`);
         } catch (error) {
-            console.error("[EmailService] Failed to send verification email:", error);
+            console.error("[EmailService] Unexpected Error in sendVerificationEmail:", error);
         }
     }
 };
