@@ -7,6 +7,7 @@ export interface User {
   phoneNumber?: string;
   schoolName?: string;
   year: string;
+  academicYear: string;
   weakness: string[];
   currentCourses?: string[];
   isSubscribed: boolean;

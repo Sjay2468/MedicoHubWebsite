@@ -108,7 +108,22 @@ const AppContent: React.FC = () => {
               academicYear: userData.academicYear || userData.year || '',
               emailVerified: firebaseUser.emailVerified
             };
-            setUser(mappedUser);
+
+            // RACE CONDITION PROTECTION:
+            // If we already have a specialized year locally, don't revert to 'General' just because 
+            // the backend sync hasn't fully propagated or is returning a stale default.
+            setUser(prev => {
+              if (prev && isOnboarded(prev)) {
+                const isStale = (mappedUser.academicYear === 'General' || mappedUser.academicYear === '') &&
+                  (prev.academicYear !== 'General' && prev.academicYear !== '');
+
+                if (isStale) {
+                  console.log("[App] Blocking stale user state update to prevent redirect loop.");
+                  return { ...prev, ...mappedUser, year: prev.year, academicYear: prev.academicYear };
+                }
+              }
+              return mappedUser;
+            });
             const localNotifs = generateNotifications(mappedUser);
 
             setNotifications(prev => {

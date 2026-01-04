@@ -296,7 +296,15 @@ router.patch('/:uid/profile', verifyAuth, async (req: Request, res: Response) =>
 
         const user = await User.findOneAndUpdate(
             { uid },
-            { $set: updates },
+            {
+                $set: updates,
+                $setOnInsert: {
+                    name: req.user.name || req.user.displayName || 'Student',
+                    email: req.user.email || '',
+                    role: 'student',
+                    status: 'active'
+                }
+            },
             { new: true, upsert: true }
         );
 
