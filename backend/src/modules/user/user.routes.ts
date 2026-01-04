@@ -263,6 +263,9 @@ router.patch('/:uid/profile', verifyAuth, async (req: Request, res: Response) =>
             const val = items[key];
             if (val === undefined) return;
 
+            // Skip immutable fields
+            if (['_id', 'uid', 'createdAt', 'updatedAt', '__v', 'email'].includes(key)) return;
+
             // Handle nested objects with dot-notation to prevent overwriting whole structures
             if (key === 'mcamp' && typeof val === 'object' && val !== null) {
                 Object.keys(val).forEach(subKey => {
