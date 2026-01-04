@@ -56,7 +56,31 @@ router.post('/send-reset', async (req, res) => {
         const { email } = req.body;
         if (!email) return res.status(400).json({ error: 'Email is required' });
 
-        const user = await User.findOne({ email });
+        let user = await User.findOne({ email });
+
+        if (!user) {
+            // [SELF-HEALING]
+            // If user is missing in MongoDB but exists in Firebase (e.g. Super Admin),
+            // fetch from Firebase and create the record on the fly.
+            try {
+                const firebaseUser = await getAuth().getUserByEmail(email);
+                if (firebaseUser) {
+                    console.log(`[Auth] User ${email} missing in MongoDB. Syncing from Firebase...`);
+                    user = new User({
+                        uid: firebaseUser.uid,
+                        email: firebaseUser.email,
+                        name: firebaseUser.displayName || 'User',
+                        role: 'student', // Default role; Admin access is handled by whitelist or manual update
+                        photoURL: firebaseUser.photoURL,
+                        isSubscribed: false
+                    });
+                    await user.save();
+                }
+            } catch (firebaseError) {
+                console.warn(`[Auth] User ${email} not found in Firebase either.`);
+            }
+        }
+
         if (!user) {
             // Silently fail or return success to prevent enumeration (or 404 if preferred for admin)
             // For now, let's return 404 to help the specific user debug
