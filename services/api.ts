@@ -12,6 +12,7 @@ const getRootUrl = () => {
 };
 
 const ROOT_URL = getRootUrl();
+console.log(`[API Service] Using Backend URL: ${ROOT_URL}`);
 const V1_URL = `${ROOT_URL}/api/v1`;
 const V3_URL = `${ROOT_URL}/api/v3`;
 

@@ -199,7 +199,18 @@ router.post('/auth/verify-email', verifyAuth, async (req: Request, res: Response
         res.json({ success: true, message: "Verification email sent successfully" });
     } catch (error: any) {
         console.error("Verification link generation failed:", error);
-        res.status(500).json({ error: error.message || "Failed to process request" });
+
+        let message = "Failed to process request";
+        if (error.code === 'auth/too-many-attempts-try-later') {
+            message = "Too many verification attempts. Please wait a few minutes before trying again.";
+        } else if (error.message) {
+            message = error.message;
+        }
+
+        res.status(error.code === 'auth/too-many-attempts-try-later' ? 429 : 500).json({
+            error: message,
+            code: error.code
+        });
     }
 });
 
