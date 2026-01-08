@@ -712,20 +712,23 @@ const LeaderboardView = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [sessionFilter, setSessionFilter] = useState<string>('all');
     const [announcementModal, setAnnouncementModal] = useState<{ isOpen: boolean, userId: string | null }>({ isOpen: false, userId: null });
+    const [globalSessionId, setGlobalSessionId] = useState<string>('');
 
     useEffect(() => {
         loadData();
     }, []);
 
     const loadData = async () => {
-        // ... (existing loadData logic) ...
+        setLoading(true);
         try {
-            const [usersData, resourcesData] = await Promise.all([
+            const [usersData, resourcesData, curData] = await Promise.all([
                 api.users.getAll(),
-                api.resources.getAll()
+                api.resources.getAll(),
+                api.curriculum.get().catch(() => ({}))
             ]);
 
             setUsers(Array.isArray(usersData) ? usersData : []);
+            setGlobalSessionId(curData?.currentSessionId || curData?.sessionId || '');
 
             // Build Quiz -> Week map
             const map: Record<string, string> = {};
@@ -747,6 +750,9 @@ const LeaderboardView = () => {
     const sessionGroups = useMemo(() => {
         const activeSet = new Set<string>();
         const pastSet = new Set<string>();
+
+        // Always include currently configured session
+        if (globalSessionId) activeSet.add(globalSessionId);
 
         users.forEach(u => {
             if (u.mcamp?.uniqueId && u.mcamp.isEnrolled) activeSet.add(u.mcamp.uniqueId);
@@ -1689,6 +1695,7 @@ const GradingView = () => {
     const [selectedSubmission, setSelectedSubmission] = useState<any | null>(null);
     const [sessionFilter, setSessionFilter] = useState<string>('all');
     const [usersList, setUsersList] = useState<any[]>([]); // Keep raw user list for calculating sessions
+    const [globalSessionId, setGlobalSessionId] = useState<string>('');
 
     useEffect(() => {
         loadData();
@@ -1698,6 +1705,9 @@ const GradingView = () => {
     const sessionGroups = useMemo(() => {
         const activeSet = new Set<string>();
         const pastSet = new Set<string>();
+
+        // Always include currently configured session
+        if (globalSessionId) activeSet.add(globalSessionId);
 
         usersList.forEach(u => {
             // If user is currently enrolled, their ID is 'Active'
@@ -1728,10 +1738,13 @@ const GradingView = () => {
     const loadData = async () => {
         setLoading(true);
         try {
-            const [users, allResources] = await Promise.all([
+            const [users, allResources, curData] = await Promise.all([
                 api.users.getAll(),
-                api.resources.getAll()
+                api.resources.getAll(),
+                api.curriculum.get().catch(() => ({}))
             ]);
+
+            setGlobalSessionId(curData?.currentSessionId || curData?.sessionId || '');
 
             // Filter only quizzes (and MCAMP ones primarily)
             const quizMap = Array.isArray(allResources)
