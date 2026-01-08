@@ -743,18 +743,24 @@ const LeaderboardView = () => {
         finally { setLoading(false); }
     };
 
-    // Calculate Unique Sessions available in database
-    const uniqueSessions = useMemo(() => {
-        const sessions = new Set<string>();
+    // Calculate Unique Sessions (Active vs Past)
+    const sessionGroups = useMemo(() => {
+        const activeSet = new Set<string>();
+        const pastSet = new Set<string>();
+
         users.forEach(u => {
-            if (u.mcamp?.uniqueId) sessions.add(u.mcamp.uniqueId);
+            if (u.mcamp?.uniqueId && u.mcamp.isEnrolled) activeSet.add(u.mcamp.uniqueId);
+
             if (u.mcampHistory && Array.isArray(u.mcampHistory)) {
                 u.mcampHistory.forEach((h: any) => {
-                    if (h.uniqueId) sessions.add(h.uniqueId);
+                    if (h.uniqueId) pastSet.add(h.uniqueId);
                 });
             }
         });
-        return Array.from(sessions).sort().reverse(); // Newest first
+
+        const active = Array.from(activeSet).sort().reverse();
+        const past = Array.from(pastSet).filter(id => !activeSet.has(id)).sort().reverse();
+        return { active, past };
     }, [users]);
 
     const generateId = async (uid: string) => {
@@ -830,9 +836,14 @@ const LeaderboardView = () => {
                             onChange={(e) => setSessionFilter(e.target.value)}
                             className="bg-transparent font-bold text-sm focus:outline-none text-brand-dark min-w-[140px]"
                         >
-                            <option value="all">Active Cohort</option>
+                            <option value="all">All Enrolled Users</option>
+                            <optgroup label="Active Sessions">
+                                {sessionGroups.active.map((sid: string) => (
+                                    <option key={sid} value={sid}>{sid}</option>
+                                ))}
+                            </optgroup>
                             <optgroup label="Past Sessions">
-                                {uniqueSessions.map((sid: string) => (
+                                {sessionGroups.past.map((sid: string) => (
                                     <option key={sid} value={sid}>{sid}</option>
                                 ))}
                             </optgroup>
@@ -1683,18 +1694,35 @@ const GradingView = () => {
         loadData();
     }, []);
 
-    // Calculate Unique Sessions (Replicated from Leaderboard)
-    const uniqueSessions = useMemo(() => {
-        const sessions = new Set<string>();
+    // Calculate Unique Sessions (Active vs Past)
+    const sessionGroups = useMemo(() => {
+        const activeSet = new Set<string>();
+        const pastSet = new Set<string>();
+
         usersList.forEach(u => {
-            if (u.mcamp?.uniqueId) sessions.add(u.mcamp.uniqueId);
+            // If user is currently enrolled, their ID is 'Active'
+            if (u.mcamp?.uniqueId && u.mcamp.isEnrolled) {
+                activeSet.add(u.mcamp.uniqueId);
+            }
+
+            // Check history for past sessions
             if (u.mcampHistory && Array.isArray(u.mcampHistory)) {
                 u.mcampHistory.forEach((h: any) => {
-                    if (h.uniqueId) sessions.add(h.uniqueId);
+                    if (h.uniqueId) pastSet.add(h.uniqueId);
                 });
             }
         });
-        return Array.from(sessions).sort().reverse();
+
+        // Remove active IDs from past set to avoid duplicates (unless we want them in both? usually distinct is better)
+        // Actually, a session could be both if some entered and some left?
+        // Let's keep them distinct based on "Is it currently an active session for ANYONE?"
+        // If yes, it's Active.
+
+        const active = Array.from(activeSet).sort().reverse();
+        // Filter pastSet: only include if NOT in activeSet
+        const past = Array.from(pastSet).filter(id => !activeSet.has(id)).sort().reverse();
+
+        return { active, past };
     }, [usersList]);
 
     const loadData = async () => {
@@ -1851,9 +1879,14 @@ const GradingView = () => {
                             onChange={(e) => setSessionFilter(e.target.value)}
                             className="bg-transparent font-bold text-sm focus:outline-none text-brand-dark min-w-[140px]"
                         >
-                            <option value="all">All Sessions</option>
+                            <option value="all">All Enrolled Users</option>
+                            <optgroup label="Active Sessions">
+                                {sessionGroups.active.map((sid: string) => (
+                                    <option key={sid} value={sid}>{sid}</option>
+                                ))}
+                            </optgroup>
                             <optgroup label="Past Sessions">
-                                {uniqueSessions.map((sid: string) => (
+                                {sessionGroups.past.map((sid: string) => (
                                     <option key={sid} value={sid}>{sid}</option>
                                 ))}
                             </optgroup>
