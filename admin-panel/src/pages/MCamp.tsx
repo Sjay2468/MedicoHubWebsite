@@ -1676,10 +1676,26 @@ const GradingView = () => {
     const [resources, setResources] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedSubmission, setSelectedSubmission] = useState<any | null>(null);
+    const [sessionFilter, setSessionFilter] = useState<string>('all');
+    const [usersList, setUsersList] = useState<any[]>([]); // Keep raw user list for calculating sessions
 
     useEffect(() => {
         loadData();
     }, []);
+
+    // Calculate Unique Sessions (Replicated from Leaderboard)
+    const uniqueSessions = useMemo(() => {
+        const sessions = new Set<string>();
+        usersList.forEach(u => {
+            if (u.mcamp?.uniqueId) sessions.add(u.mcamp.uniqueId);
+            if (u.mcampHistory && Array.isArray(u.mcampHistory)) {
+                u.mcampHistory.forEach((h: any) => {
+                    if (h.uniqueId) sessions.add(h.uniqueId);
+                });
+            }
+        });
+        return Array.from(sessions).sort().reverse();
+    }, [usersList]);
 
     const loadData = async () => {
         setLoading(true);
@@ -1703,11 +1719,13 @@ const GradingView = () => {
             setResources(quizMap);
 
             const userList = (Array.isArray(users) ? users : users?.users) || [];
+            if (Array.isArray(userList)) setUsersList(userList);
             const pending: any[] = [];
 
             if (Array.isArray(userList)) {
                 userList.forEach((u: any) => {
                     if (u.quizAttempts) {
+                        const historyIds = (u.mcampHistory || []).map((h: any) => h.uniqueId);
                         Object.entries(u.quizAttempts).forEach(([quizId, attempt]: [string, any]) => {
                             // Show all for re-grading capability, but sort pending first
                             const quiz = quizMap.find((r: any) => r.id === quizId || r._id === quizId) as any;
@@ -1715,6 +1733,7 @@ const GradingView = () => {
                                 userId: u.uid || u.id,
                                 userEmail: u.email,
                                 mcampId: u.mcamp?.uniqueId || 'Unknown',
+                                historyIds, // Pass history for filtering
                                 quizId,
                                 quizTitle: quiz?.title || 'Unknown Quiz',
                                 ...attempt
@@ -1820,11 +1839,31 @@ const GradingView = () => {
 
     return (
         <div className="space-y-6">
-            <div className="flex justify-between items-center">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <h2 className="text-2xl font-bold text-gray-800">Student Submissions</h2>
-                <button onClick={loadData} className="text-brand-blue font-bold text-sm flex items-center gap-1 hover:bg-blue-50 px-3 py-1 rounded-lg">
-                    <Clock size={14} /> Refresh
-                </button>
+
+                <div className="flex items-center gap-3">
+                    {/* Session Filter */}
+                    <div className="flex items-center gap-2 bg-white border border-gray-200 px-3 py-2 rounded-xl">
+                        <Users size={16} className="text-gray-400" />
+                        <select
+                            value={sessionFilter}
+                            onChange={(e) => setSessionFilter(e.target.value)}
+                            className="bg-transparent font-bold text-sm focus:outline-none text-brand-dark min-w-[140px]"
+                        >
+                            <option value="all">All Sessions</option>
+                            <optgroup label="Past Sessions">
+                                {uniqueSessions.map((sid: string) => (
+                                    <option key={sid} value={sid}>{sid}</option>
+                                ))}
+                            </optgroup>
+                        </select>
+                    </div>
+
+                    <button onClick={loadData} className="text-brand-blue font-bold text-sm flex items-center gap-1 hover:bg-blue-50 px-3 py-1 rounded-lg">
+                        <Clock size={14} /> Refresh
+                    </button>
+                </div>
             </div>
 
             {loading ? (
@@ -1848,7 +1887,10 @@ const GradingView = () => {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-50">
-                                {submissions.map((sub, idx) => (
+                                {submissions.filter(sub => {
+                                    if (sessionFilter === 'all') return true;
+                                    return sub.mcampId === sessionFilter || (sub.historyIds && sub.historyIds.includes(sessionFilter));
+                                }).map((sub, idx) => (
                                     <tr key={idx} className="hover:bg-gray-50 transition-colors">
                                         <td className="px-6 py-4">
                                             <p className="font-bold text-gray-900 text-sm">{sub.userEmail?.split('@')[0]}</p>
