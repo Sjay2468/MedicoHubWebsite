@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { api } from '../services/api';
 import { Plus, Save, Calendar, CheckSquare, Users, Trophy, BookOpen, Lock, Unlock, Search, X, CheckCircle, ChevronDown, ChevronRight, Trash2, Edit, ArrowLeft, Clock, Upload, Loader, Star, Megaphone, Tag, Copy, AlertCircle, GraduationCap } from 'lucide-react';
 import { createPortal } from 'react-dom';
@@ -18,8 +19,16 @@ const TabButton = ({ active, onClick, icon: Icon, label }: any) => (
 );
 
 export const MCampPage = () => {
+    const [searchParams, setSearchParams] = useSearchParams();
     const [activeTab, setActiveTab] = useState<'schedule' | 'quizzes' | 'leaderboard' | 'grading' | 'coupons'>('schedule');
     const [selectedCohort, setSelectedCohort] = useState<any>(null); // Full Cohort Object
+
+    const handleCohortSelect = (cohort: any) => {
+        setSelectedCohort(cohort);
+        if (cohort?.uniqueId) {
+            setSearchParams({ cid: cohort.uniqueId });
+        }
+    };
 
     return (
         <div className="space-y-8 pb-20">
@@ -30,8 +39,8 @@ export const MCampPage = () => {
                     <p className="text-gray-500 mt-2">Manage curriculum, quizzes, and track cohort progress.</p>
                 </div>
                 <CohortSwitcher
-                    selectedCohortId={selectedCohort?.uniqueId || null}
-                    onSelect={(cohort) => setSelectedCohort(cohort)}
+                    selectedCohortId={selectedCohort?.uniqueId || searchParams.get('cid')}
+                    onSelect={handleCohortSelect}
                 />
             </div>
 
@@ -308,6 +317,7 @@ const ScheduleManager = ({ cohort }: any) => {
             setActiveCohortId(cohort.uniqueId);
             setInitialActiveCohortId(cohort.uniqueId);
             setIsSessionLocked(true); // Always lock ID for cohorts (it's immutable-ish)
+            setLoading(false); // FIXED: Explicitly stop loading
         } else {
             // LEGACY GLOBAL MODE (Fallback)
             fetchData();
@@ -525,7 +535,8 @@ const ScheduleManager = ({ cohort }: any) => {
                                 setTargetYear(e.target.value);
                                 setHasUnsavedChanges(true);
                             }}
-                            className="bg-transparent font-bold text-sm focus:outline-none text-brand-dark"
+                            disabled={!!cohort} // Lock if cohort is active
+                            className={`bg-transparent font-bold text-sm focus:outline-none text-brand-dark ${!!cohort ? 'opacity-70 cursor-not-allowed' : ''}`}
                         >
                             <option value="Year 1">Year 1 (100L)</option>
                             <option value="Year 2">Year 2 (200L)</option>
@@ -544,12 +555,12 @@ const ScheduleManager = ({ cohort }: any) => {
                                 type="text"
                                 placeholder="e.g. batch-a-2026"
                                 value={activeCohortId}
-                                disabled={isSessionLocked}
+                                disabled={isSessionLocked || !!cohort} // Force lock if cohort
                                 onChange={(e) => {
                                     setActiveCohortId(e.target.value);
                                     setHasUnsavedChanges(true);
                                 }}
-                                className={`bg-transparent font-mono font-bold text-xs focus:outline-none w-32 ${isSessionLocked ? 'text-gray-500 cursor-not-allowed' : 'text-brand-dark'}`}
+                                className={`bg-transparent font-mono font-bold text-xs focus:outline-none w-32 ${(isSessionLocked || !!cohort) ? 'text-gray-500 cursor-not-allowed' : 'text-brand-dark'}`}
                             />
 
                             {/* Lock/Unlock Control */}

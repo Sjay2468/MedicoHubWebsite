@@ -35,12 +35,20 @@ export const CohortSwitcher = ({ selectedCohortId, onSelect }: CohortSwitcherPro
     const loadCohorts = async () => {
         try {
             const list = await api.cohorts.getAll();
-            if (Array.isArray(list)) {
+            if (Array.isArray(list) && list.length > 0) {
                 setCohorts(list);
-                // Auto-select first if none selected
-                if (!selectedCohortId && list.length > 0) {
-                    onSelect(list[0]);
+
+                // If ID is provided (e.g. from URL), select that specific cohort object to sync parent
+                if (selectedCohortId) {
+                    const match = list.find(c => c.uniqueId === selectedCohortId);
+                    if (match) {
+                        onSelect(match);
+                        return;
+                    }
                 }
+
+                // Fallback: Auto-select first if no ID or ID not found
+                onSelect(list[0]);
             }
         } catch (e) {
             console.error("Failed to load cohorts", e);
