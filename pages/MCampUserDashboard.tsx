@@ -99,8 +99,6 @@ export const MCampUserDashboard: React.FC<MCampUserDashboardProps> = ({
   const [targetYear, setTargetYear] = React.useState<string>('Year 2');
   const [activeCohortId, setActiveCohortId] = React.useState<string>('');
 
-  const [debugInfo, setDebugInfo] = React.useState<any>(null);
-
   // School Dropdown
   const [isSchoolDropdownOpen, setIsSchoolDropdownOpen] = React.useState(false);
   const schoolDropdownRef = React.useRef<HTMLDivElement>(null);
@@ -119,9 +117,6 @@ export const MCampUserDashboard: React.FC<MCampUserDashboardProps> = ({
         }
         if (curriculum?.activeCohortId) {
           setActiveCohortId(curriculum.activeCohortId);
-        }
-        if (curriculum?.debug) {
-          setDebugInfo(curriculum.debug);
         }
       } catch (err) {
         console.error("Failed to fetch target year:", err);

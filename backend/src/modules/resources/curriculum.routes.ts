@@ -52,14 +52,7 @@ router.get('/', optionalAuth, async (req, res) => {
                         currentSessionId: matchingCohort.uniqueId, // Critical for enrollment ID
                         startDate: matchingCohort.startDate,
                         activeCohortId: matchingCohort.uniqueId, // Legacy shim
-                        isSmartMatch: true,
-                        debug: {
-                            userUid: req.user.uid,
-                            userYear: user.academicYear,
-                            cohortsFound: activeCohorts.length,
-                            matchId: matchingCohort.uniqueId,
-                            matchStatus: matchingCohort.status
-                        }
+                        isSmartMatch: true
                     });
                 }
             }
@@ -72,14 +65,8 @@ router.get('/', optionalAuth, async (req, res) => {
         }
 
         // Append debug info to fallback response too
-        res.json({
-            ...curriculum.toObject(),
-            debug: {
-                userFound: !!(req.user && req.user.uid),
-                userYear: req.user ? (req.user as any).academicYear || 'N/A (Req User Present)' : 'N/A (No Req User)',
-                reason: "Fallback reached - No Smart Match or Not Logged In"
-            }
-        });
+        res.json(curriculum);
+
     } catch (error: any) {
         console.error("Curriculum Fetch Error:", error);
         res.status(500).json({ error: "Failed to fetch curriculum" });
