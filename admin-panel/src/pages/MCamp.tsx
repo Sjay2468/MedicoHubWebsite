@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { api } from '../services/api';
 import { Plus, Save, Calendar, CheckSquare, Users, Trophy, BookOpen, Lock, Unlock, Search, X, CheckCircle, ChevronDown, ChevronRight, Trash2, Edit, ArrowLeft, Clock, Upload, Loader, Star, Megaphone, Tag, Copy, AlertCircle, GraduationCap } from 'lucide-react';
 import { createPortal } from 'react-dom';
+import { CohortSwitcher } from '../components/CohortSwitcher';
 
 const TabButton = ({ active, onClick, icon: Icon, label }: any) => (
     <button
@@ -18,13 +19,20 @@ const TabButton = ({ active, onClick, icon: Icon, label }: any) => (
 
 export const MCampPage = () => {
     const [activeTab, setActiveTab] = useState<'schedule' | 'quizzes' | 'leaderboard' | 'grading' | 'coupons'>('schedule');
+    const [selectedCohort, setSelectedCohort] = useState<any>(null); // Full Cohort Object
 
     return (
         <div className="space-y-8 pb-20">
             {/* Header */}
-            <div>
-                <h1 className="text-3xl font-extrabold text-brand-dark">MCAMP Management</h1>
-                <p className="text-gray-500 mt-2">Manage curriculum, quizzes, and track cohort progress.</p>
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                    <h1 className="text-3xl font-extrabold text-brand-dark">MCAMP Management</h1>
+                    <p className="text-gray-500 mt-2">Manage curriculum, quizzes, and track cohort progress.</p>
+                </div>
+                <CohortSwitcher
+                    selectedCohortId={selectedCohort?.uniqueId || null}
+                    onSelect={(cohort) => setSelectedCohort(cohort)}
+                />
             </div>
 
             {/* Tabs */}
@@ -38,18 +46,21 @@ export const MCampPage = () => {
 
             {/* Content Area */}
             <div className="bg-white rounded-[2rem] p-8 shadow-sm min-h-[600px] relative">
-                {activeTab === 'schedule' && <ScheduleManager />}
-                {activeTab === 'quizzes' && <QuizManager />}
-                {activeTab === 'leaderboard' && <LeaderboardView />}
-                {activeTab === 'grading' && <GradingView />}
-                {activeTab === 'coupons' && <CouponManager />}
+                {activeTab === 'schedule' && <ScheduleManager cohort={selectedCohort} />}
+                {activeTab === 'quizzes' && <QuizManager cohort={selectedCohort} />}
+                {activeTab === 'leaderboard' && <LeaderboardView cohort={selectedCohort} />}
+                {activeTab === 'grading' && <GradingView cohort={selectedCohort} />}
+                {activeTab === 'coupons' && <CouponManager cohort={selectedCohort} />}
             </div>
         </div>
     );
 };
 
 // --- COUPON MANAGER ---
-const CouponManager = () => {
+const CouponManager = ({ cohort }: any) => {
+    // Keep cohort in scope for future filtering
+    useEffect(() => { if (cohort) console.log("Coupon Context:", cohort.uniqueId); }, [cohort]);
+
     const [coupons, setCoupons] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [isCreating, setIsCreating] = useState(false);
@@ -270,7 +281,7 @@ const CouponManager = () => {
 };
 
 // --- SCHEDULE MANAGER ---
-const ScheduleManager = () => {
+const ScheduleManager = ({ cohort }: any) => {
     const [weeks, setWeeks] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [resources, setResources] = useState<any[]>([]);
@@ -290,8 +301,18 @@ const ScheduleManager = () => {
     const [showSessionConfirmation, setShowSessionConfirmation] = useState(false);
 
     useEffect(() => {
-        fetchData();
-    }, []);
+        if (cohort) {
+            // COHORT MODE
+            setWeeks(cohort.weeks || []);
+            setTargetYear(cohort.targetYear || 'Year 2');
+            setActiveCohortId(cohort.uniqueId);
+            setInitialActiveCohortId(cohort.uniqueId);
+            setIsSessionLocked(true); // Always lock ID for cohorts (it's immutable-ish)
+        } else {
+            // LEGACY GLOBAL MODE (Fallback)
+            fetchData();
+        }
+    }, [cohort]);
 
     const fetchData = async () => {
         setLoading(true);
@@ -365,18 +386,38 @@ const ScheduleManager = () => {
     };
 
     const saveChanges = async () => {
+        // Validation...
         if (!activeCohortId.trim()) {
-            alert("Error: Session ID is mandatory. Please provide a Session ID (e.g., batch-v3-XYZ) before saving.");
+            alert("Error: Session ID is mandatory.");
             return;
         }
 
-        // Check if Session ID changed and warn user
-        if (activeCohortId !== initialActiveCohortId) {
-            setShowSessionConfirmation(true);
-            return;
+        if (cohort) {
+            // Save to Specific Cohort
+            setIsSaving(true);
+            try {
+                // Determine ID to use (prefer _id if available, else uniqueId)
+                const idToUpdate = cohort._id || cohort.uniqueId;
+                await api.cohorts.update(idToUpdate, {
+                    weeks,
+                    // targetYear // Usually targetYear is fixed for a cohort, but maybe allowed to update?
+                });
+                setHasUnsavedChanges(false);
+                alert("Cohort Schedule saved successfully!");
+            } catch (e: any) {
+                console.error(e);
+                alert("Failed to save cohort schedule.");
+            } finally {
+                setIsSaving(false);
+            }
+        } else {
+            // Legacy Save
+            if (activeCohortId !== initialActiveCohortId) {
+                setShowSessionConfirmation(true);
+                return;
+            }
+            await performSave();
         }
-
-        await performSave();
     };
 
     const performSave = async () => {
@@ -703,7 +744,7 @@ const HelperResourcePicker = ({ allResources, initialSelected, onSave }: any) =>
 
 
 // --- LEADERBOARD ---
-const LeaderboardView = () => {
+const LeaderboardView = ({ cohort }: any) => {
     const [users, setUsers] = useState<any[]>([]);
     const [quizWeekMap, setQuizWeekMap] = useState<Record<string, string>>({});
     const [loading, setLoading] = useState(true);
@@ -717,6 +758,11 @@ const LeaderboardView = () => {
     useEffect(() => {
         loadData();
     }, []);
+
+    // Sync cohort prop
+    useEffect(() => {
+        if (cohort && cohort.uniqueId) setSessionFilter(cohort.uniqueId);
+    }, [cohort]);
 
     const loadData = async () => {
         setLoading(true);
@@ -770,10 +816,32 @@ const LeaderboardView = () => {
     }, [users]);
 
     const generateId = async (uid: string) => {
-        const uniqueId = `MC-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
-        setUsers(prev => prev.map(u => u.uid === uid || u.id === uid ? { ...u, mcamp: { ...u.mcamp, uniqueId, isEnrolled: true } } : u));
+        if (!cohort) {
+            alert("Please select a Cohort from the top switcher first.");
+            return;
+        }
+
+        const uniqueId = cohort.uniqueId;
+        const cohortId = cohort._id || cohort.id;
+
+        // Optimistic UI
+        setUsers(prev => prev.map(u => u.uid === uid || u.id === uid ? {
+            ...u,
+            mcamp: {
+                ...u.mcamp,
+                uniqueId,
+                cohortId,
+                isEnrolled: true
+            }
+        } : u));
+
         await api.users.update(uid, {
-            mcamp: { isEnrolled: true, uniqueId, startDate: new Date().toISOString() }
+            mcamp: {
+                isEnrolled: true,
+                uniqueId,
+                cohortId,
+                startDate: new Date().toISOString()
+            }
         });
     };
 
@@ -835,26 +903,28 @@ const LeaderboardView = () => {
                     </div>
 
                     {/* Session Filter */}
-                    <div className="flex items-center gap-2 bg-white border border-gray-200 px-3 py-2 rounded-xl">
-                        <Users size={16} className="text-gray-400" />
-                        <select
-                            value={sessionFilter}
-                            onChange={(e) => setSessionFilter(e.target.value)}
-                            className="bg-transparent font-bold text-sm focus:outline-none text-brand-dark min-w-[140px]"
-                        >
-                            <option value="all">All Enrolled Users</option>
-                            <optgroup label="Active Sessions">
-                                {sessionGroups.active.map((sid: string) => (
-                                    <option key={sid} value={sid}>{sid}</option>
-                                ))}
-                            </optgroup>
-                            <optgroup label="Past Sessions">
-                                {sessionGroups.past.map((sid: string) => (
-                                    <option key={sid} value={sid}>{sid}</option>
-                                ))}
-                            </optgroup>
-                        </select>
-                    </div>
+                    {!cohort && (
+                        <div className="flex items-center gap-2 bg-white border border-gray-200 px-3 py-2 rounded-xl">
+                            <Users size={16} className="text-gray-400" />
+                            <select
+                                value={sessionFilter}
+                                onChange={(e) => setSessionFilter(e.target.value)}
+                                className="bg-transparent font-bold text-sm focus:outline-none text-brand-dark min-w-[140px]"
+                            >
+                                <option value="all">All Enrolled Users</option>
+                                <optgroup label="Active Sessions">
+                                    {sessionGroups.active.map((sid: string) => (
+                                        <option key={sid} value={sid}>{sid}</option>
+                                    ))}
+                                </optgroup>
+                                <optgroup label="Past Sessions">
+                                    {sessionGroups.past.map((sid: string) => (
+                                        <option key={sid} value={sid}>{sid}</option>
+                                    ))}
+                                </optgroup>
+                            </select>
+                        </div>
+                    )}
 
                     {/* Week Filter */}
                     <div className="flex items-center gap-2 bg-white border border-gray-200 px-3 py-2 rounded-xl">
@@ -981,7 +1051,7 @@ const LeaderboardView = () => {
                                                 </button>
                                                 {!hasId && (
                                                     <button onClick={() => generateId(user.uid || user.id)} className="text-xs bg-brand-dark text-white px-3 py-1.5 rounded-lg font-bold hover:bg-black transition-colors">
-                                                        Generate ID
+                                                        {cohort ? `Assign to ${cohort.uniqueId}` : "Assign to Cohort"}
                                                     </button>
                                                 )}
                                             </div>
@@ -1105,7 +1175,7 @@ const AnnouncementModal = ({ userId, onClose }: { userId: string | null, onClose
 };
 
 // --- QUIZ MANAGER ---
-const QuizManager = () => {
+const QuizManager = ({ cohort }: any) => {
     const [quizzes, setQuizzes] = useState<any[]>([]);
     const [isEditing, setIsEditing] = useState(false);
     const [currentQuiz, setCurrentQuiz] = useState<any | null>(null);
@@ -1116,12 +1186,22 @@ const QuizManager = () => {
 
     useEffect(() => {
         loadQuizzes();
-    }, []);
+    }, [cohort]); // Reload when cohort changes
 
     const loadQuizzes = async () => {
         try {
             const all = await api.resources.getAll();
-            const quizList = all.filter((r: any) => r.type === 'Quiz' && (r.isMcampExclusive || r.tags?.includes('MCAMP'))).map((q: any) => ({
+            const quizList = all.filter((r: any) => {
+                // Base Filter
+                const isQuiz = r.type === 'Quiz' && (r.isMcampExclusive || r.tags?.includes('MCAMP'));
+                if (!isQuiz) return false;
+
+                // Cohort Filter
+                if (cohort && cohort.targetYear) {
+                    return !r.targetYear || r.targetYear === cohort.targetYear;
+                }
+                return true;
+            }).map((q: any) => ({
                 ...q,
                 questions: (q.quizData || q.questions || []).map((qq: any, idx: number) => ({
                     ...qq,
@@ -1141,6 +1221,7 @@ const QuizManager = () => {
                 type: 'Quiz',
                 subject: quizData.subject || 'MCAMP', // Ensure subject is present for validation
                 isMcampExclusive: true,
+                targetYear: quizData.targetYear || (cohort ? cohort.targetYear : undefined),
                 tags: [...(quizData.tags || []), 'MCAMP'],
                 quizData: quizData.questions, // Map frontend questions to backend quizData
                 url: 'internal://quiz-mastery' // Internal marker for quiz type
@@ -1688,7 +1769,7 @@ const QuizEditor = ({ initialData, onSave, onCancel }: any) => {
 };
 
 // --- GRADING ---
-const GradingView = () => {
+const GradingView = ({ cohort }: any) => {
     const [submissions, setSubmissions] = useState<any[]>([]);
     const [resources, setResources] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -1700,6 +1781,11 @@ const GradingView = () => {
     useEffect(() => {
         loadData();
     }, []);
+
+    // Sync cohort prop
+    useEffect(() => {
+        if (cohort && cohort.uniqueId) setSessionFilter(cohort.uniqueId);
+    }, [cohort]);
 
     // Calculate Unique Sessions (Active vs Past)
     const sessionGroups = useMemo(() => {
@@ -1885,26 +1971,28 @@ const GradingView = () => {
 
                 <div className="flex items-center gap-3">
                     {/* Session Filter */}
-                    <div className="flex items-center gap-2 bg-white border border-gray-200 px-3 py-2 rounded-xl">
-                        <Users size={16} className="text-gray-400" />
-                        <select
-                            value={sessionFilter}
-                            onChange={(e) => setSessionFilter(e.target.value)}
-                            className="bg-transparent font-bold text-sm focus:outline-none text-brand-dark min-w-[140px]"
-                        >
-                            <option value="all">All Enrolled Users</option>
-                            <optgroup label="Active Sessions">
-                                {sessionGroups.active.map((sid: string) => (
-                                    <option key={sid} value={sid}>{sid}</option>
-                                ))}
-                            </optgroup>
-                            <optgroup label="Past Sessions">
-                                {sessionGroups.past.map((sid: string) => (
-                                    <option key={sid} value={sid}>{sid}</option>
-                                ))}
-                            </optgroup>
-                        </select>
-                    </div>
+                    {!cohort && (
+                        <div className="flex items-center gap-2 bg-white border border-gray-200 px-3 py-2 rounded-xl">
+                            <Users size={16} className="text-gray-400" />
+                            <select
+                                value={sessionFilter}
+                                onChange={(e) => setSessionFilter(e.target.value)}
+                                className="bg-transparent font-bold text-sm focus:outline-none text-brand-dark min-w-[140px]"
+                            >
+                                <option value="all">All Enrolled Users</option>
+                                <optgroup label="Active Sessions">
+                                    {sessionGroups.active.map((sid: string) => (
+                                        <option key={sid} value={sid}>{sid}</option>
+                                    ))}
+                                </optgroup>
+                                <optgroup label="Past Sessions">
+                                    {sessionGroups.past.map((sid: string) => (
+                                        <option key={sid} value={sid}>{sid}</option>
+                                    ))}
+                                </optgroup>
+                            </select>
+                        </div>
+                    )}
 
                     <button onClick={loadData} className="text-brand-blue font-bold text-sm flex items-center gap-1 hover:bg-blue-50 px-3 py-1 rounded-lg">
                         <Clock size={14} /> Refresh

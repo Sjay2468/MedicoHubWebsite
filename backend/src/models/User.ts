@@ -91,9 +91,10 @@ const UserSchema: Schema = new Schema({
 
     mcamp: {
         isEnrolled: { type: Boolean, default: false },
-        cohortId: String,
-        uniqueId: String,
-        enrollmentDate: Date,
+        enrollmentDate: { type: Date },
+        startDate: { type: Date },
+        uniqueId: { type: String },
+        cohortId: { type: Schema.Types.ObjectId, ref: 'Cohort' },
         medicalSchool: String,
         level: String,
         phoneNumber: String,
@@ -103,11 +104,11 @@ const UserSchema: Schema = new Schema({
     },
 
     mcampHistory: [{
-        uniqueId: String,
-        cohortId: String,
-        enrollmentDate: Date,
-        completionDate: Date,
-        level: String
+        uniqueId: { type: String },
+        cohortId: { type: Schema.Types.ObjectId, ref: 'Cohort' },
+        enrollmentDate: { type: Date },
+        completionDate: { type: Date },
+        level: { type: String }
     }],
 
     quizAttempts: {

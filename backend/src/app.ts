@@ -158,6 +158,7 @@ import uploadRoutes from './modules/upload/upload.routes';
 import couponRoutes from './modules/coupons/coupon.routes';
 import deliveryRoutes from './modules/delivery/delivery.routes';
 import orderRoutes from './modules/orders/order.routes';
+import cohortRoutes from './modules/cohort/cohort.routes';
 
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/users', userRoutes);
@@ -172,6 +173,7 @@ app.use('/api/v1/upload', uploadRoutes);
 app.use('/api/v1/coupons', couponRoutes);
 app.use('/api/v1/delivery', deliveryRoutes);
 app.use('/api/v1/orders', orderRoutes);
+app.use('/api/v1/cohorts', cohortRoutes);
 
 // Global Error Handler
 app.use((err: any, req: Request, res: Response, next: any) => {

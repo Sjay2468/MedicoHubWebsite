@@ -66,6 +66,7 @@ export const MCampDashboard: React.FC<MCampDashboardProps> = ({
     // Data State
     const [weeks, setWeeks] = React.useState<any[]>([]);
     const [targetYear, setTargetYear] = React.useState<string>('Year 2');
+    const [cohortStartDate, setCohortStartDate] = React.useState<string | null>(null);
     const [allResources, setAllResources] = React.useState<any[]>([]);
     const [resourcesLoading, setResourcesLoading] = React.useState(true);
     const [expandedWeekId, setExpandedWeekId] = React.useState<number | null>(null);
@@ -75,25 +76,31 @@ export const MCampDashboard: React.FC<MCampDashboardProps> = ({
     const [activeQuiz, setActiveQuiz] = React.useState<QuizSession | null>(null);
 
     React.useEffect(() => {
-        if (user.mcamp?.startDate) {
-            const start = new Date(user.mcamp.startDate);
-            const now = user.mcamp.isSuspended && user.mcamp.suspensionDate
+        const startDateStr = cohortStartDate || user.mcamp?.startDate;
+
+        if (startDateStr) {
+            const start = new Date(startDateStr);
+            const now = user.mcamp?.isSuspended && user.mcamp?.suspensionDate
                 ? new Date(user.mcamp.suspensionDate)
                 : new Date();
 
-            const diffTime = Math.abs(now.getTime() - start.getTime());
+            const diffTime = now.getTime() - start.getTime(); // Allow negative for future start
             const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-            setCurrentDay(diffDays > 90 ? 90 : diffDays);
-            setProgress(Math.min(100, Math.round((diffDays / 90) * 100)));
+
+            // If future, stay at day 1
+            const effectiveDay = Math.max(1, diffDays);
+
+            setCurrentDay(effectiveDay > 90 ? 90 : effectiveDay);
+            setProgress(Math.min(100, Math.round((effectiveDay / 90) * 100)));
 
             // Auto expand current/last active week
-            const currentWeek = Math.ceil(diffDays / 7);
+            const currentWeek = Math.max(1, Math.ceil(effectiveDay / 7));
             setExpandedWeekId(currentWeek);
         } else {
             setCurrentDay(1);
             setExpandedWeekId(1);
         }
-    }, [user]);
+    }, [user, cohortStartDate]);
 
     const overallMastery = React.useMemo(() => {
         // Attendance: 13 quizzes = 100% (Weight 40%)
@@ -136,6 +143,7 @@ export const MCampDashboard: React.FC<MCampDashboardProps> = ({
                 if (data && data.weeks) {
                     setWeeks(data.weeks || []);
                     if (data.targetYear) setTargetYear(data.targetYear);
+                    if (data.startDate) setCohortStartDate(data.startDate);
                 }
             } catch (e) {
                 console.error("Failed to fetch curriculum from MongoDB:", e);

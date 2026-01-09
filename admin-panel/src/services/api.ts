@@ -357,5 +357,42 @@ export const api = {
             const result = await res.json();
             return result;
         }
+    },
+    cohorts: {
+        getAll: async () => {
+            const res = await fetch(`${BASE_URL}/cohorts`, {
+                headers: await getAuthHeaders()
+            });
+            return handleResponse(res);
+        },
+        get: async (id: string) => {
+            const res = await fetch(`${BASE_URL}/cohorts/${id}`, {
+                headers: await getAuthHeaders()
+            });
+            return handleResponse(res);
+        },
+        create: async (data: any) => {
+            const res = await fetch(`${BASE_URL}/cohorts`, {
+                method: 'POST',
+                headers: await getAuthHeaders(),
+                body: JSON.stringify(data)
+            });
+            return handleResponse(res);
+        },
+        update: async (id: string, data: any) => {
+            const res = await fetch(`${BASE_URL}/cohorts/${id}`, {
+                method: 'PATCH',
+                headers: await getAuthHeaders(),
+                body: JSON.stringify(data)
+            });
+            return handleResponse(res);
+        },
+        delete: async (id: string) => {
+            const res = await fetch(`${BASE_URL}/cohorts/${id}`, {
+                method: 'DELETE',
+                headers: await getAuthHeaders()
+            });
+            return handleResponse(res);
+        }
     }
 };
