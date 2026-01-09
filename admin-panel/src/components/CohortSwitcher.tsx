@@ -151,7 +151,7 @@ export const CohortSwitcher = ({ selectedCohortId, onSelect }: CohortSwitcherPro
                                         <Check size={16} className="text-brand-blue" />
                                     ) : (
                                         <button
-                                            onClick={(e) => handleDelete(cohort.uniqueId, e)}
+                                            onClick={(e) => handleDelete(cohort._id || cohort.uniqueId, e)}
                                             className="opacity-0 group-hover:opacity-100 p-1.5 hover:bg-red-50 text-gray-400 hover:text-red-500 rounded-md transition-all"
                                             title="Delete Cohort"
                                         >

@@ -55,7 +55,7 @@ export const MCampPage = () => {
 
             {/* Content Area */}
             <div className="bg-white rounded-[2rem] p-8 shadow-sm min-h-[600px] relative">
-                {activeTab === 'schedule' && <ScheduleManager cohort={selectedCohort} />}
+                {activeTab === 'schedule' && <ScheduleManager key={selectedCohort ? selectedCohort.uniqueId : 'global-schedule'} cohort={selectedCohort} />}
                 {activeTab === 'quizzes' && <QuizManager cohort={selectedCohort} />}
                 {activeTab === 'leaderboard' && <LeaderboardView cohort={selectedCohort} />}
                 {activeTab === 'grading' && <GradingView cohort={selectedCohort} />}

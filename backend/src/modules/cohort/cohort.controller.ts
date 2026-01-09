@@ -58,8 +58,10 @@ export const updateCohort = async (req: Request, res: Response) => {
         const { id } = req.params;
         const updates = req.body;
 
+        const query = mongoose.isValidObjectId(id) ? { _id: id } : { uniqueId: id };
+
         const cohort = await Cohort.findOneAndUpdate(
-            { $or: [{ _id: id }, { uniqueId: id }] },
+            query,
             { $set: updates },
             { new: true }
         );
@@ -75,7 +77,10 @@ export const updateCohort = async (req: Request, res: Response) => {
 export const deleteCohort = async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
-        const result = await Cohort.deleteOne({ $or: [{ _id: id }, { uniqueId: id }] });
+
+        const query = mongoose.isValidObjectId(id) ? { _id: id } : { uniqueId: id };
+
+        const result = await Cohort.deleteOne(query);
 
         if (result.deletedCount === 0) return res.status(404).json({ error: 'Cohort not found' });
         res.json({ message: 'Cohort deleted successfully' });
