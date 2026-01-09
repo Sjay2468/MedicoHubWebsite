@@ -891,11 +891,12 @@ const LeaderboardView = ({ cohort }: any) => {
             const matchesSearch = u.mcampId.toLowerCase().includes(searchQuery.toLowerCase());
 
             // Session Filter
-            // If 'all', show anyone currently enrolled or subscribed
-            // If specific session, show anyone who has that session ID in their active mcamp OR history
-            const matchesSession = sessionFilter === 'all'
+            // If COHORT is selected, we STRICTLY filter by that cohort's ID (ignoring dropdown state)
+            const activeFilter = cohort?.uniqueId || sessionFilter;
+
+            const matchesSession = activeFilter === 'all'
                 ? (u.mcamp?.isEnrolled || u.isSubscribed)
-                : (u.mcampId === sessionFilter || u.historyIds.includes(sessionFilter));
+                : (u.mcampId === activeFilter || (u.historyIds && u.historyIds.includes(activeFilter)));
 
             return matchesSearch && matchesSession;
         })
@@ -1222,7 +1223,11 @@ const QuizManager = ({ cohort }: any) => {
 
                 // Cohort Filter
                 if (cohort && cohort.targetYear) {
-                    return !r.targetYear || r.targetYear === cohort.targetYear;
+                    // Strict Filter: Must match Target Year exactly (normalized)
+                    const qYear = (r.targetYear || '').trim().toLowerCase();
+                    const cYear = (cohort.targetYear || '').trim().toLowerCase();
+                    // Match "Year 2" with "Year 2" or "Year 2 (200L)" loosely if needed, but for now strict includes
+                    return qYear === cYear || qYear.includes(cYear) || cYear.includes(qYear);
                 }
                 return true;
             }).map((q: any) => ({
@@ -2046,8 +2051,11 @@ const GradingView = ({ cohort }: any) => {
                             </thead>
                             <tbody className="divide-y divide-gray-50">
                                 {submissions.filter(sub => {
-                                    if (sessionFilter === 'all') return true;
-                                    return sub.mcampId === sessionFilter || (sub.historyIds && sub.historyIds.includes(sessionFilter));
+                                    // STRICT FILTER: If cohort is selected, ignore dropdown and use cohort ID
+                                    const activeFilter = cohort?.uniqueId || sessionFilter;
+
+                                    if (activeFilter === 'all') return true;
+                                    return sub.mcampId === activeFilter || (sub.historyIds && sub.historyIds.includes(activeFilter));
                                 }).map((sub, idx) => (
                                     <tr key={idx} className="hover:bg-gray-50 transition-colors">
                                         <td className="px-6 py-4">
