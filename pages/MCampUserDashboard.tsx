@@ -453,6 +453,10 @@ export const MCampUserDashboard: React.FC<MCampUserDashboardProps> = ({
               <h1 className="text-4xl md:text-6xl font-extrabold mb-6 leading-tight">
                 The 90-Day Distinction <br /><span className="text-brand-yellow">Masterclass</span>
               </h1>
+              {/* DEBUG: Remove after fixing */}
+              <div className="text-xs text-red-400 bg-black/50 p-2 rounded mb-4 font-mono">
+                DEBUG: Target="{targetYear}" | User="{user.year}/{user.academicYear}" | ID="{activeCohortId}"
+              </div>
               <p className="text-lg text-gray-300 mb-10 max-w-2xl mx-auto">
                 You are one step away from joining the elite cohort. Get the blueprint, the mentorship, and the tools to ace your exams.
               </p>
