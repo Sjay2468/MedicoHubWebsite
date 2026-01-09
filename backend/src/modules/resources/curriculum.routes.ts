@@ -28,8 +28,8 @@ router.get('/', optionalAuth, async (req, res) => {
                 }
             } else if (user?.academicYear) {
                 // NOT ENROLLED: Smart Match - Find active cohort for their year
-                // Robustness: Fetch ALL active cohorts and find best string match in JS
-                const activeCohorts = await Cohort.find({ status: 'active' }).sort({ createdAt: -1 });
+                // Robustness: Fetch ALL cohorts (ignore status for debug)
+                const activeCohorts = await Cohort.find().sort({ createdAt: -1 });
 
                 const userYearRaw = (user.academicYear || '').toLowerCase();
                 const userLevel = userYearRaw.match(/\d+/)?.[0]; // "3" from "year 3"
@@ -52,7 +52,14 @@ router.get('/', optionalAuth, async (req, res) => {
                         currentSessionId: matchingCohort.uniqueId, // Critical for enrollment ID
                         startDate: matchingCohort.startDate,
                         activeCohortId: matchingCohort.uniqueId, // Legacy shim
-                        isSmartMatch: true
+                        isSmartMatch: true,
+                        debug: {
+                            userUid: req.user.uid,
+                            userYear: user.academicYear,
+                            cohortsFound: activeCohorts.length,
+                            matchId: matchingCohort.uniqueId,
+                            matchStatus: matchingCohort.status
+                        }
                     });
                 }
             }
@@ -63,7 +70,16 @@ router.get('/', optionalAuth, async (req, res) => {
         if (!curriculum) {
             return res.json({ weeks: [], targetYear: '' });
         }
-        res.json(curriculum);
+
+        // Append debug info to fallback response too
+        res.json({
+            ...curriculum.toObject(),
+            debug: {
+                userFound: !!(req.user && req.user.uid),
+                userYear: req.user ? (req.user as any).academicYear || 'N/A (Req User Present)' : 'N/A (No Req User)',
+                reason: "Fallback reached - No Smart Match or Not Logged In"
+            }
+        });
     } catch (error: any) {
         console.error("Curriculum Fetch Error:", error);
         res.status(500).json({ error: "Failed to fetch curriculum" });

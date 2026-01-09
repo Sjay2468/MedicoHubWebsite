@@ -99,6 +99,8 @@ export const MCampUserDashboard: React.FC<MCampUserDashboardProps> = ({
   const [targetYear, setTargetYear] = React.useState<string>('Year 2');
   const [activeCohortId, setActiveCohortId] = React.useState<string>('');
 
+  const [debugInfo, setDebugInfo] = React.useState<any>(null);
+
   // School Dropdown
   const [isSchoolDropdownOpen, setIsSchoolDropdownOpen] = React.useState(false);
   const schoolDropdownRef = React.useRef<HTMLDivElement>(null);
@@ -117,6 +119,9 @@ export const MCampUserDashboard: React.FC<MCampUserDashboardProps> = ({
         }
         if (curriculum?.activeCohortId) {
           setActiveCohortId(curriculum.activeCohortId);
+        }
+        if (curriculum?.debug) {
+          setDebugInfo(curriculum.debug);
         }
       } catch (err) {
         console.error("Failed to fetch target year:", err);
@@ -454,8 +459,10 @@ export const MCampUserDashboard: React.FC<MCampUserDashboardProps> = ({
                 The 90-Day Distinction <br /><span className="text-brand-yellow">Masterclass</span>
               </h1>
               {/* DEBUG: Remove after fixing */}
-              <div className="text-xs text-red-400 bg-black/50 p-2 rounded mb-4 font-mono">
+              <div className="text-xs text-red-400 bg-black/50 p-2 rounded mb-4 font-mono whitespace-pre-wrap">
                 DEBUG: Target="{targetYear}" | User="{user.year}/{user.academicYear}" | ID="{activeCohortId}"
+                <br />
+                BACKEND: {JSON.stringify(debugInfo, null, 2)}
               </div>
               <p className="text-lg text-gray-300 mb-10 max-w-2xl mx-auto">
                 You are one step away from joining the elite cohort. Get the blueprint, the mentorship, and the tools to ace your exams.
