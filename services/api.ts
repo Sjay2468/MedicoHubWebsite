@@ -275,7 +275,11 @@ export const api = {
     },
     curriculum: {
         get: async () => {
-            const res = await fetch(`${V1_URL}/curriculum`);
+            const token = await auth.currentUser?.getIdToken();
+            // Important: Send token so backend can perform Smart Matching for the user
+            const res = await fetch(`${V1_URL}/curriculum`, {
+                headers: { 'Authorization': token ? `Bearer ${token}` : '' }
+            });
             if (!res.ok) throw new Error("Failed to fetch curriculum from MongoDB");
             return res.json();
         }
