@@ -320,12 +320,17 @@ const ScheduleManager = ({ cohort }: any) => {
             let allRes: any[] = [];
 
             if (overrideCohort) {
-                // Cohort Mode: Fetch resources, use cohort data
-                allRes = await api.resources.getAll();
+                // Cohort Mode: Fetch fresh data to ensure we have latest weeks (ignoring potentially stale prop)
+                const [freshCohort, rData] = await Promise.all([
+                    api.cohorts.get(overrideCohort._id || overrideCohort.uniqueId),
+                    api.resources.getAll()
+                ]);
+
+                allRes = rData;
                 curData = {
-                    weeks: overrideCohort.weeks || [],
-                    targetYear: overrideCohort.targetYear || 'Year 2',
-                    activeCohortId: overrideCohort.uniqueId
+                    weeks: freshCohort.weeks || [],
+                    targetYear: freshCohort.targetYear || 'Year 2',
+                    activeCohortId: freshCohort.uniqueId
                 };
                 setIsSessionLocked(true);
             } else {

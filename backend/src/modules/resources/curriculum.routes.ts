@@ -15,14 +15,33 @@ router.get('/', optionalAuth, async (req, res) => {
         if (req.user && req.user.uid) {
             const user = await User.findOne({ uid: req.user.uid });
             if (user?.mcamp?.cohortId) {
+                // ALREADY ENROLLED: Return specific cohort
                 const cohort = await Cohort.findById(user.mcamp.cohortId);
                 if (cohort) {
                     return res.json({
                         weeks: cohort.weeks,
                         targetYear: cohort.targetYear,
                         currentSessionId: cohort.uniqueId,
-                        startDate: cohort.startDate, // Critical for relative scheduling
+                        startDate: cohort.startDate,
                         isCohort: true
+                    });
+                }
+            } else if (user?.academicYear) {
+                // NOT ENROLLED: Smart Match - Find active cohort for their year
+                // This allows Year 3 students to see Year 3 cohort instead of default Year 2
+                const matchingCohort = await Cohort.findOne({
+                    status: 'active',
+                    targetYear: { $regex: new RegExp(`^${user.academicYear}`, 'i') } // weak match "Year 3" vs "Year 3 (300L)"
+                }).sort({ createdAt: -1 }); // Latest one
+
+                if (matchingCohort) {
+                    return res.json({
+                        weeks: matchingCohort.weeks, // Preview schedule
+                        targetYear: matchingCohort.targetYear,
+                        currentSessionId: matchingCohort.uniqueId, // Critical for enrollment ID
+                        startDate: matchingCohort.startDate,
+                        activeCohortId: matchingCohort.uniqueId, // Legacy shim
+                        isSmartMatch: true
                     });
                 }
             }
