@@ -310,27 +310,35 @@ const ScheduleManager = ({ cohort }: any) => {
     const [showSessionConfirmation, setShowSessionConfirmation] = useState(false);
 
     useEffect(() => {
-        if (cohort) {
-            // COHORT MODE
-            setWeeks(cohort.weeks || []);
-            setTargetYear(cohort.targetYear || 'Year 2');
-            setActiveCohortId(cohort.uniqueId);
-            setInitialActiveCohortId(cohort.uniqueId);
-            setIsSessionLocked(true); // Always lock ID for cohorts (it's immutable-ish)
-            setLoading(false); // FIXED: Explicitly stop loading
-        } else {
-            // LEGACY GLOBAL MODE (Fallback)
-            fetchData();
-        }
+        fetchData(cohort);
     }, [cohort]);
 
-    const fetchData = async () => {
+    const fetchData = async (overrideCohort?: any) => {
         setLoading(true);
         try {
-            const [curData, allRes] = await Promise.all([
-                api.curriculum.get(),
-                api.resources.getAll()
-            ]);
+            let curData: any = {};
+            let allRes: any[] = [];
+
+            if (overrideCohort) {
+                // Cohort Mode: Fetch resources, use cohort data
+                allRes = await api.resources.getAll();
+                curData = {
+                    weeks: overrideCohort.weeks || [],
+                    targetYear: overrideCohort.targetYear || 'Year 2',
+                    activeCohortId: overrideCohort.uniqueId
+                };
+                setIsSessionLocked(true);
+            } else {
+                // Legacy Mode: Fetch both
+                const [cData, rData] = await Promise.all([
+                    api.curriculum.get(),
+                    api.resources.getAll()
+                ]);
+                curData = cData;
+                allRes = rData;
+                // Don't auto-lock in legacy legacy? Keep default behavior or lock?
+                // Let's keep it consistent.
+            }
 
             const validResIds = new Set(Array.isArray(allRes) ? allRes.map((r: any) => r.id || r._id) : []);
             setResources(Array.isArray(allRes) ? allRes.filter((r: any) => r && r.isMcampExclusive) : []);
