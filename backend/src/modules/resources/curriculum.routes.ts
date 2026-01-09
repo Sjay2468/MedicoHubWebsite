@@ -28,11 +28,22 @@ router.get('/', optionalAuth, async (req, res) => {
                 }
             } else if (user?.academicYear) {
                 // NOT ENROLLED: Smart Match - Find active cohort for their year
-                // This allows Year 3 students to see Year 3 cohort instead of default Year 2
-                const matchingCohort = await Cohort.findOne({
-                    status: 'active',
-                    targetYear: { $regex: new RegExp(`^${user.academicYear}`, 'i') } // weak match "Year 3" vs "Year 3 (300L)"
-                }).sort({ createdAt: -1 }); // Latest one
+                // Robustness: Fetch ALL active cohorts and find best string match in JS
+                const activeCohorts = await Cohort.find({ status: 'active' }).sort({ createdAt: -1 });
+
+                const userYearRaw = (user.academicYear || '').toLowerCase();
+                const userLevel = userYearRaw.match(/\d+/)?.[0]; // "3" from "year 3"
+
+                const matchingCohort = activeCohorts.find(c => {
+                    const tYear = (c.targetYear || '').toLowerCase();
+                    // 1. Direct inclusion (e.g. "year 3" in "year 3 (300l)")
+                    if (tYear.includes(userYearRaw) || userYearRaw.includes(tYear)) return true;
+                    // 2. Level match (e.g. "3" in "year 3")
+                    if (userLevel && tYear.includes(userLevel)) return true;
+                    return false;
+                });
+
+                console.log(`[SmartMatch] User: ${userYearRaw}, Level: ${userLevel}, Found: ${matchingCohort?.uniqueId}`);
 
                 if (matchingCohort) {
                     return res.json({
