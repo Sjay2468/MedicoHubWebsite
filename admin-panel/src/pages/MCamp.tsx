@@ -35,7 +35,7 @@ export const MCampPage = () => {
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-3xl font-extrabold text-brand-dark">MCAMP Management</h1>
+                    <h1 className="text-3xl font-extrabold text-brand-dark">MCAMP Management <span className="text-xs text-gray-300">v2.1</span></h1>
                     <p className="text-gray-500 mt-2">Manage curriculum, quizzes, and track cohort progress.</p>
                 </div>
                 <CohortSwitcher
@@ -1223,13 +1223,18 @@ const QuizManager = ({ cohort }: any) => {
     const loadQuizzes = async () => {
         try {
             const all = await api.resources.getAll();
+            console.log("QuizManager Loaded. Total Resources:", all.length); // DEBUG LOG
+
             const quizList = all.filter((r: any) => {
                 // Base Filter
                 const isQuiz = r.type === 'Quiz' && (r.isMcampExclusive || r.tags?.includes('MCAMP'));
                 if (!isQuiz) return false;
 
+                console.log(`Checking Quiz: ${r.title}, Target: ${r.targetYear}`); // DEBUG LOG
+
                 // Cohort Filter
                 if (cohort && cohort.targetYear) {
+                    console.log(`Active Cohort Target: ${cohort.targetYear}`); // DEBUG LOG
                     // Strict Filter: Must match Target Year exactly (normalized)
                     const qYear = (r.targetYear || '').trim().toLowerCase();
                     const cYear = (cohort.targetYear || '').trim().toLowerCase();
