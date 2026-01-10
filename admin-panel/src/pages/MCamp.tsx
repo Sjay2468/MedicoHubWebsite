@@ -56,10 +56,10 @@ export const MCampPage = () => {
             {/* Content Area */}
             <div className="bg-white rounded-[2rem] p-8 shadow-sm min-h-[600px] relative">
                 {activeTab === 'schedule' && <ScheduleManager key={selectedCohort ? selectedCohort.uniqueId : 'global-schedule'} cohort={selectedCohort} />}
-                {activeTab === 'quizzes' && <QuizManager cohort={selectedCohort} />}
-                {activeTab === 'leaderboard' && <LeaderboardView cohort={selectedCohort} />}
-                {activeTab === 'grading' && <GradingView cohort={selectedCohort} />}
-                {activeTab === 'coupons' && <CouponManager cohort={selectedCohort} />}
+                {activeTab === 'quizzes' && <QuizManager key={selectedCohort ? selectedCohort.uniqueId : 'global-quizzes'} cohort={selectedCohort} />}
+                {activeTab === 'leaderboard' && <LeaderboardView key={selectedCohort ? selectedCohort.uniqueId : 'global-leaderboard'} cohort={selectedCohort} />}
+                {activeTab === 'grading' && <GradingView key={selectedCohort ? selectedCohort.uniqueId : 'global-grading'} cohort={selectedCohort} />}
+                {activeTab === 'coupons' && <CouponManager key={selectedCohort ? selectedCohort.uniqueId : 'global-coupons'} cohort={selectedCohort} />}
             </div>
         </div>
     );
@@ -912,7 +912,14 @@ const LeaderboardView = ({ cohort }: any) => {
     return (
         <div className="space-y-6">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <h2 className="text-2xl font-bold text-gray-800">Cohort Leaderboard</h2>
+                <div className="flex items-center gap-3">
+                    <h2 className="text-2xl font-bold text-gray-800">Cohort Leaderboard</h2>
+                    {cohort && (
+                        <span className="bg-brand-blue/10 text-brand-blue text-xs font-bold px-3 py-1 rounded-full border border-blue-100 flex items-center gap-1">
+                            <Users size={12} /> Filtering: {cohort.uniqueId}
+                        </span>
+                    )}
+                </div>
 
                 <div className="flex flex-wrap items-center gap-3">
                     {/* Search */}
@@ -1374,7 +1381,14 @@ const QuizManager = ({ cohort }: any) => {
             )}
 
             <div className="flex justify-between items-center">
-                <h2 className="text-2xl font-bold text-gray-800">Weekly Quizzes</h2>
+                <div className="flex items-center gap-3">
+                    <h2 className="text-2xl font-bold text-gray-800">Weekly Quizzes</h2>
+                    {cohort && (
+                        <span className="bg-brand-blue/10 text-brand-blue text-xs font-bold px-3 py-1 rounded-full border border-blue-100 flex items-center gap-1">
+                            <Tag size={12} /> Filtered: {cohort.targetYear || cohort.uniqueId}
+                        </span>
+                    )}
+                </div>
                 <div className="flex gap-2">
                     <button
                         onClick={handlePurgeClick}
@@ -1996,7 +2010,14 @@ const GradingView = ({ cohort }: any) => {
     return (
         <div className="space-y-6">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <h2 className="text-2xl font-bold text-gray-800">Student Submissions</h2>
+                <div className="flex items-center gap-3">
+                    <h2 className="text-2xl font-bold text-gray-800">Student Submissions</h2>
+                    {cohort && (
+                        <span className="bg-brand-blue/10 text-brand-blue text-xs font-bold px-3 py-1 rounded-full border border-blue-100 flex items-center gap-1">
+                            <Users size={12} /> Filtering: {cohort.uniqueId}
+                        </span>
+                    )}
+                </div>
 
                 <div className="flex items-center gap-3">
                     {/* Session Filter */}
