@@ -35,7 +35,7 @@ export const MCampPage = () => {
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-3xl font-extrabold text-brand-dark">MCAMP Management <span className="text-xs text-gray-300">v2.1</span></h1>
+                    <h1 className="text-3xl font-extrabold text-brand-dark">MCAMP Management</h1>
                     <p className="text-gray-500 mt-2">Manage curriculum, quizzes, and track cohort progress.</p>
                 </div>
                 <CohortSwitcher
@@ -893,10 +893,16 @@ const LeaderboardView = ({ cohort }: any) => {
             // Session Filter
             // If COHORT is selected, we STRICTLY filter by that cohort's ID (ignoring dropdown state)
             const activeFilter = cohort?.uniqueId || sessionFilter;
+            const activeObjId = cohort?._id;
+
+            // DEBUG
+            if (cohort) {
+                console.log(`[LeaderboardDebug] User ${u.name}: mcampId=${u.mcampId}, cohortId=${u.mcamp?.cohortId} vs Filter=${activeObjId || activeFilter}`);
+            }
 
             const matchesSession = activeFilter === 'all'
                 ? (u.mcamp?.isEnrolled || u.isSubscribed)
-                : (u.mcampId === activeFilter || (u.historyIds && u.historyIds.includes(activeFilter)));
+                : (cohort ? u.mcamp?.cohortId === activeObjId : (u.mcampId === activeFilter || (u.historyIds && u.historyIds.includes(activeFilter))));
 
             return matchesSearch && matchesSession;
         })
@@ -1223,26 +1229,30 @@ const QuizManager = ({ cohort }: any) => {
     const loadQuizzes = async () => {
         try {
             const all = await api.resources.getAll();
-            console.log("QuizManager Loaded. Total Resources:", all.length); // DEBUG LOG
 
             const quizList = all.filter((r: any) => {
                 // Base Filter
                 const isQuiz = r.type === 'Quiz' && (r.isMcampExclusive || r.tags?.includes('MCAMP'));
                 if (!isQuiz) return false;
 
-                console.log(`Checking Quiz: ${r.title}, Target: ${r.targetYear}`); // DEBUG LOG
 
                 // Cohort Filter
                 if (cohort && cohort.targetYear) {
-                    console.log(`Active Cohort Target: ${cohort.targetYear}`); // DEBUG LOG
 
-                    // PIVOT: LOOSE MATCHING
                     // Instead of strict equality, we check if one string contains the other
                     // This handles "Year 2" vs "Year 2 (200L)"
                     const qYear = (r.targetYear || '').trim().toLowerCase();
                     const cYear = (cohort.targetYear || '').trim().toLowerCase();
 
-                    if (!qYear || !cYear) return true; // If data missing, show it (safer)
+                    const match = qYear.includes(cYear) || cYear.includes(qYear);
+                    console.log(`[QuizDebug] Q: "${qYear}" vs C: "${cYear}" | Match: ${match}`);
+
+                    if (!cYear) return true; // If Cohort has no year, assume it wants everything? Or handle differently.
+
+                    // FIX: If Quiz has NO year, but we are filtering by specific year, HIDE IT.
+                    // Exception: If we decide empty means "General", we return true. But user complaint suggests we want strictness.
+                    // For now, let's filter strict.
+                    if (!qYear) return false;
 
                     // Check for overlap '2', '3' etc. if simple string match fails
                     const simpleMatch = qYear.includes(cYear) || cYear.includes(qYear);
@@ -1485,6 +1495,36 @@ const QuizManager = ({ cohort }: any) => {
                 )}
             </div>
         </div>
+
+            {
+        isEditing && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+                <div className="bg-white rounded-[2rem] w-full max-w-4xl max-h-[90vh] overflow-y-auto shadow-2xl">
+                    <QuizEditor
+                        initialData={currentQuiz}
+                        onSave={async (data: any) => {
+                            // INJECT COHORT ID HERE
+                            const payload = {
+                                ...data,
+                                // If we are in specific cohort mode, tag this quiz with the Cohort ID
+                                cohortId: cohort ? cohort._id : undefined,
+                                isMcampExclusive: true,
+                                type: 'Quiz',
+                                subject: 'General'
+                            };
+                            await handleSaveQuiz(payload);
+                            loadQuizzes(); // Refresh list to see change immediately
+                        }}
+                        onCancel={() => {
+                            setIsEditing(false);
+                            setCurrentQuiz(null);
+                        }}
+                    />
+                </div>
+            </div>
+        )
+    }
+        </div >
     );
 };
 
@@ -1496,6 +1536,7 @@ const QuizEditor = ({ initialData, onSave, onCancel }: any) => {
         weekNumber: '',
         maxAttempts: 1,
         questions: initialData?.quizData || initialData?.questions || [] as any[],
+        // Cohort ID is injected by parent, no need to edit here unless we want to move quizzes?
         ...initialData
     });
 
