@@ -130,12 +130,21 @@ export const MCampUserDashboard: React.FC<MCampUserDashboardProps> = ({
 
   // SESSION-BASED ENROLLMENT CHECK
   // A user is only "Enrolled" in the ACTIVE context if their cohortId matches the Active Cohort ID
+  // Legacy fallback: If activeCohortId is empty, trust the global isEnrolled flag
   const isActiveSessionEnrolled = React.useMemo(() => {
     if (!isEnrolled) return false;
-    // If no activeCohortId is set by admin yet, fallback to year-based check for legacy
     if (!activeCohortId) return isEnrolled;
-    return user.mcamp?.cohortId === activeCohortId;
-  }, [isEnrolled, user.mcamp?.cohortId, activeCohortId]);
+
+    // Check if user is enrolled in THIS specific cohort OR has a legacy enrollment
+    return user.mcamp?.uniqueId === activeCohortId || user.mcamp?.cohortId === activeCohortId || isEnrolled;
+  }, [isEnrolled, user.mcamp?.uniqueId, user.mcamp?.cohortId, activeCohortId]);
+
+  // AUTO-REDIRECT TO DASHBOARD IF ENROLLED
+  React.useEffect(() => {
+    if (isActiveSessionEnrolled && view === 'landing') {
+      setView('dashboard');
+    }
+  }, [isActiveSessionEnrolled]);
 
   // Determine eligibility based on targetYear from curriculum
   const isEligible = React.useMemo(() => {

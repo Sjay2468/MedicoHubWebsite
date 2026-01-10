@@ -1233,6 +1233,10 @@ const QuizManager = ({ cohort }: any) => {
                     // Strict Filter: Must match Target Year exactly (normalized)
                     const qYear = (r.targetYear || '').trim().toLowerCase();
                     const cYear = (cohort.targetYear || '').trim().toLowerCase();
+
+                    // DEBUG LOG
+                    console.log(`[QuizFilter] Q: "${qYear}" vs C: "${cYear}" | Match: ${qYear === cYear}`);
+
                     // Match "Year 2" with "Year 2" or "Year 2 (200L)" loosely if needed, but for now strict includes
                     return qYear === cYear || qYear.includes(cYear) || cYear.includes(qYear);
                 }
