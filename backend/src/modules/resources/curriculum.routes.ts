@@ -52,6 +52,7 @@ router.get('/', optionalAuth, async (req, res) => {
                         currentSessionId: matchingCohort.uniqueId, // Critical for enrollment ID
                         startDate: matchingCohort.startDate,
                         activeCohortId: matchingCohort.uniqueId, // Legacy shim
+                        activeCohortObjId: matchingCohort._id, // REQUIRED for DB Ref
                         isSmartMatch: true
                     });
                 }

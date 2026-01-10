@@ -98,6 +98,7 @@ export const MCampUserDashboard: React.FC<MCampUserDashboardProps> = ({
 
   const [targetYear, setTargetYear] = React.useState<string>('Year 2');
   const [activeCohortId, setActiveCohortId] = React.useState<string>('');
+  const [activeCohortObjId, setActiveCohortObjId] = React.useState<string>(''); // For DB Ref
 
   // School Dropdown
   const [isSchoolDropdownOpen, setIsSchoolDropdownOpen] = React.useState(false);
@@ -118,6 +119,9 @@ export const MCampUserDashboard: React.FC<MCampUserDashboardProps> = ({
         if (curriculum?.activeCohortId) {
           setActiveCohortId(curriculum.activeCohortId);
         }
+        if (curriculum?.activeCohortObjId) {
+          setActiveCohortObjId(curriculum.activeCohortObjId);
+        }
       } catch (err) {
         console.error("Failed to fetch target year:", err);
       }
@@ -136,8 +140,14 @@ export const MCampUserDashboard: React.FC<MCampUserDashboardProps> = ({
     if (!activeCohortId) return isEnrolled;
 
     // Check if user is enrolled in THIS specific cohort OR has a legacy enrollment
-    return user.mcamp?.uniqueId === activeCohortId || user.mcamp?.cohortId === activeCohortId || isEnrolled;
-  }, [isEnrolled, user.mcamp?.uniqueId, user.mcamp?.cohortId, activeCohortId]);
+    // We compare both UniqueID (String) and ObjID (Ref) to be safe
+    return user.mcamp?.uniqueId === activeCohortId ||
+      user.mcamp?.cohortId === activeCohortId ||
+      user.mcamp?.cohortId === activeCohortObjId ||
+      isEnrolled;
+  }, [isEnrolled, user.mcamp?.uniqueId, user.mcamp?.cohortId, activeCohortId, activeCohortObjId]);
+
+
 
   // AUTO-REDIRECT TO DASHBOARD IF ENROLLED
   React.useEffect(() => {
@@ -317,7 +327,9 @@ export const MCampUserDashboard: React.FC<MCampUserDashboardProps> = ({
 
       const enrollmentData = {
         isEnrolled: true,
-        cohortId: currentSessionId,
+        cohortId: activeCohortObjId, // CRITICAL FIX: Use ObjectId for DB Ref
+        // Store the string ID as well if schema supports it, strictly speaking schema has `uniqueId` for student ID
+        // But we can assume migration handled or just rely on cohortId ref
         cohortYear: targetYear,
         uniqueId: generatedId,
         startDate: new Date().toISOString()
