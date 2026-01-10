@@ -475,16 +475,7 @@ export const MCampUserDashboard: React.FC<MCampUserDashboardProps> = ({
                 The 90-Day Distinction <br /><span className="text-brand-yellow">Masterclass</span>
               </h1>
 
-              {/* TEMP DEBUG FOR LOOP DIAGNOSIS */}
-              <div className="bg-black/80 text-green-400 p-4 rounded text-xs font-mono text-left mb-4 mx-auto max-w-lg">
-                <p>DEBUG V2.1</p>
-                <p>View State: {view}</p>
-                <p>isEnrolled: {String(isEnrolled)}</p>
-                <p>activeCohortId: {activeCohortId || 'Loading...'}</p>
-                <p>User Cohort ID: {user.mcamp?.cohortId || 'None'}</p>
-                <p>User Unique ID: {user.mcamp?.uniqueId || 'None'}</p>
-                <p>isActiveSessionEnrolled: {String(isActiveSessionEnrolled)}</p>
-              </div>
+
 
               <p className="text-lg text-gray-300 mb-10 max-w-2xl mx-auto">
                 You are one step away from joining the elite cohort. Get the blueprint, the mentorship, and the tools to ace your exams.

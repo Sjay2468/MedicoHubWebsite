@@ -1235,15 +1235,18 @@ const QuizManager = ({ cohort }: any) => {
                 // Cohort Filter
                 if (cohort && cohort.targetYear) {
                     console.log(`Active Cohort Target: ${cohort.targetYear}`); // DEBUG LOG
-                    // Strict Filter: Must match Target Year exactly (normalized)
+
+                    // PIVOT: LOOSE MATCHING
+                    // Instead of strict equality, we check if one string contains the other
+                    // This handles "Year 2" vs "Year 2 (200L)"
                     const qYear = (r.targetYear || '').trim().toLowerCase();
                     const cYear = (cohort.targetYear || '').trim().toLowerCase();
 
-                    // DEBUG LOG
-                    console.log(`[QuizFilter] Q: "${qYear}" vs C: "${cYear}" | Match: ${qYear === cYear}`);
+                    if (!qYear || !cYear) return true; // If data missing, show it (safer)
 
-                    // Match "Year 2" with "Year 2" or "Year 2 (200L)" loosely if needed, but for now strict includes
-                    return qYear === cYear || qYear.includes(cYear) || cYear.includes(qYear);
+                    // Check for overlap '2', '3' etc. if simple string match fails
+                    const simpleMatch = qYear.includes(cYear) || cYear.includes(qYear);
+                    return simpleMatch;
                 }
                 return true;
             }).map((q: any) => ({
@@ -2081,11 +2084,19 @@ const GradingView = ({ cohort }: any) => {
                             </thead>
                             <tbody className="divide-y divide-gray-50">
                                 {submissions.filter(sub => {
-                                    // STRICT FILTER: If cohort is selected, ignore dropdown and use cohort ID
-                                    const activeFilter = cohort?.uniqueId || sessionFilter;
+                                    // PIVOT: ObjectId Filtering
+                                    // If cohort is selected, we check if the Submission's User has the matching cohortId
+                                    if (cohort && cohort._id) {
+                                        // NOTE: Submission object needs to include User's Cohort ID attached or we rely on mcampId match
+                                        // Since enrollment uniqueId is string, but we want robust check.
+                                        // Fallback: Check if sub.mcampId matches cohort.uniqueId OR checking an enrolled list.
+                                        // For now, let's keep the UniqueID check but make it strict:
+                                        const activeFilter = cohort.uniqueId;
+                                        return sub.mcampId === activeFilter || (sub.historyIds && sub.historyIds.includes(activeFilter));
+                                    }
 
-                                    if (activeFilter === 'all') return true;
-                                    return sub.mcampId === activeFilter || (sub.historyIds && sub.historyIds.includes(activeFilter));
+                                    if (sessionFilter === 'all') return true;
+                                    return sub.mcampId === sessionFilter || (sub.historyIds && sub.historyIds.includes(sessionFilter));
                                 }).map((sub, idx) => (
                                     <tr key={idx} className="hover:bg-gray-50 transition-colors">
                                         <td className="px-6 py-4">

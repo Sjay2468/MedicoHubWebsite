@@ -375,10 +375,24 @@ export const MCampDashboard: React.FC<MCampDashboardProps> = ({
                                                         const resourceIds = week.days?.[day] || [];
                                                         if (resourceIds.length === 0) return null;
 
+                                                        // Debug Calculation
+                                                        const foundResources = resourceIds.map((rid: string) => getResource(rid)).filter(Boolean);
+                                                        const missingCount = resourceIds.length - foundResources.length;
+
                                                         return (
                                                             <div key={day} className="relative pl-6 border-l-2 border-brand-blue/20">
                                                                 <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-brand-blue/20 border-2 border-white"></div>
                                                                 <h5 className="font-bold text-gray-900 mb-3 uppercase text-xs tracking-wider">Day {day}</h5>
+
+                                                                {/* VISUAL DEBUGGER (User Requested) */}
+                                                                {missingCount > 0 && (
+                                                                    <div className="bg-red-50 border border-red-200 p-3 rounded-xl mb-3 text-xs font-mono text-red-800 break-all">
+                                                                        <p className="font-bold border-b border-red-200 pb-1 mb-1">⚠️ Debug: Resource Mismatch</p>
+                                                                        <p>Looking For IDs: {JSON.stringify(resourceIds)}</p>
+                                                                        <p className="mt-1">Available Sample: {JSON.stringify(allResources.slice(0, 2).map((r: any) => r.id || r._id))}...</p>
+                                                                        <p className="mt-1"><b>Possible Cause:</b> IDs in Schedule don't match IDs in Database.</p>
+                                                                    </div>
+                                                                )}
 
                                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                                                     {resourceIds.map((rid: string) => {
