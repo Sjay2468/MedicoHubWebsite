@@ -1,8 +1,8 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
-import { Save, Lock, Globe, Bell, Shield, User, AlertTriangle, Video, BookOpen, Send, Tag } from 'lucide-react';
+import { Save, Lock, Globe, Bell, Shield, User, AlertTriangle, Video, BookOpen, Send, Tag, Camera } from 'lucide-react';
 import { updatePassword, updateProfile } from 'firebase/auth';
 
 export const SettingsPage = () => {
@@ -57,9 +57,38 @@ export const SettingsPage = () => {
     });
 
     const [displayName, setDisplayName] = useState(user?.displayName || '');
+    const [profilePhotoUrl, setProfilePhotoUrl] = useState(user?.photoURL || '');
+    const [photoPreview, setPhotoPreview] = useState(user?.photoURL || '');
+    const [selectedFile, setSelectedFile] = useState<File | null>(null);
+    const [photoError, setPhotoError] = useState<string | null>(null);
+    const [isPhotoProcessing, setIsPhotoProcessing] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const previewRef = useRef<string | null>(null);
+
+    const updatePreviewUrl = (url: string) => {
+        if (previewRef.current && previewRef.current.startsWith('blob:') && previewRef.current !== url) {
+            URL.revokeObjectURL(previewRef.current);
+        }
+        previewRef.current = url;
+        setPhotoPreview(url);
+    };
 
     useEffect(() => {
         loadSettings();
+    }, []);
+
+    useEffect(() => {
+        setDisplayName(user?.displayName || '');
+        setProfilePhotoUrl(user?.photoURL || '');
+        updatePreviewUrl(user?.photoURL || '');
+    }, [user?.displayName, user?.photoURL]);
+
+    useEffect(() => {
+        return () => {
+            if (previewRef.current && previewRef.current.startsWith('blob:')) {
+                URL.revokeObjectURL(previewRef.current);
+            }
+        };
     }, []);
 
     const loadSettings = async () => {
@@ -110,13 +139,66 @@ export const SettingsPage = () => {
         }
     };
 
+    const handlePhotoChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        if (file.size > 5 * 1024 * 1024) {
+            setPhotoError('Please upload an image smaller than 5MB.');
+            event.target.value = '';
+            return;
+        }
+
+        setPhotoError(null);
+        setSelectedFile(file);
+        const objectUrl = URL.createObjectURL(file);
+        updatePreviewUrl(objectUrl);
+        event.target.value = '';
+    };
+
     const handleUpdateProfile = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsLoading(true);
-        if (!user) return;
+        if (!user) {
+            setIsLoading(false);
+            return;
+        }
         try {
-            if (displayName !== user.displayName) {
-                await updateProfile(user, { displayName });
+            let finalPhotoUrl = profilePhotoUrl;
+
+            if (selectedFile) {
+                setPhotoError(null);
+                setIsPhotoProcessing(true);
+                try {
+                    const uploadedUrl = await api.files.upload(selectedFile);
+                    finalPhotoUrl = uploadedUrl;
+                    setProfilePhotoUrl(uploadedUrl);
+                    updatePreviewUrl(uploadedUrl);
+                    setSelectedFile(null);
+                } catch (uploadError: any) {
+                    console.error("[Photo Upload] Failed:", uploadError);
+                    const errMsg = uploadError?.message || 'Failed to upload profile photo.';
+                    setPhotoError(errMsg);
+                    setMessage({ type: 'error', text: errMsg });
+                    setIsLoading(false);
+                    setIsPhotoProcessing(false);
+                    return;
+                }
+                setIsPhotoProcessing(false);
+            }
+
+            const payload: { displayName?: string; photoURL?: string } = {};
+
+            if (displayName.trim() && displayName !== user.displayName) {
+                payload.displayName = displayName.trim();
+            }
+
+            if (finalPhotoUrl && finalPhotoUrl !== user.photoURL) {
+                payload.photoURL = finalPhotoUrl;
+            }
+
+            if (Object.keys(payload).length > 0) {
+                await updateProfile(user, payload);
             }
             if (passwordData.newPassword) {
                 if (passwordData.newPassword !== passwordData.confirmPassword) {
@@ -409,6 +491,52 @@ export const SettingsPage = () => {
                 activeTab === 'security' && (
                     <form onSubmit={handleUpdateProfile} className="bg-white rounded-[1.5rem] p-8 shadow-sm border border-gray-100 space-y-8 animate-fade-in">
                         <div className="space-y-6">
+                            <div className="space-y-4 border-b border-gray-100 pb-6">
+                                <div className="flex items-center gap-2 text-sm font-bold text-gray-700 uppercase tracking-wide">
+                                    <Camera size={16} />
+                                    Profile Photo
+                                </div>
+                                <div className="flex items-center gap-6 flex-wrap">
+                                    <input
+                                        type="file"
+                                        ref={fileInputRef}
+                                        className="hidden"
+                                        accept="image/*"
+                                        onChange={handlePhotoChange}
+                                    />
+                                    <div
+                                        className="relative rounded-full overflow-hidden w-20 h-20 border-4 border-gray-100 shadow-lg cursor-pointer group"
+                                        onClick={() => fileInputRef.current?.click()}
+                                    >
+                                        {photoPreview ? (
+                                            <img
+                                                src={photoPreview}
+                                                alt="Admin"
+                                                className="w-full h-full object-cover"
+                                            />
+                                        ) : (
+                                            <div className="w-full h-full bg-brand-yellow text-brand-dark flex items-center justify-center text-2xl font-black">
+                                                {(user?.displayName || user?.email || 'A').charAt(0)}
+                                            </div>
+                                        )}
+                                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                            <Camera size={22} className="text-white" />
+                                        </div>
+                                    </div>
+                                    <div className="text-sm space-y-1">
+                                        <button
+                                            type="button"
+                                            onClick={() => fileInputRef.current?.click()}
+                                            className="text-brand-blue font-bold text-xs uppercase tracking-wide hover:text-brand-dark transition-colors"
+                                        >
+                                            {isPhotoProcessing ? 'Processing...' : 'Upload Photo'}
+                                        </button>
+                                        <p className={`${photoError ? 'text-red-500' : 'text-gray-400'}`}>
+                                            {photoError || 'PNG, JPG or GIF. Max 5MB.'}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
                             <div className="space-y-2">
                                 <label className="text-sm font-bold text-gray-700">Display Name</label>
                                 <input
@@ -452,8 +580,15 @@ export const SettingsPage = () => {
                         </div>
 
                         <div className="pt-4 border-t border-gray-100 flex justify-end">
-                            <button type="submit" disabled={isLoading} className="bg-gray-800 text-white px-8 py-3 rounded-xl font-bold hover:bg-black transition-all shadow-lg flex items-center gap-2">
-                                {isLoading ? 'Updating...' : <><Save size={18} /> Update Profile</>}
+                            <button
+                                type="submit"
+                                disabled={isLoading || isPhotoProcessing}
+                                className={`px-8 py-3 rounded-xl font-bold transition-all flex items-center gap-2 shadow-lg ${isLoading || isPhotoProcessing
+                                    ? 'bg-gray-100 text-gray-400 border border-gray-200 cursor-not-allowed'
+                                    : 'bg-gray-800 text-white hover:bg-black shadow-gray-400/20'
+                                    }`}
+                            >
+                                {isLoading ? 'Updating...' : isPhotoProcessing ? 'Processing...' : <><Save size={18} /> Update Profile</>}
                             </button>
                         </div>
                     </form>
