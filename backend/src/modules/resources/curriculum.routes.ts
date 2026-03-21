@@ -8,9 +8,26 @@ import { optionalAuth } from '../../middleware/auth.middleware';
 import { User } from '../../models/User';
 import Cohort from '../../models/Cohort';
 
+const escapeRegex = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
 // GET /api/v1/curriculum
 router.get('/', optionalAuth, async (req, res) => {
     try {
+        const requestedYear = (req.query.year as string | undefined)?.trim();
+        if (requestedYear) {
+            const regex = new RegExp(`^${escapeRegex(requestedYear)}$`, 'i');
+            const byYear = await Cohort.findOne({ targetYear: { $regex: regex } });
+            if (byYear) {
+                return res.json({
+                    weeks: byYear.weeks,
+                    targetYear: byYear.targetYear,
+                    currentSessionId: byYear.uniqueId,
+                    startDate: byYear.startDate,
+                    isCohort: true
+                });
+            }
+        }
+
         // 1. Try to load Cohort-specific curriculum for logged-in users
         if (req.user && req.user.uid) {
             const user = await User.findOne({ uid: req.user.uid });

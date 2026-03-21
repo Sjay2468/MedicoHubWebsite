@@ -63,6 +63,26 @@ export const MCampDashboard: React.FC<MCampDashboardProps> = ({
     // Sync local user state with prop
     React.useEffect(() => { setLocalUser(user); }, [user]);
 
+    React.useEffect(() => {
+        const loadAcademicYears = async () => {
+            try {
+                const data = await api.settings.get();
+                if (Array.isArray(data.academicYears) && data.academicYears.length > 0) {
+                    const filtered = data.academicYears.filter((year: string) => year && year !== 'General');
+                    setAvailableYears(filtered.length ? filtered : ['Year 2', 'Year 3', 'Year 4']);
+                    setPreviewYear(prev => filtered.length
+                        ? (filtered.includes(prev) ? prev : filtered[0])
+                        : prev
+                    );
+                }
+            } catch (error) {
+                console.error("Failed to load academic years:", error);
+            }
+        };
+
+        loadAcademicYears();
+    }, []);
+
     // Data State
     const [weeks, setWeeks] = React.useState<any[]>([]);
     const [targetYear, setTargetYear] = React.useState<string>('Year 2');
@@ -70,6 +90,8 @@ export const MCampDashboard: React.FC<MCampDashboardProps> = ({
     const [allResources, setAllResources] = React.useState<any[]>([]);
     const [resourcesLoading, setResourcesLoading] = React.useState(true);
     const [expandedWeekId, setExpandedWeekId] = React.useState<number | null>(null);
+    const [availableYears, setAvailableYears] = React.useState<string[]>(['Year 2', 'Year 3', 'Year 4']);
+    const [previewYear, setPreviewYear] = React.useState<string>('Year 2');
 
     // Quiz State
     const [quizMode, setQuizMode] = React.useState<'idle' | 'intro' | 'active' | 'completed'>('idle');
@@ -121,40 +143,43 @@ export const MCampDashboard: React.FC<MCampDashboardProps> = ({
         return Math.round(attendanceScore + performanceScore);
     }, [localUser.quizAttempts]);
 
-    // Fetch Curriculum & Resources
+    // Fetch Curriculum & Resources (supports year preview)
     React.useEffect(() => {
-        let unsubscribeCurriculum: (() => void) | undefined;
+        let cancelled = false;
 
         const fetchData = async () => {
-            // 1. Resources
+            setResourcesLoading(true);
             try {
-                setResourcesLoading(true);
-                const resData = await api.resources.getAll();
+                const [resData, curData] = await Promise.all([
+                    api.resources.getAll(),
+                    api.curriculum.get(previewYear)
+                ]);
+
+                if (cancelled) return;
+
                 setAllResources(Array.isArray(resData) ? resData : []);
-            } catch (e) {
-                console.error("Failed resources", e);
-            } finally {
-                setResourcesLoading(false);
-            }
 
-            // 2. Curriculum
-            try {
-                const data = await api.curriculum.get();
-                if (data && data.weeks) {
-                    setWeeks(data.weeks || []);
-                    if (data.targetYear) setTargetYear(data.targetYear);
-                    if (data.startDate) setCohortStartDate(data.startDate);
+                if (curData) {
+                    setWeeks(curData.weeks || []);
+                    setTargetYear(curData.targetYear || previewYear);
+                    setCohortStartDate(curData.startDate || null);
                 }
-            } catch (e) {
-                console.error("Failed to fetch curriculum from MongoDB:", e);
+            } catch (error) {
+                if (!cancelled) {
+                    console.error("Failed to fetch MCAMP curriculum or resources:", error);
+                }
+            } finally {
+                if (!cancelled) {
+                    setResourcesLoading(false);
+                }
             }
         };
-        fetchData();
 
+        fetchData();
         return () => {
-            if (unsubscribeCurriculum) unsubscribeCurriculum();
+            cancelled = true;
         };
-    }, []);
+    }, [previewYear]);
 
     // Determine Active Weekly Quiz
     React.useEffect(() => {
@@ -295,6 +320,21 @@ export const MCampDashboard: React.FC<MCampDashboardProps> = ({
                                 <span className="mx-3 text-gray-700">|</span>
                                 Target Level: <span className="text-brand-yellow font-bold">{targetYear}</span>
                             </p>
+                            <div className="mt-6 flex flex-wrap items-center gap-3 text-xs uppercase tracking-wider text-white/80">
+                                <span>Preview syllabus for</span>
+                                <select
+                                    value={previewYear}
+                                    onChange={(e) => setPreviewYear(e.target.value)}
+                                    className="bg-white/10 text-white px-3 py-1 rounded-full border border-white/20 font-bold focus:outline-none"
+                                >
+                                    {availableYears.map(year => (
+                                        <option key={year} value={year}>{year}</option>
+                                    ))}
+                                </select>
+                                {resourcesLoading && (
+                                    <span className="text-xs italic text-white/70">Refreshing...</span>
+                                )}
+                            </div>
                         </div>
 
                         <div className="bg-white/10 backdrop-blur-md p-6 rounded-2xl border border-white/10 w-full md:w-auto min-w-[280px]">

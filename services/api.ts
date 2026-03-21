@@ -274,10 +274,10 @@ export const api = {
         }
     },
     curriculum: {
-        get: async () => {
+        get: async (year?: string) => {
             const token = await auth.currentUser?.getIdToken();
-            // Important: Send token so backend can perform Smart Matching for the user
-            const res = await fetch(`${V1_URL}/curriculum`, {
+            const query = year ? `?year=${encodeURIComponent(year)}` : '';
+            const res = await fetch(`${V1_URL}/curriculum${query}`, {
                 headers: { 'Authorization': token ? `Bearer ${token}` : '' }
             });
             if (!res.ok) throw new Error("Failed to fetch curriculum from MongoDB");
