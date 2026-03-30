@@ -1354,16 +1354,6 @@ const QuizManager = ({ cohort }: any) => {
         }
     };
 
-    if (isEditing) {
-        return (
-            <QuizEditor
-                initialData={currentQuiz}
-                onSave={handleSave}
-                onCancel={() => { setIsEditing(false); setCurrentQuiz(null); }}
-            />
-        );
-    }
-
     return (
         <div className="space-y-6 relative">
             {/* CUSTOM CONFIRMATION MODAL */}
@@ -1494,37 +1484,19 @@ const QuizManager = ({ cohort }: any) => {
                     </table>
                 )}
             </div>
-        </div>
 
-            {
-        isEditing && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-                <div className="bg-white rounded-[2rem] w-full max-w-4xl max-h-[90vh] overflow-y-auto shadow-2xl">
-                    <QuizEditor
-                        initialData={currentQuiz}
-                        onSave={async (data: any) => {
-                            // INJECT COHORT ID HERE
-                            const payload = {
-                                ...data,
-                                // If we are in specific cohort mode, tag this quiz with the Cohort ID
-                                cohortId: cohort ? cohort._id : undefined,
-                                isMcampExclusive: true,
-                                type: 'Quiz',
-                                subject: 'General'
-                            };
-                            await handleSaveQuiz(payload);
-                            loadQuizzes(); // Refresh list to see change immediately
-                        }}
-                        onCancel={() => {
-                            setIsEditing(false);
-                            setCurrentQuiz(null);
-                        }}
-                    />
+            {isEditing && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+                    <div className="bg-white rounded-[2rem] w-full max-w-4xl max-h-[90vh] overflow-y-auto shadow-2xl">
+                        <QuizEditor
+                            initialData={currentQuiz}
+                            onSave={handleSave}
+                            onCancel={() => { setIsEditing(false); setCurrentQuiz(null); }}
+                        />
+                    </div>
                 </div>
-            </div>
-        )
-    }
-        </div >
+            )}
+        </div>
     );
 };
 
@@ -2352,6 +2324,3 @@ const GradingConfirmModal = ({ isOpen, onClose, onConfirm, score, mcampId }: any
         document.body
     );
 };
-
-
-
