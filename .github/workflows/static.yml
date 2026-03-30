@@ -1,0 +1,65 @@
+# .github/workflows/static.yml
+name: Deploy static content to Pages
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install user deps
+        run: npm ci
+
+      - name: Build user app
+        run: npm run build -- --base=/user/
+
+      - name: Add user SPA fallback
+        run: cp dist/index.html dist/404.html
+
+      - name: Install admin deps
+        run: cd admin-panel && npm ci
+
+      - name: Build admin app
+        run: cd admin-panel && npm run build -- --base=/admin/
+
+      - name: Add admin SPA fallback
+        run: cp admin-panel/dist/index.html admin-panel/dist/404.html
+
+      - name: Assemble Pages output
+        run: |
+          rm -rf pages-dist
+          mkdir -p pages-dist/admin pages-dist/user
+          cp -R admin-panel/dist/. pages-dist/admin/
+          cp -R dist/. pages-dist/user/
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: pages-dist
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5
