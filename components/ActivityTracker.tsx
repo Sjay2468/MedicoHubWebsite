@@ -1,7 +1,7 @@
 
 import React, { useEffect, useRef } from 'react';
 import { api } from '../services/api';
-import { auth } from '../services/firebase';
+import { useAuth } from '../context/AuthContext';
 
 interface ActivityTrackerProps {
     resourceId: string;
@@ -11,6 +11,7 @@ interface ActivityTrackerProps {
 }
 
 export const ActivityTracker: React.FC<ActivityTrackerProps> = ({ resourceId, resourceType, children }) => {
+    const { user } = useAuth();
     const startTime = useRef(Date.now());
 
     // Ref to store latest interaction stats if we add that later (scroll depth etc)
@@ -23,9 +24,9 @@ export const ActivityTracker: React.FC<ActivityTrackerProps> = ({ resourceId, re
             const endTime = Date.now();
             const durationSeconds = Math.floor((endTime - startTime.current) / 1000);
 
-            if (durationSeconds > 5 && auth.currentUser) { // Only log meaningful sessions (>5s)
+            if (durationSeconds > 5 && user?.uid) { // Only log meaningful sessions (>5s)
                 const sessionData = {
-                    userId: auth.currentUser.uid,
+                    userId: user.uid,
                     resourceId,
                     resourceType,
                     startTime: new Date(startTime.current).toISOString(),

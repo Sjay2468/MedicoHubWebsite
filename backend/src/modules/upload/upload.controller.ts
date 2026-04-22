@@ -3,7 +3,7 @@ import imagekit from '../../utils/imagekit';
 import fs from 'fs';
 import path from 'path';
 import sharp from 'sharp';
-import { PDFDocument } from 'pdf-lib';
+import PDFDocument from 'pdf-lib';
 
 export class UploadController {
     static async uploadFile(req: Request, res: Response) {
