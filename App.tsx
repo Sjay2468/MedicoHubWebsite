@@ -78,7 +78,7 @@ const MainLayout: React.FC<{ user: User | null; children: React.ReactNode }> = (
 };
 
 const AppContent: React.FC = () => {
-  const { user: firebaseUser, loading, logout, deleteAccount } = useAuth();
+  const { user: sessionUser, loading, logout, deleteAccount } = useAuth();
   const { maintenanceMode } = useSettings();
   const [user, setUser] = React.useState<User | null>(null);
   const [notifications, setNotifications] = React.useState<Notification[]>([]);
@@ -90,107 +90,31 @@ const AppContent: React.FC = () => {
     type: 'success'
   });
 
-  // Sync Firebase User with App User State
-  // Sync Firebase User with App User State (Real-time)
   React.useEffect(() => {
-    let unsubscribe: (() => void) | undefined;
-
-    const setupUserListener = async () => {
-      if (firebaseUser) {
+    const syncSessionUser = async () => {
+      if (!loading && sessionUser) {
         setAppLoading(true);
+        setUser(sessionUser as any);
         try {
-          // Fetch from MongoDB via our API instead of Firestore Snapshot
-          const userData = await api.users.get(firebaseUser.uid);
-
-          if (userData) {
-            // Ensure year is mapped from academicYear if missing (for frontend compatibility)
-            // CRITICAL: Ensure 'name' is never undefined. Fallback to Firebase displayName if MongoDB name is missing.
-            const resolvedName = userData.name || firebaseUser.displayName || 'Student';
-
-            // SELF-HEALING: If MongoDB name was missing but we have it in Firebase, fix it in the DB now.
-            if (!userData.name && firebaseUser.displayName) {
-              console.log("[App] Self-healing user name in MongoDB...");
-              api.users.update(firebaseUser.uid, { name: firebaseUser.displayName }).catch(e => console.error("Self-heal failed", e));
-            }
-
-            const mappedUser: User = {
-              ...userData,
-              name: resolvedName,
-              year: userData.year || userData.academicYear || '',
-              academicYear: userData.academicYear || userData.year || '',
-              profileImage: userData.photoURL || userData.profileImage || '',
-              emailVerified: firebaseUser.emailVerified
-            };
-
-            // RACE CONDITION PROTECTION:
-            // If we already have a specialized year locally, don't revert to 'General' just because 
-            // the backend sync hasn't fully propagated or is returning a stale default.
-            setUser(prev => {
-              if (prev && isOnboarded(prev)) {
-                const isStale = (mappedUser.academicYear === 'General' || mappedUser.academicYear === '') &&
-                  (prev.academicYear !== 'General' && prev.academicYear !== '');
-
-                if (isStale) {
-                  console.log("[App] Blocking stale user state update to prevent redirect loop.");
-                  return { ...prev, ...mappedUser, year: prev.year, academicYear: prev.academicYear };
-                }
-              }
-              return mappedUser;
-            });
-            const localNotifs = generateNotifications(mappedUser);
-
-            setNotifications(prev => {
-              const broadcasts = prev.filter(n => n.isBroadcast || n.id.startsWith('email-verified'));
-              const existingIds = new Set(broadcasts.map(n => n.id));
-              const newLocals = localNotifs.filter(n => !existingIds.has(n.id));
-              return [...broadcasts, ...newLocals];
-            });
-          } else {
-            // Fallback for new users or if not in MongoDB yet (only if current state is empty)
-            setUser(prev => {
-              if (prev && (prev.year || prev.academicYear)) return prev;
-              return {
-                uid: firebaseUser.uid,
-                name: firebaseUser.displayName || 'Student',
-                email: firebaseUser.email || '',
-                isSubscribed: false,
-                year: '',
-                academicYear: ''
-              } as any as User;
-            });
-          }
-        } catch (error) {
-          console.error("Error fetching user data from MongoDB:", error);
-          // If we already have a user in state, don't overwrite with a broken fallback
-          setUser(prev => {
-            if (prev && (prev.year || prev.academicYear)) return prev;
-            return {
-              uid: firebaseUser.uid,
-              name: firebaseUser.displayName || 'Student',
-              email: firebaseUser.email || '',
-              isSubscribed: false,
-              year: '',
-              academicYear: ''
-            } as any as User;
-          });
+          const remoteNotifications = await api.notifications.get();
+          setNotifications(Array.isArray(remoteNotifications) ? remoteNotifications : []);
+        } catch {
+          setNotifications([]);
         } finally {
           setAppLoading(false);
         }
-      } else {
+        return;
+      }
+
+      if (!loading) {
         setUser(null);
         setNotifications([]);
         setAppLoading(false);
       }
     };
 
-    if (!loading) {
-      setupUserListener();
-    }
-
-    return () => {
-      if (unsubscribe) unsubscribe();
-    };
-  }, [firebaseUser, loading]);
+    syncSessionUser();
+  }, [sessionUser, loading]);
 
   // SUBSCRIPTION EXPIRATION CHECK: 
   // We check if the user's Pro account has exceeded 30 days (Monthly) or 365 days (Yearly).
@@ -208,7 +132,7 @@ const AppContent: React.FC = () => {
       if (diffInDays >= limit) {
         try {
           // Update MongoDB via API
-          await api.users.update(firebaseUser!.uid, {
+          await api.users.update(sessionUser!.uid || sessionUser!.id || '', {
             isSubscribed: false,
             subscriptionPlan: null,
             subscriptionDate: null
@@ -231,12 +155,12 @@ const AppContent: React.FC = () => {
     };
 
     checkSubscriptionStatus();
-  }, [user, firebaseUser]);
+  }, [user, sessionUser]);
 
   // Check for email verification status and notify
   React.useEffect(() => {
-    if (firebaseUser?.emailVerified) {
-      const storageKey = `verified_notification_sent_${firebaseUser.uid}`;
+    if (sessionUser?.emailVerified) {
+      const storageKey = `verified_notification_sent_${sessionUser.uid || sessionUser.id}`;
       const alreadyNotified = localStorage.getItem(storageKey);
 
       if (!alreadyNotified) {
@@ -253,11 +177,11 @@ const AppContent: React.FC = () => {
         localStorage.setItem(storageKey, 'true');
       }
     }
-  }, [firebaseUser]);
+  }, [sessionUser]);
 
   // Fetch MongoDB Notifications
   React.useEffect(() => {
-    if (firebaseUser) {
+    if (sessionUser) {
       const fetchNotifications = async () => {
         try {
           const data = await api.notifications.get();
@@ -273,7 +197,7 @@ const AppContent: React.FC = () => {
       const interval = setInterval(fetchNotifications, 60000); // Poll every minute
       return () => clearInterval(interval);
     }
-  }, [firebaseUser]);
+  }, [sessionUser]);
 
 
   // Helper function
@@ -318,7 +242,7 @@ const AppContent: React.FC = () => {
 
 
   const handleUpdateUser = async (data: Partial<User>) => {
-    if (user && firebaseUser) {
+    if (user && sessionUser) {
       // Optimistic update - ensure year and academicYear are SYNCED
       const updatedUser = {
         ...user,
@@ -337,7 +261,7 @@ const AppContent: React.FC = () => {
           academicYear: data.academicYear || data.year
         };
         // Hit MongoDB Backend API
-        await api.users.update(firebaseUser.uid, payload);
+        await api.users.update(sessionUser.uid || sessionUser.id || '', payload);
       } catch (e) {
         console.error("Error updating user profile in MongoDB:", e);
       }

@@ -1,66 +1,113 @@
+import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { api } from '../services/api';
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import { type User, onAuthStateChanged, signInWithEmailAndPassword, signOut, sendPasswordResetEmail } from 'firebase/auth';
-import { auth } from '../firebase';
+interface SessionUser {
+    id?: string;
+    uid?: string;
+    name?: string;
+    displayName?: string;
+    email?: string;
+    image?: string;
+    photoURL?: string;
+    role?: string;
+    status?: string;
+    emailVerified?: boolean;
+}
 
 interface AuthContextType {
-    user: User | null;
+    user: SessionUser | null;
     loading: boolean;
     isAdmin: boolean;
     login: (email: string, pass: string) => Promise<void>;
     logout: () => Promise<void>;
     resetPassword: (email: string) => Promise<void>;
+    refreshSession: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const normalizeUser = (payload: any): SessionUser | null => {
+    const user = payload?.user || payload;
+    if (!user) return null;
+    return {
+        ...user,
+        uid: user.uid || user.id,
+        id: user.id || user.uid,
+        name: user.name || user.displayName || '',
+        displayName: user.displayName || user.name || '',
+        image: user.image || user.photoURL,
+        photoURL: user.photoURL || user.image,
+        role: user.role || 'student',
+        emailVerified: user.emailVerified ?? false,
+    };
+};
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const [user, setUser] = useState<User | null>(null);
+    const [user, setUser] = useState<SessionUser | null>(null);
     const [loading, setLoading] = useState(true);
     const [isAdmin, setIsAdmin] = useState(false);
 
+    const loadSession = async () => {
+        try {
+            const payload = await api.auth.session();
+            const current = normalizeUser(payload);
+            setUser(current);
+            setIsAdmin(!!current && (current.role === 'admin'));
+        } catch {
+            setUser(null);
+            setIsAdmin(false);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     useEffect(() => {
-        const unsubscribe = onAuthStateChanged(auth, async (u) => {
-            setUser(u);
-            try {
-                if (u) {
-                    const tokenResult = await u.getIdTokenResult();
-                    setIsAdmin(!!tokenResult.claims.admin);
-                } else {
-                    setIsAdmin(false);
-                }
-            } catch (error) {
-                console.error("Auth Check Error:", error);
-                setIsAdmin(false);
-            } finally {
-                setLoading(false);
-            }
-        });
-        return unsubscribe;
+        loadSession();
     }, []);
 
     const login = async (email: string, pass: string) => {
-        const credential = await signInWithEmailAndPassword(auth, email, pass);
-        const token = await credential.user.getIdTokenResult();
-        if (!token.claims.admin) {
-            await signOut(auth);
-            throw new Error("Unauthorized: Access restricted to administrators only.");
+        const result = await api.auth.login(email, pass);
+        if (!result?.ok) {
+            const message = result?.data?.error || result?.data?.message || 'Authentication failed';
+            throw new Error(message);
+        }
+
+        await loadSession();
+        if (!isAdmin && user?.role !== 'admin') {
+            // Re-check after session load; the session user is the source of truth.
+            const session = normalizeUser(await api.auth.session());
+            if (!session || session.role !== 'admin') {
+                await logout();
+                throw new Error('Unauthorized: Access restricted to administrators only.');
+            }
         }
     };
 
     const logout = async () => {
-        await signOut(auth);
+        await api.auth.logout();
+        setUser(null);
+        setIsAdmin(false);
     };
 
     const resetPassword = async (email: string) => {
-        await sendPasswordResetEmail(auth, email);
+        await api.auth.requestReset(email);
     };
 
-    return (
-        <AuthContext.Provider value={{ user, loading, isAdmin, login, logout, resetPassword }}>
-            {children}
-        </AuthContext.Provider>
-    );
+    const refreshSession = async () => {
+        await loadSession();
+    };
+
+    const value = useMemo(() => ({
+        user,
+        loading,
+        isAdmin,
+        login,
+        logout,
+        resetPassword,
+        refreshSession
+    }), [user, loading, isAdmin]);
+
+    return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
 export const useAuth = () => {

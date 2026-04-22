@@ -1,8 +1,8 @@
 import { Router, Request, Response } from 'express';
 import { User } from '../../models/User';
 import { verifyAuth, verifyAdmin } from '../../middleware/auth.middleware';
-import { auth, admin } from '../../config/firebase';
 import { EmailService } from '../../services/email.service';
+import { getNativeDb } from '../../config/native-mongo';
 
 const router = Router();
 
@@ -83,10 +83,6 @@ router.patch('/:uid/ban', verifyAuth, verifyAdmin, async (req: Request, res: Res
     const { ban } = req.body;
 
     try {
-        // 1. Disable in Firebase Auth
-        await auth.updateUser(uid, { disabled: ban });
-
-        // 2. Update status in MongoDB
         const user = await User.findOneAndUpdate(
             { uid },
             { $set: { status: ban ? 'suspended' : 'active' } },
@@ -162,15 +158,22 @@ router.delete('/:uid', verifyAuth, async (req: Request, res: Response) => {
     }
 
     try {
-        // 1. Delete from Firebase Auth (Optional: Usually handled by client before calling this, 
-        // but for admin deletion it's necessary here)
-        try {
-            await auth.deleteUser(uid);
-        } catch (e: any) {
-            console.warn("Auth deletion failed (might be already deleted):", e.message);
+        const targetUser = await User.findOne({ uid });
+        const db = await getNativeDb();
+        const matchingIds: string[] = [];
+
+        if (targetUser?.email) {
+            const adapterUser = await db.collection('users').findOne({ email: targetUser.email });
+            const adapterUserId = adapterUser?.id || adapterUser?._id?.toString?.();
+            if (adapterUserId) matchingIds.push(adapterUserId);
         }
 
-        // 2. Delete from MongoDB
+        if (matchingIds.length > 0) {
+            await db.collection('sessions').deleteMany({ userId: { $in: matchingIds } });
+            await db.collection('accounts').deleteMany({ userId: { $in: matchingIds } });
+            await db.collection('verificationTokens').deleteMany({ userId: { $in: matchingIds } });
+        }
+
         await User.findOneAndDelete({ uid });
 
         res.json({ success: true, message: "User permanently deleted" });
@@ -298,19 +301,6 @@ router.patch('/:uid/profile', verifyAuth, async (req: Request, res: Response) =>
         });
 
         const oldUser = await User.findOne({ uid });
-
-        // If photoURL or name is updated, also update Firebase Auth Profile (Sync for Auth only)
-        if (updates.photoURL || updates.name) {
-            try {
-                await auth.updateUser(uid, {
-                    photoURL: updates.photoURL || undefined,
-                    displayName: updates.name || undefined
-                });
-            } catch (authError: any) {
-                console.warn(`[Warning] Failed to sync Firebase profile for ${uid}:`, authError.message);
-                // Continue with MongoDB update even if Firebase sync fails
-            }
-        }
 
         // Fix for Admin Updates:
         // If Admin is updating another user, DO NOT upsert. Upserting would use req.user (Admin) email

@@ -7,6 +7,7 @@ import swaggerJsDoc from 'swagger-jsdoc';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import connectDB from './config/database';
+import { authMiddleware } from './config/auth';
 
 dotenv.config();
 
@@ -45,6 +46,9 @@ app.use(cors({
         // 3. Allow ANY onrender.com subdomain (to handle Render URL changes)
         if (origin.endsWith('.onrender.com')) return callback(null, true);
 
+        // 3b. Allow GitHub Pages origins
+        if (origin.endsWith('.github.io')) return callback(null, true);
+
         // 4. Allow all localhost/127.0.0.1 variations
         if (origin.includes('localhost') || origin.includes('127.0.0.1')) return callback(null, true);
 
@@ -70,6 +74,8 @@ app.disable('x-powered-by');
 app.use(express.json({ limit: '5mb' }));
 app.use(express.urlencoded({ extended: true, limit: '5mb' }));
 const port = process.env.PORT || 5000;
+
+app.use('/auth', authMiddleware);
 
 // SECURITY: Add extra safety headers (Helmet)
 app.use(helmet({

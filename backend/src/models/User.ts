@@ -5,6 +5,12 @@ export interface IUser extends Document {
     name: string;
     email: string;
     role: 'student' | 'admin';
+    passwordHash?: string;
+    emailVerified?: boolean;
+    emailVerificationToken?: string;
+    emailVerificationExpires?: Date;
+    passwordResetToken?: string;
+    passwordResetExpires?: Date;
     academicYear: 'Year 1' | 'Year 2' | 'Clinical' | 'Final Year' | 'General';
     requestedYear?: string;
     institution?: string;
@@ -70,6 +76,12 @@ const UserSchema: Schema = new Schema({
     name: { type: String, required: true },
     email: { type: String, required: true, unique: true },
     role: { type: String, enum: ['student', 'admin'], default: 'student' },
+    passwordHash: { type: String },
+    emailVerified: { type: Boolean, default: false },
+    emailVerificationToken: { type: String },
+    emailVerificationExpires: { type: Date },
+    passwordResetToken: { type: String },
+    passwordResetExpires: { type: Date },
     academicYear: { type: String, default: 'General' },
     requestedYear: { type: String },
     institution: { type: String },

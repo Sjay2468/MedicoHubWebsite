@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { AppRoute } from '../types';
 import { ArrowRight, Lock, Mail, User as UserIcon, AlertCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -10,7 +10,6 @@ interface SignupProps {
 }
 
 export const Signup: React.FC<SignupProps> = () => {
-    const navigate = useNavigate();
     const location = useLocation();
     const { signup, googleSignIn } = useAuth();
     const { allowSignups } = useSettings();
@@ -22,17 +21,10 @@ export const Signup: React.FC<SignupProps> = () => {
     });
     const [isLoading, setIsLoading] = React.useState(false);
     const [error, setError] = React.useState<string | null>(null);
+    const [signedUp, setSignedUp] = React.useState(false);
 
     // Check if user came from "Unlock Everything"
     const isProIntent = location.state?.intent === 'pro';
-
-    const handleSuccess = () => {
-        if (isProIntent) {
-            // Go to payment first, passing flag to go to onboarding after
-            navigate(AppRoute.SUBSCRIPTION_SETUP, { state: { next: AppRoute.ONBOARDING } });
-        }
-        // Standard flow handled by App.tsx redirect from /signup -> /onboarding
-    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -41,16 +33,10 @@ export const Signup: React.FC<SignupProps> = () => {
 
         try {
             await signup(formData.name, formData.email, formData.password);
-            handleSuccess();
+            setSignedUp(true);
         } catch (err: any) {
             console.error(err);
-            if (err.code === 'auth/email-already-in-use') {
-                setError('Email is already associated with another account.');
-            } else if (err.code === 'auth/weak-password') {
-                setError('Password should be at least 6 characters.');
-            } else {
-                setError('Failed to create account. Please try again.');
-            }
+            setError(err.message || 'Failed to create account. Please try again.');
         } finally {
             setIsLoading(false);
         }
@@ -60,7 +46,6 @@ export const Signup: React.FC<SignupProps> = () => {
         setError(null);
         try {
             await googleSignIn();
-            handleSuccess();
         } catch (err: any) {
             console.error(err);
             setError('Failed to sign up with Google.');
@@ -91,6 +76,20 @@ export const Signup: React.FC<SignupProps> = () => {
                         </p>
                         <Link to={AppRoute.LOGIN} className="mt-6 font-bold text-red-700 hover:text-red-900 underline">
                             Return to Login
+                        </Link>
+                    </div>
+                ) : signedUp ? (
+                    <div className="mt-8 p-6 bg-green-50 border border-green-200 rounded-2xl flex flex-col items-center text-center animate-pop-in">
+                        <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center text-green-600 mb-4">
+                            <Mail size={24} />
+                        </div>
+                        <h3 className="text-lg font-bold text-green-800 mb-2">Check Your Email</h3>
+                        <p className="text-green-700 text-sm">
+                            We created your account and sent a verification link to <span className="font-semibold">{formData.email}</span>.
+                            Please verify your email, then sign in{isProIntent ? ' to continue to pricing and onboarding' : ''}.
+                        </p>
+                        <Link to={AppRoute.LOGIN} className="mt-6 font-bold text-green-700 hover:text-green-900 underline">
+                            Go to Login
                         </Link>
                     </div>
                 ) : (

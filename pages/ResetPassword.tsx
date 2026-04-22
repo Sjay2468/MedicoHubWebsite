@@ -1,52 +1,34 @@
 import React, { useEffect, useState } from 'react';
-import { useSearchParams, useNavigate, Link } from 'react-router-dom';
-import { verifyPasswordResetCode, confirmPasswordReset, getAuth } from 'firebase/auth';
+import { useSearchParams, Link } from 'react-router-dom';
 import { KeyRound, CheckCircle, XCircle, ArrowRight, Loader2, Eye, EyeOff, Lock } from 'lucide-react';
 import { AppRoute } from '../types';
+import { api } from '../services/api';
 
 export const ResetPassword: React.FC = () => {
     const [searchParams] = useSearchParams();
-    const navigate = useNavigate();
-    const auth = getAuth();
-
     const [status, setStatus] = useState<'verifying' | 'valid' | 'success' | 'error'>('verifying');
     const [message, setMessage] = useState('Verifying reset link...');
-    const [email, setEmail] = useState(''); // Email associated with the reset code
-
-    // Form State
+    const [email, setEmail] = useState('');
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    const oobCode = searchParams.get('oobCode');
+    const token = searchParams.get('token');
 
     useEffect(() => {
-        const mode = searchParams.get('mode');
-
-        if (mode === 'resetPassword' && oobCode) {
-            handleVerifyCode(oobCode);
+        if (token) {
+            setStatus('valid');
+            setEmail(searchParams.get('email') || '');
         } else {
             setStatus('error');
             setMessage('Invalid password reset link. Please request a new one.');
         }
-    }, [searchParams]);
-
-    const handleVerifyCode = async (code: string) => {
-        try {
-            const emailAddress = await verifyPasswordResetCode(auth, code);
-            setEmail(emailAddress);
-            setStatus('valid');
-        } catch (error: any) {
-            console.error('Code verification error:', error);
-            setStatus('error');
-            setMessage(getErrorText(error.code));
-        }
-    };
+    }, [searchParams, token]);
 
     const handleResetSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!oobCode) return;
+        if (!token) return;
 
         if (newPassword !== confirmPassword) {
             setMessage("Passwords do not match.");
@@ -60,41 +42,22 @@ export const ResetPassword: React.FC = () => {
 
         setIsSubmitting(true);
         try {
-            await confirmPasswordReset(auth, oobCode, newPassword);
+            const result = await api.auth.resetPassword(token, newPassword);
+            if (result?.error) throw new Error(result.error);
             setStatus('success');
             setMessage('Your password has been reset successfully. You can now login with your new password.');
         } catch (error: any) {
             console.error('Reset error:', error);
-            // If the code is invalid now (maybe expired during form fill), show error
             setStatus('error');
-            setMessage(getErrorText(error.code));
+            setMessage(error.message || 'An error occurred. Please try again.');
         } finally {
             setIsSubmitting(false);
-        }
-    };
-
-    const getErrorText = (errorCode: string) => {
-        switch (errorCode) {
-            case 'auth/expired-action-code':
-                return 'This reset link has expired. Please request a new one.';
-            case 'auth/invalid-action-code':
-                return 'This reset link is invalid. It may have already been used.';
-            case 'auth/user-disabled':
-                return 'This user account has been disabled.';
-            case 'auth/user-not-found':
-                return 'User not found.';
-            case 'auth/weak-password':
-                return 'Password is too weak. Please choose a stronger password.';
-            default:
-                return 'An error occurred. Please try again.';
         }
     };
 
     return (
         <div className="min-h-screen bg-white flex flex-col items-center justify-center p-4">
             <div className="w-full max-w-md bg-white rounded-[2rem] shadow-2xl p-8 border border-gray-100 relative overflow-hidden animate-fade-in-up">
-
-                {/* Decorative Background Blob */}
                 <div className="absolute top-0 right-0 w-32 h-32 bg-brand-blue/5 rounded-bl-[4rem] -z-0 pointer-events-none"></div>
 
                 {status === 'verifying' && (
@@ -181,12 +144,10 @@ export const ResetPassword: React.FC = () => {
                         <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center text-green-600 mb-2 shadow-lg shadow-green-500/10">
                             <CheckCircle size={40} strokeWidth={3} />
                         </div>
-
                         <div>
                             <h2 className="text-2xl font-bold text-gray-900 mb-2">Password Reset!</h2>
                             <p className="text-gray-500">{message}</p>
                         </div>
-
                         <Link
                             to={AppRoute.LOGIN}
                             className="bg-brand-blue text-white font-bold py-3.5 px-8 rounded-xl hover:bg-blue-600 transition-all flex items-center gap-2 w-full justify-center group shadow-lg shadow-brand-blue/30 mt-4"
@@ -202,12 +163,10 @@ export const ResetPassword: React.FC = () => {
                         <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center text-red-600 mb-2">
                             <XCircle size={40} strokeWidth={3} />
                         </div>
-
                         <div>
                             <h2 className="text-2xl font-bold text-gray-900 mb-2">Link Invalid</h2>
                             <p className="text-red-500 font-medium">{message}</p>
                         </div>
-
                         <Link
                             to={AppRoute.FORGOT_PASSWORD}
                             className="bg-gray-100 text-gray-700 font-bold py-3.5 px-8 rounded-xl hover:bg-gray-200 transition-all flex items-center gap-2 w-full justify-center mt-4"
@@ -216,12 +175,6 @@ export const ResetPassword: React.FC = () => {
                         </Link>
                     </div>
                 )}
-
-            </div>
-
-            {/* Footer */}
-            <div className="mt-8 text-gray-400 text-sm font-medium">
-                © {new Date().getFullYear()} Medico Hub
             </div>
         </div>
     );

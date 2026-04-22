@@ -3,7 +3,6 @@ import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
 import { Save, Lock, Globe, Bell, Shield, User, AlertTriangle, Video, BookOpen, Send, Tag, Camera } from 'lucide-react';
-import { updatePassword, updateProfile } from 'firebase/auth';
 
 export const SettingsPage = () => {
     const { user } = useAuth();
@@ -198,13 +197,20 @@ export const SettingsPage = () => {
             }
 
             if (Object.keys(payload).length > 0) {
-                await updateProfile(user, payload);
+                await api.users.update(user.uid || user.id || '', {
+                    name: payload.displayName,
+                    photoURL: payload.photoURL
+                });
             }
             if (passwordData.newPassword) {
                 if (passwordData.newPassword !== passwordData.confirmPassword) {
                     throw new Error("Passwords do not match");
                 }
-                await updatePassword(user, passwordData.newPassword);
+                await api.auth.requestReset(user.email || '');
+                setMessage({ type: 'success', text: 'Password reset email sent. Use it to set a new password.' });
+                setPasswordData({ newPassword: '', confirmPassword: '' });
+                setIsLoading(false);
+                return;
             }
             setMessage({ type: 'success', text: 'Profile updated successfully.' });
             setPasswordData({ newPassword: '', confirmPassword: '' });

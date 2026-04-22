@@ -9,8 +9,18 @@
         "build": "tsc"
     },
     "dependencies": {
+        "@auth/core": "^0.40.0",
+        "@auth/express": "^0.11.0",
+        "@auth/mongodb-adapter": "^3.10.0",
         "@ffmpeg-installer/ffmpeg": "^1.1.0",
+        "@types/cors": "^2.8.17",
+        "@types/express": "^4.17.21",
+        "@types/multer": "^2.0.0",
+        "@types/node": "^20.10.4",
+        "@types/swagger-jsdoc": "^6.0.4",
+        "@types/swagger-ui-express": "^4.1.6",
         "axios": "^1.13.2",
+        "bcryptjs": "^2.4.3",
         "cors": "^2.8.5",
         "dotenv": "^16.3.1",
         "express": "^4.18.2",
@@ -20,6 +30,7 @@
         "helmet": "^8.1.0",
         "imagekit": "^6.0.0",
         "lru-cache": "^11.2.4",
+        "mongodb": "^6.19.0",
         "mongoose": "^9.0.2",
         "multer": "^2.0.2",
         "pdf-lib": "^1.17.1",
@@ -28,16 +39,12 @@
         "sharp": "^0.34.5",
         "swagger-jsdoc": "^6.2.8",
         "swagger-ui-express": "^5.0.0",
-        "youtube-transcript": "^1.2.1",
-        "zod": "^3.22.4",
-        "@types/cors": "^2.8.17",
-        "@types/express": "^4.17.21",
-        "@types/multer": "^2.0.0",
-        "@types/node": "^20.10.4",
-        "@types/swagger-jsdoc": "^6.0.4",
-        "@types/swagger-ui-express": "^4.1.6",
         "ts-node-dev": "^2.0.0",
-        "typescript": "^5.3.3"
+        "typescript": "^5.3.3",
+        "youtube-transcript": "^1.2.1",
+        "zod": "^3.22.4"
     },
-    "devDependencies": {}
+    "devDependencies": {
+        "@types/bcryptjs": "^3.0.0"
+    }
 }

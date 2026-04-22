@@ -1,4 +1,3 @@
-import { auth } from './firebase';
 import { ResourceProgress } from '../types';
 
 // Robust URL Handling: Ensure we have the correct base for v1 and v3
@@ -15,61 +14,158 @@ const ROOT_URL = getRootUrl();
 const V1_URL = `${ROOT_URL}/api/v1`;
 const V3_URL = `${ROOT_URL}/api/v3`;
 
+const apiFetch = (input: RequestInfo | URL, init: RequestInit = {}) => {
+    return fetch(input, {
+        ...init,
+        credentials: 'include',
+        headers: init.headers as HeadersInit | undefined
+    });
+};
+
+const readResponseBody = async (res: Response) => {
+    const contentType = res.headers.get('content-type') || '';
+    const text = await res.text();
+
+    if (!text) return null;
+    if (contentType.includes('application/json')) {
+        try {
+            return JSON.parse(text);
+        } catch {
+            return text;
+        }
+    }
+
+    try {
+        return JSON.parse(text);
+    } catch {
+        return text;
+    }
+};
+
+const getCsrfToken = async () => {
+    const res = await apiFetch(`${ROOT_URL}/auth/csrf`);
+    const data = await readResponseBody(res);
+    return data?.csrfToken as string | undefined;
+};
+
 export const api = {
     coupons: {
         verify: async (code: string, subtotal: number) => {
-            const res = await fetch(`${V1_URL}/coupons/verify`, {
+            const res = await apiFetch(`${V1_URL}/coupons/verify`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ code, subtotal })
             });
             if (!res.ok) {
-                const err = await res.json();
+                const err = await readResponseBody(res);
                 throw new Error(err.error || 'Invalid coupon');
             }
-            return res.json();
+            return readResponseBody(res);
         },
         use: async (code: string) => {
-            const res = await fetch(`${V1_URL}/coupons/use`, {
+            const res = await apiFetch(`${V1_URL}/coupons/use`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ code })
             });
-            return res.json();
+            return readResponseBody(res);
         }
     },
     auth: {
+        session: async () => {
+            const res = await apiFetch(`${V1_URL}/auth/session`);
+            if (!res.ok) return null;
+            return readResponseBody(res);
+        },
+        register: async (name: string, email: string, password: string) => {
+            const res = await apiFetch(`${V1_URL}/auth/register`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, email, password })
+            });
+            return readResponseBody(res);
+        },
+        login: async (email: string, password: string) => {
+            const csrfToken = await getCsrfToken();
+            const body = new URLSearchParams({
+                csrfToken: csrfToken || '',
+                email,
+                password,
+                redirect: 'false',
+                json: 'true',
+                callbackUrl: window.location.href
+            });
+            const res = await apiFetch(`${ROOT_URL}/auth/callback/credentials`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body
+            });
+            return { ok: res.ok, status: res.status, data: await readResponseBody(res) };
+        },
+        googleSignIn: () => {
+            window.location.href = `${ROOT_URL}/auth/signin/google?callbackUrl=${encodeURIComponent(window.location.href)}`;
+        },
+        logout: async () => {
+            const csrfToken = await getCsrfToken();
+            const body = new URLSearchParams({
+                csrfToken: csrfToken || '',
+                callbackUrl: window.location.href,
+                json: 'true'
+            });
+            const res = await apiFetch(`${ROOT_URL}/auth/signout`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body
+            });
+            return { ok: res.ok, status: res.status, data: await readResponseBody(res) };
+        },
         sendVerification: async (email: string) => {
-            const res = await fetch(`${V1_URL}/auth/send-verification`, {
+            const res = await apiFetch(`${V1_URL}/auth/request-verification`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email })
             });
             if (!res.ok) {
-                const err = await res.json();
+                const err = await readResponseBody(res);
                 throw new Error(err.error || 'Failed to send verification email');
             }
-            return res.json();
+            return readResponseBody(res);
         },
         sendReset: async (email: string) => {
-            const res = await fetch(`${V1_URL}/auth/send-reset`, {
+            const res = await apiFetch(`${V1_URL}/auth/request-reset`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email })
             });
             if (!res.ok) {
-                const err = await res.json();
+                const err = await readResponseBody(res);
                 throw new Error(err.error || 'Failed to send password reset email');
             }
-            return res.json();
+            return readResponseBody(res);
+        },
+        verifyEmail: async (token: string) => {
+            const res = await apiFetch(`${V1_URL}/auth/verify-email`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ token })
+            });
+            return readResponseBody(res);
+        },
+        resetPassword: async (token: string, password: string) => {
+            const res = await apiFetch(`${V1_URL}/auth/reset-password`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ token, password })
+            });
+            return readResponseBody(res);
         }
     },
     delivery: {
         getZones: async () => {
             try {
-                const res = await fetch(`${V1_URL}/delivery`);
+                const res = await apiFetch(`${V1_URL}/delivery`);
                 if (!res.ok) throw new Error("Failed to fetch delivery zones");
-                return res.json();
+                return readResponseBody(res);
             } catch (error) {
                 console.error("Delivery API failed, using static fallback:", error);
                 return [
@@ -84,28 +180,25 @@ export const api = {
     },
     orders: {
         create: async (data: any) => {
-            const token = await auth.currentUser?.getIdToken();
-            const res = await fetch(`${V1_URL}/orders`, {
+            const res = await apiFetch(`${V1_URL}/orders`, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': token ? `Bearer ${token}` : ''
+                    'Content-Type': 'application/json'
                 },
                 body: JSON.stringify(data)
             });
-            if (!res.ok) {
-                const errData = await res.json().catch(() => ({}));
-                throw new Error(errData.error || errData.message || "Order creation failed");
-            }
-            return res.json();
+                if (!res.ok) {
+                    const errData = await readResponseBody(res) || {};
+                    throw new Error(errData.error || errData.message || "Order creation failed");
+                }
+            return readResponseBody(res);
         }
     },
     resources: {
         getAll: async () => {
-            const token = await auth.currentUser?.getIdToken();
             try {
-                const res = await fetch(`${V3_URL}/resources`, {
-                    headers: { 'Authorization': token ? `Bearer ${token}` : '' }
+                const res = await apiFetch(`${V3_URL}/resources`, {
+                    headers: { 'Content-Type': 'application/json' }
                 });
                 if (!res.ok) throw new Error("Backend resources fetch failed");
                 return await res.json();
@@ -118,7 +211,7 @@ export const api = {
     products: {
         getAll: async () => {
             try {
-                const res = await fetch(`${V3_URL}/products`);
+                const res = await apiFetch(`${V3_URL}/products`);
                 if (!res.ok) throw new Error("Backend products fetch failed");
                 return await res.json();
             } catch (err) {
@@ -131,7 +224,7 @@ export const api = {
         logSession: async (sessionData: any) => {
             // Log to Backend V3 for aggregation
             try {
-                const res = await fetch(`${V1_URL}/analytics/activity`, {
+                const res = await apiFetch(`${V1_URL}/analytics/activity`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(sessionData)
@@ -203,21 +296,18 @@ export const api = {
         },
     }, users: {
         get: async (uid: string) => {
-            const token = await auth.currentUser?.getIdToken();
-            const res = await fetch(`${V1_URL}/users/${uid}/profile`, {
-                headers: { 'Authorization': token ? `Bearer ${token}` : '' }
+            const res = await apiFetch(`${V1_URL}/users/${uid}/profile`, {
+                headers: { 'Content-Type': 'application/json' }
             });
             if (!res.ok) throw new Error("Failed to fetch user profile from MongoDB");
             const data = await res.json();
             return data.user;
         },
         update: async (uid: string, data: any) => {
-            const token = await auth.currentUser?.getIdToken();
-            const res = await fetch(`${V1_URL}/users/${uid}/profile`, {
+            const res = await apiFetch(`${V1_URL}/users/${uid}/profile`, {
                 method: 'PATCH',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': token ? `Bearer ${token}` : ''
+                    'Content-Type': 'application/json'
                 },
                 body: JSON.stringify(data)
             });
@@ -225,10 +315,9 @@ export const api = {
             return res.json();
         },
         delete: async (uid: string) => {
-            const token = await auth.currentUser?.getIdToken();
-            const res = await fetch(`${V1_URL}/users/${uid}`, {
+            const res = await apiFetch(`${V1_URL}/users/${uid}`, {
                 method: 'DELETE',
-                headers: { 'Authorization': token ? `Bearer ${token}` : '' }
+                headers: { 'Content-Type': 'application/json' }
             });
             if (!res.ok) throw new Error("Failed to delete user profile from MongoDB");
             return res.json();
@@ -236,29 +325,25 @@ export const api = {
     },
     notifications: {
         get: async () => {
-            const token = await auth.currentUser?.getIdToken();
-            const res = await fetch(`${V1_URL}/notifications`, {
-                headers: { 'Authorization': token ? `Bearer ${token}` : '' }
+            const res = await apiFetch(`${V1_URL}/notifications`, {
+                headers: { 'Content-Type': 'application/json' }
             });
             if (!res.ok) throw new Error("Failed to fetch notifications from MongoDB");
             return res.json();
         },
         markAsRead: async (id: string) => {
-            const token = await auth.currentUser?.getIdToken();
-            const res = await fetch(`${V1_URL}/notifications/${id}/read`, {
+            const res = await apiFetch(`${V1_URL}/notifications/${id}/read`, {
                 method: 'PATCH',
-                headers: { 'Authorization': token ? `Bearer ${token}` : '' }
+                headers: { 'Content-Type': 'application/json' }
             });
             if (!res.ok) throw new Error("Failed to mark notification as read in MongoDB");
             return res.json();
         },
         broadcast: async (data: any) => {
-            const token = await auth.currentUser?.getIdToken();
-            const res = await fetch(`${V1_URL}/notifications/broadcast`, {
+            const res = await apiFetch(`${V1_URL}/notifications/broadcast`, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': token ? `Bearer ${token}` : ''
+                    'Content-Type': 'application/json'
                 },
                 body: JSON.stringify(data)
             });
@@ -268,17 +353,16 @@ export const api = {
     },
     settings: {
         get: async () => {
-            const res = await fetch(`${V1_URL}/settings`);
+            const res = await apiFetch(`${V1_URL}/settings`);
             if (!res.ok) throw new Error("Failed to fetch settings from MongoDB");
             return res.json();
         }
     },
     curriculum: {
         get: async (year?: string) => {
-            const token = await auth.currentUser?.getIdToken();
             const query = year ? `?year=${encodeURIComponent(year)}` : '';
-            const res = await fetch(`${V1_URL}/curriculum${query}`, {
-                headers: { 'Authorization': token ? `Bearer ${token}` : '' }
+            const res = await apiFetch(`${V1_URL}/curriculum${query}`, {
+                headers: { 'Content-Type': 'application/json' }
             });
             if (!res.ok) throw new Error("Failed to fetch curriculum from MongoDB");
             return res.json();

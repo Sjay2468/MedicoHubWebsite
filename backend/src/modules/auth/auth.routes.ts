@@ -1,87 +1,233 @@
 import express from 'express';
-import { getAuth } from 'firebase-admin/auth';
+import bcrypt from 'bcryptjs';
+import { randomBytes, randomUUID } from 'crypto';
+import { User } from '../../models/User';
 import { EmailService } from '../../services/email.service';
+import { getNativeDb } from '../../config/native-mongo';
+import { resolveSessionUser } from '../../config/auth';
 
 const router = express.Router();
 
-// Helper to generate a link settings object (optional, for handling web vs mobile redirects)
-const actionCodeSettings = {
-    url: 'https://medicohub.com.ng/dashboard', // Redirect here after verification/reset is handled
-    handleCodeInApp: false, // The link opens a webpage, not the app directly
+const USER_FRONTEND_URL = process.env.USER_FRONTEND_URL || process.env.FRONTEND_URL || 'https://medicohub.com.ng';
+const VERIFICATION_TTL_MS = 1000 * 60 * 60 * 24;
+const RESET_TTL_MS = 1000 * 60 * 60;
+
+const buildFrontendUrl = (path: string, params: Record<string, string>) => {
+    const base = USER_FRONTEND_URL.replace(/\/$/, '');
+    const hashPath = path.startsWith('#') ? path : `#${path.startsWith('/') ? path : `/${path}`}`;
+    const query = new URLSearchParams(params).toString();
+    return `${base}/${hashPath}${query ? `?${query}` : ''}`;
 };
 
-/**
- * POST /api/v1/auth/send-verification
- * Generates a Firebase Email Verification Link and sends it via Resend.
- */
-router.post('/send-verification', async (req, res) => {
+const createToken = () => randomBytes(32).toString('hex');
+
+router.post('/register', async (req, res) => {
     try {
-        const { email } = req.body;
-        if (!email) {
-            return res.status(400).json({ error: 'Email is required' });
+        const { name, email, password } = req.body;
+
+        if (!name || !email || !password) {
+            return res.status(400).json({ error: 'Name, email, and password are required' });
         }
 
-        // 1. Generate the link using Firebase Admin SDK
-        const firebaseLink = await getAuth().generateEmailVerificationLink(email, actionCodeSettings);
+        const normalizedEmail = String(email).trim().toLowerCase();
+        const existing = await User.findOne({ email: normalizedEmail });
+        if (existing) {
+            return res.status(400).json({ error: 'An account with this email already exists.' });
+        }
 
-        // 2. Extract oobCode and construct Custom Frontend Link
-        // We parse the generated firebase link to get the 'oobCode'
-        const urlObj = new URL(firebaseLink);
-        const oobCode = urlObj.searchParams.get('oobCode');
-        const mode = urlObj.searchParams.get('mode') || 'verifyEmail';
+        const passwordHash = await bcrypt.hash(String(password), 12);
+        const emailVerificationToken = createToken();
 
-        // Construct the branded link pointing to our React App
-        // Frontend uses HashRouter, so we use /#/verify-email
-        const link = `https://medicohub.com.ng/#/verify-email?mode=${mode}&oobCode=${oobCode}`;
+        const user = await User.create({
+            uid: randomUUID(),
+            name: String(name).trim(),
+            email: normalizedEmail,
+            passwordHash,
+            emailVerified: false,
+            emailVerificationToken,
+            emailVerificationExpires: new Date(Date.now() + VERIFICATION_TTL_MS),
+            role: 'student',
+            status: 'active'
+        });
 
-        // 2. Send the branded email using Resend
-        await EmailService.sendVerificationEmail(email, link);
+        const link = buildFrontendUrl('/verify-email', {
+            token: emailVerificationToken,
+            email: normalizedEmail
+        });
 
-        res.status(200).json({ message: 'Verification email sent successfully' });
+        await EmailService.sendVerificationEmail(user.email, link);
+        return res.status(201).json({
+            success: true,
+            message: 'Account created. Check your email to verify your account.'
+        });
     } catch (error: any) {
-        console.error('Error sending verification email:', error);
-        res.status(500).json({ error: error.message || 'Failed to send verification email' });
+        console.error('Registration failed:', error);
+        return res.status(500).json({ error: error.message || 'Failed to create account' });
     }
 });
 
-/**
- * POST /api/v1/auth/send-reset
- * Generates a Firebase Password Reset Link and sends it via Resend.
- */
-router.post('/send-reset', async (req, res) => {
+router.get('/session', async (req, res) => {
+    try {
+        const user = await resolveSessionUser(req);
+        if (!user) {
+            return res.status(401).json({ error: 'No active session' });
+        }
+
+        return res.json({ success: true, user });
+    } catch (error: any) {
+        return res.status(500).json({ error: error.message || 'Failed to resolve session' });
+    }
+});
+
+router.post('/request-verification', async (req, res) => {
     try {
         const { email } = req.body;
         if (!email) {
             return res.status(400).json({ error: 'Email is required' });
         }
 
-        // 1. Generate the link using Firebase Admin SDK
-        const firebaseLink = await getAuth().generatePasswordResetLink(email, actionCodeSettings);
-
-        // 2. Extract oobCode and construct Custom Frontend Link
-        const urlObj = new URL(firebaseLink);
-        const oobCode = urlObj.searchParams.get('oobCode');
-        const mode = urlObj.searchParams.get('mode') || 'resetPassword';
-
-        // Construct the branded link pointing to our React App Reset Page
-        const link = `https://medicohub.com.ng/#/reset-password?mode=${mode}&oobCode=${oobCode}`;
-
-        // 2. Send the branded email using Resend
-        await EmailService.sendPasswordResetEmail(email, link);
-
-        res.status(200).json({ message: 'Password reset email sent successfully' });
-    } catch (error: any) {
-        console.error('Error sending password reset email:', error);
-
-        // Handle case where user not found
-        if (error.code === 'auth/user-not-found') {
-            // For security, we usually don't want to tell the user the email doesn't exist, 
-            // but for now, we'll return a generic success to prevent enumeration or specific error if preferred.
-            // However, to be helpful to the UI, let's return the error for now or log it.
-            return res.status(404).json({ error: 'User not found' });
+        const user = await User.findOne({ email: String(email).trim().toLowerCase() });
+        if (!user) {
+            return res.status(200).json({ message: 'If the account exists, a verification email will be sent shortly.' });
         }
 
-        res.status(500).json({ error: error.message || 'Failed to send password reset email' });
+        const token = createToken();
+        user.emailVerificationToken = token;
+        user.emailVerificationExpires = new Date(Date.now() + VERIFICATION_TTL_MS);
+        await user.save();
+
+        const link = buildFrontendUrl('/verify-email', {
+            token,
+            email: user.email
+        });
+
+        await EmailService.sendVerificationEmail(user.email, link);
+        return res.json({ success: true, message: 'Verification email sent successfully' });
+    } catch (error: any) {
+        console.error('Failed to send verification email:', error);
+        return res.status(500).json({ error: error.message || 'Failed to send verification email' });
+    }
+});
+
+router.post('/verify-email', async (req, res) => {
+    try {
+        const { token } = req.body;
+        if (!token) {
+            return res.status(400).json({ error: 'Verification token is required' });
+        }
+
+        const user = await User.findOne({
+            emailVerificationToken: token,
+            emailVerificationExpires: { $gt: new Date() }
+        });
+
+        if (!user) {
+            return res.status(400).json({ error: 'Invalid or expired verification token' });
+        }
+
+        user.emailVerified = true;
+        user.emailVerificationToken = undefined as any;
+        user.emailVerificationExpires = undefined as any;
+        await user.save();
+
+        return res.json({ success: true, message: 'Email verified successfully' });
+    } catch (error: any) {
+        console.error('Email verification failed:', error);
+        return res.status(500).json({ error: error.message || 'Failed to verify email' });
+    }
+});
+
+router.post('/request-reset', async (req, res) => {
+    try {
+        const { email } = req.body;
+        if (!email) {
+            return res.status(400).json({ error: 'Email is required' });
+        }
+
+        const user = await User.findOne({ email: String(email).trim().toLowerCase() });
+        if (!user) {
+            return res.status(200).json({ message: 'If the account exists, a reset email will be sent shortly.' });
+        }
+
+        const token = createToken();
+        user.passwordResetToken = token;
+        user.passwordResetExpires = new Date(Date.now() + RESET_TTL_MS);
+        await user.save();
+
+        const link = buildFrontendUrl('/reset-password', {
+            token,
+            email: user.email
+        });
+
+        await EmailService.sendPasswordResetEmail(user.email, link);
+        return res.json({ success: true, message: 'Password reset email sent successfully' });
+    } catch (error: any) {
+        console.error('Password reset request failed:', error);
+        return res.status(500).json({ error: error.message || 'Failed to send password reset email' });
+    }
+});
+
+router.post('/reset-password', async (req, res) => {
+    try {
+        const { token, password } = req.body;
+        if (!token || !password) {
+            return res.status(400).json({ error: 'Reset token and new password are required' });
+        }
+
+        const user = await User.findOne({
+            passwordResetToken: token,
+            passwordResetExpires: { $gt: new Date() }
+        });
+
+        if (!user) {
+            return res.status(400).json({ error: 'Invalid or expired reset token' });
+        }
+
+        user.passwordHash = await bcrypt.hash(String(password), 12);
+        user.passwordResetToken = undefined as any;
+        user.passwordResetExpires = undefined as any;
+        await user.save();
+
+        return res.json({ success: true, message: 'Password updated successfully' });
+    } catch (error: any) {
+        console.error('Reset password failed:', error);
+        return res.status(500).json({ error: error.message || 'Failed to reset password' });
+    }
+});
+
+router.post('/logout', async (req, res) => {
+    try {
+        const db = await getNativeDb();
+        const cookies = (req.headers.cookie || '').split(';').reduce<Record<string, string>>((acc, part) => {
+            const [rawKey, ...rest] = part.trim().split('=');
+            if (!rawKey) return acc;
+            acc[decodeURIComponent(rawKey)] = decodeURIComponent(rest.join('=') || '');
+            return acc;
+        }, {});
+
+        const sessionToken =
+            cookies['__Secure-authjs.session-token'] ||
+            cookies['authjs.session-token'] ||
+            cookies['__Secure-next-auth.session-token'] ||
+            cookies['next-auth.session-token'] ||
+            null;
+
+        if (sessionToken) {
+            await db.collection('sessions').deleteOne({ sessionToken });
+        }
+
+        const secure = process.env.NODE_ENV === 'production';
+        const cookieBase = `${secure ? '__Secure-' : ''}authjs.session-token`;
+        res.cookie(cookieBase, '', {
+            httpOnly: true,
+            secure,
+            sameSite: 'none',
+            expires: new Date(0),
+            path: '/',
+        });
+        return res.json({ success: true });
+    } catch (error: any) {
+        return res.status(500).json({ error: error.message || 'Failed to logout' });
     }
 });
 
